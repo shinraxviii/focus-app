@@ -553,11 +553,8 @@
 
     /* Header mobile layout */
     header { margin-bottom: 24px; }
-    header > div { flex-direction: column; align-items: flex-start !important; gap: 10px; }
-    header h1 { font-size: 28px; }
-    header p  { font-size: 10px; }
 
-    /* Sign out: top right corner */
+    /* Sign out pinned top right */
     .signout-btn {
       position: fixed;
       top: calc(env(safe-area-inset-top) + 10px);
@@ -565,21 +562,45 @@
       z-index: 300;
     }
 
-    /* Date + weather side by side */
-    .mobile-date-weather {
-      display: flex;
-      align-items: center;
-      gap: 14px;
+    /* Header inner: stack title on top, date+weather row on bottom */
+    #header-inner {
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      gap: 10px;
     }
 
-    #weather-widget { justify-content: flex-start !important; flex: 0 !important; }
-    .weather-temp { font-size: 22px; }
-    .weather-icon { font-size: 18px; }
+    #header-title { padding-right: 80px; width: 100%; }
+    #header-title h1 { font-size: 26px; }
+    #header-title p  { font-size: 10px; }
+
+    /* Date and weather in a single row */
+    #weather-widget {
+      flex: 0 !important;
+      justify-content: flex-start !important;
+      order: 2;
+    }
+    #header-right {
+      flex-direction: row !important;
+      align-items: center !important;
+      gap: 12px;
+      order: 1;
+      width: 100%;
+    }
+    #header-right .signout-btn { display: none; } /* hidden — using fixed one */
+
+    /* Shrink date for mobile */
+    #current-date { text-align: left !important; }
+    #current-date > div:first-child { font-size: 20px !important; }
+    #current-date > div:last-child  { font-size: 9px !important; }
+
+    /* Shrink weather for mobile */
+    .weather-temp { font-size: 20px; }
+    .weather-icon { font-size: 16px; }
+    .weather-condition { font-size: 9px; }
+    .weather-location { font-size: 8px; }
     .weather-forecast { display: none; }
     .weather-details { gap: 1px; }
-
-    #current-date { text-align: left !important; }
-    #current-date > div:first-child { font-size: 26px !important; }
+    .weather-widget { gap: 8px; }
 
     /* Grid becomes single column with tabs */
     .app-grid { display: block; }
@@ -988,22 +1009,16 @@ onAuthStateChanged(auth, user => {
 <!-- APP WRAPPER -->
 <div id="app-wrapper">
 <header>
-  <div style="display:flex; justify-content:space-between; align-items:center;">
-    <div>
+  <div id="header-inner" style="display:flex; justify-content:space-between; align-items:center;">
+    <div id="header-title">
       <h1 id="app-title">Focus</h1>
       <p id="greeting"></p>
     </div>
-    <!-- Desktop: weather center, date+signout right -->
     <div id="weather-widget" style="flex:1; display:flex; justify-content:center;"></div>
-    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
+    <div id="header-right" style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
       <div id="current-date" style="font-family:'DM Serif Display',serif; line-height:1.2; text-align:right;"></div>
       <button class="signout-btn" id="signout-btn" onclick="handleSignOut()">Sign out</button>
     </div>
-  </div>
-  <!-- Mobile: date + weather side by side below title -->
-  <div class="mobile-date-weather" id="mobile-date-weather" style="display:none;">
-    <div id="mobile-current-date" style="font-family:'DM Serif Display',serif; line-height:1.2;"></div>
-    <div id="mobile-weather-widget" style="display:flex;"></div>
   </div>
 </header>
 
@@ -1676,29 +1691,7 @@ onAuthStateChanged(auth, user => {
 
   window.addEventListener('resize', applyMobileLayout);
 
-  function syncMobileHeader() {
-    const mobile = window.innerWidth <= 700;
-    // Toggle desktop vs mobile header elements
-    const desktopWeather = document.getElementById('weather-widget');
-    const desktopDate = document.getElementById('current-date');
-    const mobileRow = document.getElementById('mobile-date-weather');
-    const mobileDate = document.getElementById('mobile-current-date');
-    const mobileWeather = document.getElementById('mobile-weather-widget');
 
-    if (mobile) {
-      desktopWeather.style.display = 'none';
-      desktopDate.style.display = 'none';
-      mobileRow.style.display = 'flex';
-      // Mirror date content into mobile date
-      mobileDate.innerHTML = desktopDate.innerHTML;
-    } else {
-      desktopWeather.style.display = '';
-      desktopDate.style.display = '';
-      mobileRow.style.display = 'none';
-    }
-  }
-
-  window.addEventListener('resize', syncMobileHeader);
 
   // --- Color Popover ---
   const popover = document.createElement('div');
@@ -1955,7 +1948,6 @@ onAuthStateChanged(auth, user => {
      </div>`;
 
   setInterval(updateClock, 1000);
-  syncMobileHeader();
 
   // Weather
   const WMO_ICONS = {
@@ -1979,12 +1971,6 @@ onAuthStateChanged(auth, user => {
 
   function getIcon(code) { return WMO_ICONS[code] || '🌡'; }
   function getText(code) { return WMO_TEXT[code] || 'Unknown'; }
-
-  function mirrorWeatherToMobile() {
-    const src = document.getElementById('weather-widget');
-    const dst = document.getElementById('mobile-weather-widget');
-    if (src && dst) dst.innerHTML = src.innerHTML;
-  }
 
   function renderWeather(data, cityOverride) {
     const w = document.getElementById('weather-widget');
@@ -2014,8 +2000,6 @@ onAuthStateChanged(auth, user => {
       </div>
       <div class="weather-forecast">${forecastHTML}</div>
     </div>`;
-    mirrorWeatherToMobile();
-    syncMobileHeader();
   }
 
   // Fallback static data (Tarzana, CA — refreshed on load when network available)
