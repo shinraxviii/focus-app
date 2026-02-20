@@ -261,6 +261,20 @@
     color: var(--text-dim);
   }
 
+  .task-text-input {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #4a4a56;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    padding: 0 0 1px 0;
+    outline: none;
+    width: 100%;
+    min-width: 60px;
+  }
+
   .task-date {
     font-size: 10px;
     color: var(--text-muted);
@@ -1211,6 +1225,34 @@ onAuthStateChanged(auth, user => {
     render();
   }
 
+  function editTask(id, txtEl) {
+    const t = tasks.find(t => t.id === id);
+    if (!t) return;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'task-text-input';
+    input.value = t.text;
+    input.addEventListener('click', e => e.stopPropagation());
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+      if (e.key === 'Escape') { input.replaceWith(txtEl); }
+    });
+    input.addEventListener('blur', () => {
+      const val = input.value.trim();
+      if (val && val !== t.text) {
+        t.text = val;
+        save();
+      }
+      input.replaceWith(txtEl);
+      txtEl.textContent = t.text;
+    });
+
+    txtEl.replaceWith(input);
+    input.focus();
+    input.select();
+  }
+
   function setColor(id, color) {
     const t = tasks.find(t => t.id === id);
     if (t) { t.color = color; save(); render(); }
@@ -1224,6 +1266,9 @@ onAuthStateChanged(auth, user => {
     item.draggable = true;
 
     item.addEventListener('dragstart', e => {
+      if (document.activeElement && document.activeElement.classList.contains('task-text-input')) {
+        e.preventDefault(); return;
+      }
       dragId = t.id;
       item.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
@@ -1256,7 +1301,11 @@ onAuthStateChanged(auth, user => {
     }
     txt.className = 'task-text' + (t.section === 'completed' ? ' done' : '');
     txt.textContent = t.text;
-    txt.title = t.link ? t.link : t.text;
+    txt.title = t.section === 'completed' ? t.text : 'Double-click to edit';
+    if (t.section !== 'completed') {
+      txt.addEventListener('dblclick', e => { e.stopPropagation(); editTask(t.id, txt); });
+      txt.style.cursor = 'text';
+    }
 
     // Date
     const dt = document.createElement('span');
@@ -1948,7 +1997,6 @@ onAuthStateChanged(auth, user => {
   renderWeather(STATIC_WEATHER, STATIC_WEATHER.city);
 
   // Init weather, date, title — these run immediately regardless of auth
-  // (auth state handled by Firebase module above)
 </script>
 </body>
 </html>
