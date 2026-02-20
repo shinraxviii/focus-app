@@ -2,7 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Focus">
+<meta name="theme-color" content="#161618">
+<meta name="mobile-web-app-capable" content="yes">
+
+<!-- App Icons -->
+<link rel="apple-touch-icon" sizes="180x180" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Crect width='180' height='180' rx='40' fill='%23161618'/%3E%3Ctext x='50%25' y='56%25' dominant-baseline='middle' text-anchor='middle' font-family='Georgia%2C serif' font-size='110' fill='%23e4e4e7'%3EF%3C/text%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Crect width='32' height='32' rx='8' fill='%23161618'/%3E%3Ctext x='50%25' y='56%25' dominant-baseline='middle' text-anchor='middle' font-family='Georgia%2C serif' font-size='22' fill='%23e4e4e7'%3EF%3C/text%3E%3C/svg%3E">
 <title>Focus</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -40,6 +49,10 @@
     font-size: 13px;
     min-height: 100vh;
     padding: 48px 32px;
+    padding-top: max(48px, env(safe-area-inset-top) + 24px);
+    padding-bottom: max(24px, env(safe-area-inset-bottom) + 16px);
+    padding-left: max(32px, env(safe-area-inset-left) + 16px);
+    padding-right: max(32px, env(safe-area-inset-right) + 16px);
   }
 
   header {
@@ -565,7 +578,7 @@
       background: #111113;
       border-top: 1px solid var(--border);
       z-index: 200;
-      padding: 0;
+      padding: 0 0 env(safe-area-inset-bottom) 0;
     }
     .mobile-tab {
       flex: 1;
