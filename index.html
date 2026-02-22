@@ -2536,12 +2536,12 @@ onAuthStateChanged(auth, user => {
   // e.g. 'https://your-project.vercel.app/api/claude'
   const PROXY_URL        = 'https://focus-proxy.vercel.app/api/claude';
   const STOCKS_PROXY_URL = 'https://focus-proxy.vercel.app/api/stocks';
+  const NEWS_PROXY_URL   = 'https://focus-proxy.vercel.app/api/news';
 
   // Option B: Direct API key (may fail due to CORS on some browsers)
   const ANTHROPIC_API_KEY = ''; // Not needed when using proxy
 
-  // GNews API key — free tier at https://gnews.io (10 req/day, enough with 4hr cache)
-  const GNEWS_API_KEY = 'af0c243cb93e0ed223b186f893bc7c8a'; // ← paste your key here
+  // News routed through Vercel proxy at /api/news (set GNEWS_API_KEY in Vercel env vars)
 
   async function claudeSearch(prompt, max_tokens) {
     const key = ANTHROPIC_API_KEY ? ANTHROPIC_API_KEY.trim().replace(/[\u200B-\u200D\uFEFF\u00A0]/g, '') : '';
@@ -2806,17 +2806,13 @@ onAuthStateChanged(auth, user => {
       }).join('');
     }
 
-    async function fetchGNews(topic, category) {
-      if (!GNEWS_API_KEY) throw new Error('No GNEWS_API_KEY set');
-      // Use topic search for general, category for tech
-      const base = 'https://gnews.io/api/v4/';
-      const url = topic
-        ? base + 'search?q=' + encodeURIComponent(topic) + '&lang=en&max=5&apikey=' + GNEWS_API_KEY
-        : base + 'top-headlines?category=' + category + '&lang=en&max=5&apikey=' + GNEWS_API_KEY;
-      const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
-      if (!r.ok) throw new Error('GNews ' + r.status);
+    async function fetchGNews(category) {
+      const r = await fetch(NEWS_PROXY_URL + '?category=' + category, {
+        signal: AbortSignal.timeout(8000)
+      });
+      if (!r.ok) throw new Error('News proxy ' + r.status);
       const d = await r.json();
-      if (!d.articles?.length) throw new Error('GNews: no articles');
+      if (!d.articles?.length) throw new Error('No articles returned');
       return d.articles.map(function(a) {
         return { title: a.title, url: a.url, source: a.source?.name || '' };
       });
@@ -2826,7 +2822,7 @@ onAuthStateChanged(auth, user => {
     if (!cachedNewsGen) {
       newsGenEl.innerHTML = '<span class="digest-loading">Loading headlines...</span>';
       try {
-        const items = await fetchGNews(null, 'general');
+        const items = await fetchGNews('general');
         newsGenEl.innerHTML = renderNewsItems(items);
         cacheSet('news-general', newsGenEl.innerHTML);
       } catch(e) {
@@ -2838,7 +2834,7 @@ onAuthStateChanged(auth, user => {
     if (!cachedNewsTech) {
       newsTechEl.innerHTML = '<span class="digest-loading">Loading tech news...</span>';
       try {
-        const items = await fetchGNews(null, 'technology');
+        const items = await fetchGNews('technology');
         newsTechEl.innerHTML = renderNewsItems(items);
         cacheSet('news-tech', newsTechEl.innerHTML);
       } catch(e) {
@@ -2867,7 +2863,7 @@ onAuthStateChanged(auth, user => {
       mtgEl.innerHTML = '<span class="digest-loading">Loading MTG prices...</span>';
       try {
         const results = await Promise.all(MTG_CARDS.map(async function(card) {
-          const url = 'https://api.scryfall.com/cards/named?exact=' + encodeURIComponent(card.name);
+          const url = 'https://api.scryfall.com/cards/named?fuzzy=' + encodeURIComponent(card.name);
           const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
           if (!r.ok) throw new Error('Scryfall ' + r.status + ' for ' + card.name);
           const d = await r.json();
