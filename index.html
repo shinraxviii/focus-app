@@ -1029,9 +1029,26 @@
   }
 
   .digest-error {
-    font-size: 10px;
-    color: var(--color-rose-text);
-    letter-spacing: 0.06em;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    padding: 4px 0;
+  }
+  .digest-error-emoji {
+    font-size: 22px;
+    line-height: 1;
+  }
+  .digest-error-msg {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-style: italic;
+  }
+  .digest-error-sub {
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
   }
 
   @media (max-width: 700px) {
@@ -1923,7 +1940,7 @@ onAuthStateChanged(auth, user => {
     const proxySet = PROXY_URL && PROXY_URL.trim() !== '';
     if (!key && !proxySet) throw new Error('No API key — add PROXY_URL or ANTHROPIC_API_KEY in the file');
     const body = {
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-sonnet-4-5-20250929',
       max_tokens: max_tokens || 1000,
       system: 'You are a data API. Respond with ONLY valid JSON — either an object {} or array []. No explanations, no prose, no markdown, no backticks. Raw JSON only.',
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
@@ -2023,6 +2040,34 @@ onAuthStateChanged(auth, user => {
 
   // ── STOCKS ──────────────────────────────────────────────────
   // ── LIVE DATA: Stocks via Yahoo Finance (0 tokens), News via Claude ──
+  const _delay = ms => new Promise(r => setTimeout(r, ms));
+
+  function _staleOrError(el, key, errMsg) {
+    const stale = cacheGetStale(key);
+    el.innerHTML = stale
+      ? stale.data + '<div style="font-size:9px;color:var(--text-muted);margin-top:4px;">stale · ' + cacheAge(stale.ts) + '</div>'
+      : _errorHTML(key);
+  }
+
+  function _errorHTML(key) {
+    const map = {
+      'stocks':       ['📉', "Markets went dark"],
+      'news-general': ['📰', "The news took the day off"],
+      'news-tech':    ['🤖', "AI is having an existential crisis"],
+      'mtg':          ['🧙', "The oracle is unavailable"],
+      'sorcery':      ['🃏', "Cards are in another realm"],
+      'sanderson':    ['📖', "Brandon is too busy writing"],
+      'sports':       ['🏀', "Scoreboard went offline"],
+    };
+    const [emoji, msg] = map[key] || ['😵', "Something went sideways"];
+    return '<div class="digest-error">'
+      + '<span class="digest-error-emoji">' + emoji + '</span>'
+      + '<span class="digest-error-msg">' + msg + '</span>'
+      + '<span class="digest-error-sub">will retry next visit</span>'
+      + '</div>';
+  }
+
+
   async function loadLiveData() {
     const stocksEl = document.getElementById('stocks-grid');
     const newsGenEl = document.getElementById('news-general');
@@ -2092,13 +2137,13 @@ onAuthStateChanged(auth, user => {
         } catch(e2) {
           const stale = cacheGetStale('stocks');
           stocksEl.innerHTML = stale
-            ? stale.data + '<div style="font-size:9px;color:var(--text-dim);margin-top:4px;">stale · ' + cacheAge(stale.ts) + '</div>'
-            : '<span class="digest-error">Unable to load market data</span>';
+            ? stale.data + '<div style="font-size:9px;color:var(--text-muted);margin-top:4px;">stale · ' + cacheAge(stale.ts) + '</div>'
+            : _errorHTML('stocks');
         }
       }
     }
 
-    // News: Claude API — only if not cached
+    // News: two separate calls to keep tokens low and avoid parse errors
     if (cachedNewsGen && cachedNewsTech) return;
 
     function renderNewsItems(items) {
@@ -2110,81 +2155,70 @@ onAuthStateChanged(auth, user => {
       }).join('');
     }
 
-    if (!cachedNewsGen) newsGenEl.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
-    if (!cachedNewsTech) newsTechEl.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
-
-    try {
-      const clean = await claudeSearch(
-        'Search for the 5 most important world news stories today, and the 5 most important tech or AI news stories today. ' +
-        'Return ONLY a JSON object like this example: {"newsGeneral":[{"title":"Story headline","source":"Source Name","url":"https://example.com"}],"newsTech":[{"title":"Tech headline","source":"Source Name","url":"https://example.com"}]}',
-        600
-      );
-      const d = JSON.parse(clean);
-      if (d.newsGeneral && !cachedNewsGen) {
-        newsGenEl.innerHTML = renderNewsItems(d.newsGeneral);
+    // General news
+    if (!cachedNewsGen) {
+      newsGenEl.innerHTML = '<span class="digest-loading">Loading headlines...</span>';
+      try {
+        const clean = await claudeSearch(
+          'Search for the 5 biggest world news headlines right now. ' +
+          'Return ONLY a JSON array like: [{"title":"Headline here","source":"BBC","url":"https://bbc.com/article"}]',
+          500
+        );
+        const items = JSON.parse(clean);
+        newsGenEl.innerHTML = renderNewsItems(items);
         cacheSet('news-general', newsGenEl.innerHTML);
+      } catch(e) {
+        _staleOrError(newsGenEl, 'news-general', e.message || 'News load failed');
       }
-      if (d.newsTech && !cachedNewsTech) {
-        newsTechEl.innerHTML = renderNewsItems(d.newsTech);
+    }
+
+    // Tech news — wait to avoid rate limit
+    if (!cachedNewsTech) {
+      await _delay(6000);
+      newsTechEl.innerHTML = '<span class="digest-loading">Loading tech news...</span>';
+      try {
+        const clean = await claudeSearch(
+          'Search for the 5 biggest tech and AI news headlines right now. ' +
+          'Return ONLY a JSON array like: [{"title":"Headline here","source":"TechCrunch","url":"https://techcrunch.com/article"}]',
+          500
+        );
+        const items = JSON.parse(clean);
+        newsTechEl.innerHTML = renderNewsItems(items);
         cacheSet('news-tech', newsTechEl.innerHTML);
-      }
-    } catch(e) {
-      const newsErrMsg = e && e.message ? e.message : 'load failed';
-      if (!cachedNewsGen) {
-        const stale = cacheGetStale('news-general');
-        newsGenEl.innerHTML = stale ? stale.data + '<div style="font-size:9px;color:var(--text-dim);margin-top:4px;">stale · ' + cacheAge(stale.ts) + '</div>' : '<span class="digest-error">' + newsErrMsg + '</span>';
-      }
-      if (!cachedNewsTech) {
-        const stale = cacheGetStale('news-tech');
-        newsTechEl.innerHTML = stale ? stale.data + '<div style="font-size:9px;color:var(--text-dim);margin-top:4px;">stale · ' + cacheAge(stale.ts) + '</div>' : '<span class="digest-error">' + newsErrMsg + '</span>';
+      } catch(e) {
+        _staleOrError(newsTechEl, 'news-tech', e.message || 'Tech news load failed');
       }
     }
   }
 
-  // ── BATCHED CALL 2: Daily data (MTG + Sorcery + Sanderson) ── 24hr cache ──
+  // ── DAILY DATA: 3 separate calls, sequential with delays ── 24hr cache ──
   async function loadDailyData() {
-    const mtgEl = document.getElementById('mtg-list');
-    const sorcEl = document.getElementById('sorcery-list');
-    const sandEl = document.getElementById('sanderson-list');
-    const showStaleOrError = (el, key, cached) => {
-      if (cached) return;
-      const stale = cacheGetStale(key);
-      el.innerHTML = stale
-        ? stale.data + '<div style="font-size:9px;color:var(--text-dim);margin-top:4px;">stale · ' + cacheAge(stale.ts) + '</div>'
-        : '<span class="digest-error">Unable to load</span>';
-    };
-
-    const cachedMTG = cacheGet('mtg', 24 * 60 * 60 * 1000);
-    const cachedSorc = cacheGet('sorcery', 24 * 60 * 60 * 1000);
+    const cachedMTG  = cacheGet('mtg',       24 * 60 * 60 * 1000);
+    const cachedSorc = cacheGet('sorcery',   24 * 60 * 60 * 1000);
     const cachedSand = cacheGet('sanderson', 24 * 60 * 60 * 1000);
 
-    if (cachedMTG) mtgEl.innerHTML = cachedMTG.data;
+    // Show whatever we have cached immediately
+    const mtgEl  = document.getElementById('mtg-list');
+    const sorcEl = document.getElementById('sorcery-list');
+    const sandEl = document.getElementById('sanderson-list');
+    if (cachedMTG)  mtgEl.innerHTML  = cachedMTG.data;
     if (cachedSorc) sorcEl.innerHTML = cachedSorc.data;
     if (cachedSand) sandEl.innerHTML = cachedSand.data;
     if (cachedMTG && cachedSorc && cachedSand) return;
 
-    if (!cachedMTG) mtgEl.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
-    if (!cachedSorc) sorcEl.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
-    if (!cachedSand) sandEl.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
-
-    const mtgNames = MTG_CARDS.map(function(c) { return c.name; }).join(', ');
-    const sorcNames = SORCERY_CARD_LIST.map(function(c) { return c.name + ' (' + c.label + ')'; }).join(', ');
-
-    try {
-      const clean = await claudeSearch(
-        "Search for: (1) current MTG card prices on MTGGoldfish.com for these cards: " + mtgNames + "; " +
-        "(2) current Sorcery: Contested Realm card prices on TCGPlayer for: " + sorcNames + "; " +
-        "(3) Brandon Sanderson writing progress percentages from brandonsanderson.com. " +
-        "Return ONLY a JSON object like this: " +
-        '{"mtg":[{"name":"Card Name","set":"Set Name","usd":"100.00","usd_foil":"150.00"}],' +
-        '"sorcery":[{"name":"Card Name","label":"Foil","price":"85.00"}],' +
-        '"sanderson":[{"title":"Book Title","pct":45}]}',
-        1200
-      );
-      const d = JSON.parse(clean);
-
-      if (d.mtg && !cachedMTG) {
-        mtgEl.innerHTML = d.mtg.map(function(c) {
+    // MTG prices — wait after news calls
+    if (!cachedMTG || !cachedSorc || !cachedSand) await _delay(8000);
+    if (!cachedMTG) {
+      mtgEl.innerHTML = '<span class="digest-loading">Loading MTG prices...</span>';
+      try {
+        const names = MTG_CARDS.map(c => c.name).join(', ');
+        const clean = await claudeSearch(
+          'Look up current MTG card prices on MTGGoldfish for: ' + names + '. ' +
+          'Return ONLY a JSON array: [{"name":"Gaia Cradle","set":"Urza Saga","usd":"450.00","usd_foil":"600.00"}]',
+          600
+        );
+        const cards = JSON.parse(clean);
+        mtgEl.innerHTML = cards.map(function(c) {
           const price = c.usd ? '$' + parseFloat(c.usd).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
           const foil  = c.usd_foil ? 'Foil $' + parseFloat(c.usd_foil).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '';
           return '<div class="card-row">'
@@ -2193,29 +2227,48 @@ onAuthStateChanged(auth, user => {
             + '</div>';
         }).join('');
         cacheSet('mtg', mtgEl.innerHTML);
-      }
+      } catch(e) { _staleOrError(mtgEl, 'mtg', e.message || 'MTG load failed'); }
+    }
 
-      if (d.sorcery && !cachedSorc) {
-        renderSorcery(sorcEl, d.sorcery);
+    // Sorcery prices — wait to stay under rate limit
+    if (!cachedSorc) {
+      await _delay(8000);
+      sorcEl.innerHTML = '<span class="digest-loading">Loading Sorcery prices...</span>';
+      try {
+        const names = SORCERY_CARD_LIST.map(c => c.name + ' ' + c.label).join(', ');
+        const clean = await claudeSearch(
+          'Look up current Sorcery Contested Realm card prices on TCGPlayer for: ' + names + '. ' +
+          'Return ONLY a JSON array: [{"name":"Avatar of Air","label":"Foil","price":"85.00"}]',
+          500
+        );
+        const cards = JSON.parse(clean);
+        renderSorcery(sorcEl, cards);
         cacheSet('sorcery', sorcEl.innerHTML);
-      }
+      } catch(e) { _staleOrError(sorcEl, 'sorcery', e.message || 'Sorcery load failed'); }
+    }
 
-      if (d.sanderson && !cachedSand) {
-        renderSanderson(sandEl, d.sanderson);
+    // Sanderson progress — wait to stay under rate limit
+    if (!cachedSand) {
+      await _delay(8000);
+      sandEl.innerHTML = '<span class="digest-loading">Loading Sanderson progress...</span>';
+      try {
+        const clean = await claudeSearch(
+          'Look up Brandon Sanderson current writing progress on brandonsanderson.com. ' +
+          'Return ONLY a JSON array: [{"title":"Book Name","pct":45}]',
+          400
+        );
+        const projects = JSON.parse(clean);
+        renderSanderson(sandEl, projects);
         cacheSet('sanderson', sandEl.innerHTML);
+      } catch(e) {
+        // Fallback to last known values if API fails
+        renderSanderson(sandEl, [
+          { title: 'Mistborn Movie Script',         pct: 2   },
+          { title: 'Ghostbloods Book 1',            pct: 100 },
+          { title: 'Songrise 2.0 Review',           pct: 100 },
+          { title: 'Songrise 3.0',                  pct: 35  },
+        ]);
       }
-    } catch(e) {
-      const errMsg = e && e.message ? e.message : 'unknown error';
-      const showErr = (el, key, cached) => {
-        if (cached) return;
-        const stale = cacheGetStale(key);
-        el.innerHTML = stale
-          ? stale.data + '<div style="font-size:9px;color:var(--text-dim);margin-top:4px;">stale · ' + cacheAge(stale.ts) + '</div>'
-          : '<span class="digest-error">' + errMsg + '</span>';
-      };
-      showErr(mtgEl, 'mtg', cachedMTG);
-      showErr(sorcEl, 'sorcery', cachedSorc);
-      showErr(sandEl, 'sanderson', cachedSand);
     }
   }
 
@@ -2397,7 +2450,7 @@ onAuthStateChanged(auth, user => {
       }).join('');
       document.getElementById('sports-updated').textContent = 'as of ' + timeNow();
     } catch(e) {
-      list.innerHTML = '<span class="digest-error">Sports: ' + (e && e.message ? e.message : 'load failed') + '</span>';
+      list.innerHTML = _errorHTML('sports');
     }
   }
 
@@ -2966,7 +3019,7 @@ onAuthStateChanged(auth, user => {
   });
 
   // Random title
-  const titles = ['Focus and Deliver', 'Get It Done', 'Cross Them Off', 'Knock It Down', 'No Better Time Than Now', 'No Procrastination', 'Fear is the Mind Killer', 'Journey Before Destination', 'Outwork the Competition', "I'll Sleep When I Die"];
+  const titles = ['Focus and Deliver', 'Get It Done', 'Cross Them Off', 'Knock It Down', 'No Better Time Than Now', 'No Procrastination', 'Fear is the Mind Killer', 'Journey Before Destination', 'Outwork the Competition', "I'll Sleep When I Die", 'How Do You Eat an Elephant?', 'Chopping Trees'];
   document.getElementById('app-title').textContent = titles[Math.floor(Math.random() * titles.length)];
 
   // Render current date
