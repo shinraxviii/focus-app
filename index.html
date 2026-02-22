@@ -406,8 +406,30 @@
   }
 
   .task-text.done {
-    text-decoration: line-through;
     color: var(--text-dim);
+  }
+
+  /* Two SVG diagonal slashes drawn over task text */
+  .task-text-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    overflow: visible;
+  }
+  .slash-svg {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    overflow: visible;
+  }
+  .slash-svg line {
+    stroke: #a0a0a8;
+    stroke-width: 10;
+    stroke-linecap: round;
+    fill: none;
   }
 
   .task-text-input {
@@ -1873,50 +1895,163 @@ onAuthStateChanged(auth, user => {
     window._burstComplete = function(el) {
       if (!canvas || !ctx) init();
       if (!canvas || !ctx) return;
-      const rect = el.getBoundingClientRect();
-      const cx = rect.left + rect.width  / 2;
-      const cy = rect.top  + rect.height / 2;
-      const count = 26 + Math.floor(Math.random() * 10);
-      for (let i = 0; i < count; i++) particles.push(Particle(cx, cy));
+      // Use the whole task-item row, not just the checkbox
+      const row = el.closest('.task-item') || el;
+      const rect = row.getBoundingClientRect();
+      const count = 48 + Math.floor(Math.random() * 16);
+      const cy = rect.top + rect.height / 2;
+      for (let i = 0; i < count; i++) {
+        // Spread spawn points randomly across the full width of the row
+        const cx = rect.left + Math.random() * rect.width;
+        particles.push(Particle(cx, cy));
+      }
       if (!rafId) rafId = requestAnimationFrame(tick);
     };
   })();
 
-  // ── COMPLETION SOUND ────────────────────────────────────────
+  // ── COMPLETION SOUND — Tuned Katana Slice ────────────────────
   (function() {
     let audioCtx = null;
-
     function getCtx() {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      // Resume in case browser suspended it
+      if (audioCtx.state === 'suspended') audioCtx.resume();
       return audioCtx;
     }
+    // Pre-warm on first interaction so the context is ready before the first checkbox click
+    function _prewarm() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      document.removeEventListener('pointerdown', _prewarm);
+    }
+    document.addEventListener('pointerdown', _prewarm);
+    function makeBrown(ctx, dur) {
+      const len = Math.ceil(ctx.sampleRate * dur);
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const d = buf.getChannelData(0); let b0=0,b1=0,b2=0;
+      for (let i = 0; i < len; i++) {
+        const w = Math.random()*2-1;
+        b0 = 0.99886*b0 + w*0.0555179;
+        b1 = 0.99332*b1 + w*0.0750759;
+        b2 = 0.96900*b2 + w*0.1538520;
+        d[i] = (b0+b1+b2)*0.33;
+      }
+      const s = ctx.createBufferSource(); s.buffer=buf; return s;
+    }
+    function makeWhite(ctx, dur) {
+      const len = Math.ceil(ctx.sampleRate * dur);
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i=0;i<len;i++) d[i]=Math.random()*2-1;
+      const s = ctx.createBufferSource(); s.buffer=buf; return s;
+    }
+    function mkG(ctx,v){const g=ctx.createGain();g.gain.value=v;return g;}
+    function mkF(ctx,type,freq,q){const f=ctx.createBiquadFilter();f.type=type;f.frequency.value=freq;if(q)f.Q.value=q;return f;}
 
-    function playTone(ctx, freq, startTime, duration, gainPeak, type = 'sine') {
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = type;
-      osc.frequency.setValueAtTime(freq, startTime);
-      // Snappy attack, quick decay — coin-like
-      gain.gain.setValueAtTime(0, startTime);
-      gain.gain.linearRampToValueAtTime(gainPeak, startTime + 0.008);
-      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-      osc.start(startTime);
-      osc.stop(startTime + duration + 0.01);
+    const P = {
+      whooshFreqStart:627, whooshFreqEnd:6000, whooshDur:0.27, whooshQ:1.2, whooshGain:2.2,
+      impactAt:0.1, impactFreq:7527, impactSharpness:1.4, impactGain:1.4,
+      bodyGain:2, tailGain:0.22, masterVol:0.92, sliceGap:0.21,
+      ringFreq:2800, ringDecay:0.55, ringGain:0.38, ringFreq2:4800, edgeScrapeGain:0.6,
+    };
+
+    function playSlice(ctx, master, t) {
+      // Sweep
+      const sw = makeWhite(ctx, P.whooshDur + 0.05);
+      const swBP = mkF(ctx,'bandpass', P.whooshFreqStart, P.whooshQ);
+      swBP.frequency.setValueAtTime(P.whooshFreqStart, t);
+      swBP.frequency.exponentialRampToValueAtTime(P.whooshFreqEnd, t + P.whooshDur * 0.75);
+      const swLP = mkF(ctx,'lowpass', 7000);
+      const swG = mkG(ctx, 0);
+      swG.gain.setValueAtTime(0, t);
+      swG.gain.linearRampToValueAtTime(P.whooshGain, t + 0.003);
+      swG.gain.setValueAtTime(P.whooshGain, t + P.whooshDur * 0.35);
+      swG.gain.exponentialRampToValueAtTime(0.001, t + P.whooshDur + 0.03);
+      sw.connect(swBP); swBP.connect(swLP); swLP.connect(swG); swG.connect(master);
+      sw.start(t); sw.stop(t + P.whooshDur + 0.07);
+      // Body
+      const bw = makeBrown(ctx, P.whooshDur + 0.05);
+      const bLP = mkF(ctx,'lowpass', 1200);
+      bLP.frequency.setValueAtTime(1200, t);
+      bLP.frequency.exponentialRampToValueAtTime(80, t + P.whooshDur + 0.04);
+      const bG = mkG(ctx, 0);
+      bG.gain.setValueAtTime(0, t);
+      bG.gain.linearRampToValueAtTime(P.bodyGain, t + 0.004);
+      bG.gain.setValueAtTime(P.bodyGain * 0.85, t + P.whooshDur * 0.5);
+      bG.gain.exponentialRampToValueAtTime(0.001, t + P.whooshDur + 0.04);
+      bw.connect(bLP); bLP.connect(bG); bG.connect(master);
+      bw.start(t); bw.stop(t + P.whooshDur + 0.07);
+      // Edge scrape
+      const es = makeWhite(ctx, P.whooshDur);
+      const esBP = mkF(ctx,'bandpass', 4500, 7.0);
+      esBP.frequency.setValueAtTime(4500, t);
+      esBP.frequency.exponentialRampToValueAtTime(8500, t + P.whooshDur * 0.65);
+      const esG = mkG(ctx, 0);
+      esG.gain.setValueAtTime(0, t);
+      esG.gain.linearRampToValueAtTime(P.edgeScrapeGain, t + 0.005);
+      esG.gain.exponentialRampToValueAtTime(0.001, t + P.whooshDur * 0.9);
+      es.connect(esBP); esBP.connect(esG); esG.connect(master);
+      es.start(t); es.stop(t + P.whooshDur + 0.02);
+      const it = t + P.impactAt;
+      // Impact crack
+      const iw = makeWhite(ctx, 0.07);
+      const iBP = mkF(ctx,'bandpass', P.impactFreq, P.impactSharpness);
+      const iLP = mkF(ctx,'lowpass', 6000);
+      const iG = mkG(ctx, 0);
+      iG.gain.setValueAtTime(0, it);
+      iG.gain.linearRampToValueAtTime(P.impactGain, it + 0.001);
+      iG.gain.exponentialRampToValueAtTime(0.001, it + 0.07);
+      iw.connect(iBP); iBP.connect(iLP); iLP.connect(iG); iG.connect(master);
+      iw.start(it); iw.stop(it + 0.09);
+      // Low-mid punch
+      const pw = makeBrown(ctx, 0.1);
+      const pLP = mkF(ctx,'lowpass', 500);
+      pLP.frequency.setValueAtTime(500, it);
+      pLP.frequency.exponentialRampToValueAtTime(60, it + 0.1);
+      const pG = mkG(ctx, 0);
+      pG.gain.setValueAtTime(0, it);
+      pG.gain.linearRampToValueAtTime(2.8, it + 0.002);
+      pG.gain.exponentialRampToValueAtTime(0.001, it + 0.1);
+      pw.connect(pLP); pLP.connect(pG); pG.connect(master);
+      pw.start(it); pw.stop(it + 0.12);
+      // Sub thud
+      const sb = makeBrown(ctx, 0.08);
+      const sbLP = mkF(ctx,'lowpass', 120);
+      const sbG = mkG(ctx, 0);
+      sbG.gain.setValueAtTime(0, it);
+      sbG.gain.linearRampToValueAtTime(2.2, it + 0.002);
+      sbG.gain.exponentialRampToValueAtTime(0.001, it + 0.09);
+      sb.connect(sbLP); sbLP.connect(sbG); sbG.connect(master);
+      sb.start(it); sb.stop(it + 0.11);
+      // Metallic ring
+      const mkOsc = (f) => { const o = ctx.createOscillator(); o.type='sine'; o.frequency.value=f; return o; };
+      const r1 = mkOsc(P.ringFreq); const r1G = mkG(ctx, 0);
+      r1G.gain.setValueAtTime(0, it); r1G.gain.linearRampToValueAtTime(P.ringGain, it + 0.003);
+      r1G.gain.exponentialRampToValueAtTime(0.001, it + P.ringDecay);
+      r1.frequency.setValueAtTime(P.ringFreq, it); r1.frequency.exponentialRampToValueAtTime(P.ringFreq * 0.91, it + P.ringDecay);
+      r1.connect(r1G); r1G.connect(master); r1.start(it); r1.stop(it + P.ringDecay + 0.05);
+      const r2 = mkOsc(P.ringFreq2); const r2G = mkG(ctx, 0);
+      r2G.gain.setValueAtTime(0, it); r2G.gain.linearRampToValueAtTime(P.ringGain * 0.5, it + 0.003);
+      r2G.gain.exponentialRampToValueAtTime(0.001, it + P.ringDecay * 0.65);
+      r2.frequency.setValueAtTime(P.ringFreq2, it); r2.frequency.exponentialRampToValueAtTime(P.ringFreq2 * 0.93, it + P.ringDecay * 0.65);
+      r2.connect(r2G); r2G.connect(master); r2.start(it); r2.stop(it + P.ringDecay * 0.75);
+      // Tail hiss
+      const tw = makeWhite(ctx, 0.12);
+      const tHP = mkF(ctx,'highpass', 4500);
+      const tG = mkG(ctx, 0);
+      tG.gain.setValueAtTime(0, it + 0.01); tG.gain.linearRampToValueAtTime(P.tailGain, it + 0.03);
+      tG.gain.exponentialRampToValueAtTime(0.001, it + 0.14);
+      tw.connect(tHP); tHP.connect(tG); tG.connect(master);
+      tw.start(it + 0.01); tw.stop(it + 0.16);
     }
 
     window._playComplete = function() {
       try {
-        const ctx   = getCtx();
-        const now   = ctx.currentTime;
-        // First blip — lower note
-        playTone(ctx, 660,  now,        0.12, 0.28, 'square');
-        playTone(ctx, 660,  now,        0.12, 0.08, 'sine');
-        // Second blip — higher note, offset by 95ms = the "collect" feel
-        playTone(ctx, 1050, now + 0.095, 0.15, 0.22, 'square');
-        playTone(ctx, 1050, now + 0.095, 0.15, 0.10, 'sine');
-      } catch(e) {}
+        const ctx = getCtx(); const now = ctx.currentTime;
+        const master = mkG(ctx, P.masterVol); master.connect(ctx.destination);
+        playSlice(ctx, master, now);
+        playSlice(ctx, master, now + P.sliceGap);
+      } catch(e) { console.error('sound error', e); }
     };
   })();
 
@@ -2005,17 +2140,58 @@ onAuthStateChanged(auth, user => {
     cb.checked = t.section === 'completed';
     cb.addEventListener('change', () => {
       if (cb.checked) {
-        // Animate item row
-        const item = cb.closest('.task-item');
-        if (item) { item.classList.add('completing'); item.addEventListener('animationend', () => item.classList.remove('completing'), { once: true }); }
-        // Animate checkbox
-        cb.classList.add('popping');
-        cb.addEventListener('animationend', () => cb.classList.remove('popping'), { once: true });
-        // Particle burst + sound
-        window._burstComplete(cb);
         window._playComplete();
+
+        const item = cb.closest('.task-item');
+        const wrap = item ? item.querySelector('.task-text-wrap') : null;
+
+        function animateSlash(x1, y1, x2, y2, delay, onDone) {
+          if (!wrap) return;
+          const ns = 'http://www.w3.org/2000/svg';
+          const svg = document.createElementNS(ns, 'svg');
+          svg.classList.add('slash-svg');
+          svg.setAttribute('viewBox', '0 0 100 100');
+          svg.setAttribute('preserveAspectRatio', 'none');
+          const line = document.createElementNS(ns, 'line');
+          const len = Math.hypot(x2 - x1, y2 - y1);
+          line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+          line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+          line.style.strokeDasharray = len;
+          line.style.strokeDashoffset = len;
+          svg.appendChild(line);
+          wrap.appendChild(svg);
+          setTimeout(() => {
+            requestAnimationFrame(() => {
+              line.style.transition = 'stroke-dashoffset 0.17s cubic-bezier(0.16,1,0.3,1)';
+              line.style.strokeDashoffset = 0;
+              line.addEventListener('transitionend', () => { if (onDone) onDone(); }, { once: true });
+            });
+          }, delay);
+        }
+
+        // Slash 1: top-left → bottom-right
+        animateSlash(2, 15, 98, 85, 0, () => {
+          window._burstComplete(cb);
+          cb.classList.add('popping');
+          cb.addEventListener('animationend', () => cb.classList.remove('popping'), { once: true });
+          if (item) {
+            item.classList.add('completing');
+            item.addEventListener('animationend', () => item.classList.remove('completing'), { once: true });
+          }
+        });
+
+        // Slash 2: top-right → bottom-left, 210ms later
+        animateSlash(98, 15, 2, 85, 210, () => {
+          window._burstComplete(cb);
+        });
+
+        setTimeout(() => toggleComplete(t.id), 80);
+      } else {
+        const item = cb.closest('.task-item');
+        const wrap = item ? item.querySelector('.task-text-wrap') : null;
+        if (wrap) wrap.querySelectorAll('.slash-svg').forEach(el => el.remove());
+        toggleComplete(t.id);
       }
-      toggleComplete(t.id);
     });
 
     // Text
@@ -2039,12 +2215,14 @@ onAuthStateChanged(auth, user => {
       txt.style.cursor = 'text';
     }
 
-    // Date
+    // Date — hidden for completed tasks (text is what matters there)
     const dt = document.createElement('span');
     const dueStatus = t.section !== 'completed' ? getDueStatus(t.date) : null;
     dt.className = 'task-date' + (dueStatus ? ' ' + dueStatus : '');
-    dt.textContent = formatDate(t.date);
-    if (dueStatus === 'today') dt.textContent = 'Today';
+    if (t.section !== 'completed') {
+      dt.textContent = formatDate(t.date);
+      if (dueStatus === 'today') dt.textContent = 'Today';
+    }
 
     // Color trigger dot
     const trigger = document.createElement('button');
@@ -2083,8 +2261,29 @@ onAuthStateChanged(auth, user => {
     del.innerHTML = '&times;';
     del.addEventListener('click', () => deleteTask(t.id));
 
+    const txtWrap = document.createElement('span');
+    txtWrap.className = 'task-text-wrap';
+    // Restore slash lines for already-completed tasks
+    if (t.section === 'completed') {
+      const ns = 'http://www.w3.org/2000/svg';
+      ['M2,15 L98,85','M98,15 L2,85'].forEach(d => {
+        const svg = document.createElementNS(ns, 'svg');
+        svg.classList.add('slash-svg');
+        svg.setAttribute('viewBox','0 0 100 100');
+        svg.setAttribute('preserveAspectRatio','none');
+        const line = document.createElementNS(ns, 'line');
+        const pts = d.replace('M','').replace('L',',').split(',').map(Number);
+        line.setAttribute('x1',pts[0]); line.setAttribute('y1',pts[1]);
+        line.setAttribute('x2',pts[2]); line.setAttribute('y2',pts[3]);
+        line.style.strokeDasharray = 'none';
+        svg.appendChild(line);
+        txtWrap.appendChild(svg);
+      });
+    }
+    txtWrap.appendChild(txt);
+
     item.appendChild(cb);
-    item.appendChild(txt);
+    item.appendChild(txtWrap);
     item.appendChild(dt);
     item.appendChild(trigger);
     item.appendChild(linkBtn);
@@ -2098,7 +2297,8 @@ onAuthStateChanged(auth, user => {
   // ── CONFIG ──────────────────────────────────────────────────
   // Option A: Vercel proxy URL (recommended) - set this after deploying vercel-proxy
   // e.g. 'https://your-project.vercel.app/api/claude'
-  const PROXY_URL = 'https://focus-proxy.vercel.app/api/claude';
+  const PROXY_URL        = 'https://focus-proxy.vercel.app/api/claude';
+  const STOCKS_PROXY_URL = 'https://focus-proxy.vercel.app/api/stocks';
 
   // Option B: Direct API key (may fail due to CORS on some browsers)
   const ANTHROPIC_API_KEY = ''; // Not needed when using proxy
@@ -2250,66 +2450,87 @@ onAuthStateChanged(auth, user => {
     if (cachedNewsGen) newsGenEl.innerHTML = cachedNewsGen.data;
     if (cachedNewsTech) newsTechEl.innerHTML = cachedNewsTech.data;
 
-    // Stocks: use Yahoo Finance directly — zero Claude tokens
+    // Stocks: 3-tier fetch — proxy (most reliable) → direct Yahoo → Claude fallback
     if (!cachedStocks) {
       stocksEl.innerHTML = '<span class="digest-loading">Loading...</span>';
+
+      function renderStocks(stocks, source) {
+        stocksEl.innerHTML = stocks.map(function(s) {
+          const dir = s.changePct > 0 ? 'up' : s.changePct < 0 ? 'down' : 'flat';
+          const sign = s.changePct > 0 ? '+' : '';
+          const price = parseFloat(s.price);
+          const priceStr = s.label === 'BTC' ? '$' + Math.round(price).toLocaleString()
+            : price >= 1000 ? '$' + price.toLocaleString('en-US', {maximumFractionDigits:0})
+            : '$' + price.toFixed(2);
+          return '<div class="stock-item">'
+            + '<span class="stock-ticker">' + s.label + '</span>'
+            + '<span class="stock-price">' + priceStr + '</span>'
+            + '<span class="stock-change ' + dir + '">' + sign + parseFloat(s.changePct).toFixed(2) + '%</span>'
+            + '</div>';
+        }).join('');
+        document.getElementById('stocks-updated').textContent = source + ' · ' + timeNow();
+        cacheSet('stocks', stocksEl.innerHTML);
+      }
+
+      let stocksLoaded = false;
+
+      // Tier 1: Vercel proxy (server-side Yahoo — no CORS, most reliable)
       try {
-        const TICKERS = ['APP','U','BTC-USD','AAPL','TSLA','META','GOOG','NVDA','^GSPC','^IXIC'];
-        const LABELS  = {'BTC-USD':'BTC','^GSPC':'S&P 500','^IXIC':'Nasdaq'};
-        const results = await Promise.all(TICKERS.map(async function(t) {
-          try {
-            const url = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(t) + '?interval=1d&range=1d';
-            const r = await fetch(url, { signal: AbortSignal.timeout(5000) });
-            const data = await r.json();
-            const meta = data.chart.result[0].meta;
-            const price = meta.regularMarketPrice;
-            const prev  = meta.chartPreviousClose;
-            const changePct = ((price - prev) / prev * 100);
-            return { label: LABELS[t] || t, price, changePct };
-          } catch(e) { return null; }
-        }));
-        const valid = results.filter(Boolean);
-        if (valid.length > 0) {
-          stocksEl.innerHTML = valid.map(function(s) {
-            const dir = s.changePct > 0 ? 'up' : s.changePct < 0 ? 'down' : 'flat';
-            const sign = s.changePct > 0 ? '+' : '';
-            const price = parseFloat(s.price);
-            const priceStr = s.label === 'BTC'
-              ? '$' + Math.round(price).toLocaleString()
-              : price >= 1000 ? '$' + price.toLocaleString('en-US', {maximumFractionDigits:0})
-              : '$' + price.toFixed(2);
-            return '<div class="stock-item">'
-              + '<span class="stock-ticker">' + s.label + '</span>'
-              + '<span class="stock-price">' + priceStr + '</span>'
-              + '<span class="stock-change ' + dir + '">' + sign + s.changePct.toFixed(2) + '%</span>'
-              + '</div>';
-          }).join('');
-          document.getElementById('stocks-updated').textContent = 'as of ' + timeNow();
-          cacheSet('stocks', stocksEl.innerHTML);
+        const r = await Promise.race([
+          fetch(STOCKS_PROXY_URL, { signal: AbortSignal.timeout(7000) }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('proxy timeout')), 7000))
+        ]);
+        if (r.ok) {
+          const stocks = await r.json();
+          if (Array.isArray(stocks) && stocks.length) {
+            renderStocks(stocks, 'as of');
+            stocksLoaded = true;
+          }
         }
       } catch(e) {
-        // Yahoo Finance blocked (CORS) — fall back to Claude for stock prices
+        console.error('[Digest:stocks] proxy failed:', e.message);
+      }
+
+      // Tier 2: Direct Yahoo Finance (works in some browsers without CORS issues)
+      if (!stocksLoaded) {
         try {
-          const clean = await claudeSearch('Current prices and 1-day % change for: APP, U, BTC, AAPL, TSLA, META, GOOG, NVDA, S&P 500, Nasdaq. JSON: [{"label","price","changePct"}]', 400);
-          const stocks = JSON.parse(clean);
-          stocksEl.innerHTML = stocks.map(function(s) {
-            const dir = s.changePct > 0 ? 'up' : s.changePct < 0 ? 'down' : 'flat';
-            const sign = s.changePct > 0 ? '+' : '';
-            const price = parseFloat(s.price);
-            const priceStr = s.label === 'BTC' ? '$' + Math.round(price).toLocaleString()
-              : price >= 1000 ? '$' + price.toLocaleString('en-US',{maximumFractionDigits:0})
-              : '$' + price.toFixed(2);
-            return '<div class="stock-item"><span class="stock-ticker">' + s.label + '</span><span class="stock-price">' + priceStr + '</span><span class="stock-change ' + dir + '">' + sign + parseFloat(s.changePct).toFixed(2) + '%</span></div>';
-          }).join('');
-          document.getElementById('stocks-updated').textContent = 'via Claude · ' + timeNow();
-          cacheSet('stocks', stocksEl.innerHTML);
-        } catch(e2) {
-          console.error('[Digest:stocks]', e2.message || e2);
-          const stale = cacheGetStale('stocks');
-          stocksEl.innerHTML = stale
-            ? stale.data + '<div style="font-size:9px;color:var(--text-muted);margin-top:4px;">stale · ' + cacheAge(stale.ts) + '</div>'
-            : _errorHTML('stocks');
+          const TICKERS = ['APP','U','BTC-USD','AAPL','TSLA','META','GOOG','NVDA','^GSPC','^IXIC'];
+          const LABELS  = {'BTC-USD':'BTC','^GSPC':'S&P 500','^IXIC':'Nasdaq'};
+          const results = await Promise.race([
+            Promise.all(TICKERS.map(async function(t) {
+              try {
+                const url = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(t) + '?interval=1d&range=1d';
+                const r = await fetch(url, { signal: AbortSignal.timeout(4000) });
+                const data = await r.json();
+                const meta = data.chart.result[0].meta;
+                return { label: LABELS[t] || t, price: meta.regularMarketPrice, changePct: (meta.regularMarketPrice - meta.chartPreviousClose) / meta.chartPreviousClose * 100 };
+              } catch(e) { return null; }
+            })),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('direct timeout')), 7000))
+          ]);
+          const valid = results.filter(Boolean);
+          if (valid.length > 0) { renderStocks(valid, 'as of'); stocksLoaded = true; }
+        } catch(e) {
+          console.error('[Digest:stocks] direct yahoo failed:', e.message);
         }
+      }
+
+      // Tier 3: Claude fallback (uses tokens but works when everything else fails)
+      if (!stocksLoaded) {
+        try {
+          const clean = await claudeSearch('Current prices and 1-day % change for: APP, U, BTC, AAPL, TSLA, META, GOOG, NVDA, S&P 500, Nasdaq. Return ONLY a JSON array: [{"label":"APP","price":100.00,"changePct":1.5}]', 400);
+          const stocks = JSON.parse(clean);
+          if (Array.isArray(stocks) && stocks.length) { renderStocks(stocks, 'via Claude'); stocksLoaded = true; }
+        } catch(e) {
+          console.error('[Digest:stocks] claude fallback failed:', e.message);
+        }
+      }
+
+      if (!stocksLoaded) {
+        const stale = cacheGetStale('stocks');
+        stocksEl.innerHTML = stale
+          ? stale.data + '<div style="font-size:9px;color:var(--text-muted);margin-top:4px;">stale · ' + cacheAge(stale.ts) + '</div>'
+          : _errorHTML('stocks');
       }
     }
 
@@ -3088,7 +3309,10 @@ onAuthStateChanged(auth, user => {
 
   function renderSection(sec) {
     const list = document.getElementById('list-' + sec);
-    const secTasks = tasks.filter(t => t.section === sec);
+    let secTasks = tasks.filter(t => t.section === sec);
+    // Completed: show only last 10, most recent first
+    const totalCompleted = sec === 'completed' ? secTasks.length : 0;
+    if (sec === 'completed') secTasks = secTasks.slice(-10).reverse();
     list.innerHTML = '';
     if (secTasks.length === 0) {
       const empty = document.createElement('div');
@@ -3098,13 +3322,13 @@ onAuthStateChanged(auth, user => {
     } else {
       secTasks.forEach(t => list.appendChild(buildItem(t)));
     }
-    document.getElementById('count-' + sec).textContent = secTasks.length;
+    document.getElementById('count-' + sec).textContent = totalCompleted || secTasks.length;
     if (sec === 'completed') {
       const btn = document.getElementById('clear-completed-btn');
-      btn.style.display = secTasks.length > 0 ? 'inline' : 'none';
+      btn.style.display = totalCompleted > 0 ? 'inline' : 'none';
     }
     const tabCount = document.getElementById('tab-count-' + sec);
-    if (tabCount) tabCount.textContent = secTasks.length;
+    if (tabCount) tabCount.textContent = totalCompleted || secTasks.length;
   }
 
   // Full render — used after load, drag-drop, or multi-section changes
