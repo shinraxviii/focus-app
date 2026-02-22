@@ -888,9 +888,10 @@
   }
 
   .stock-ticker {
-    font-size: 10px;
+    font-size: 13px;
+    font-weight: 700;
     color: var(--text-muted);
-    letter-spacing: 0.08em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
   }
 
@@ -904,6 +905,7 @@
 
   .stock-change {
     font-size: 10px;
+    font-weight: 700;
     letter-spacing: 0.04em;
   }
 
@@ -2464,7 +2466,10 @@ onAuthStateChanged(auth, user => {
           const dir = s.changePct > 0 ? 'up' : s.changePct < 0 ? 'down' : 'flat';
           const sign = s.changePct > 0 ? '+' : '';
           const price = parseFloat(s.price);
+          const isCrypto = ['BTC','ETH','SOL'].includes(s.label);
           const priceStr = s.label === 'BTC' ? '$' + Math.round(price).toLocaleString()
+            : s.label === 'ETH' ? '$' + price.toLocaleString('en-US', {maximumFractionDigits:0})
+            : s.label === 'SOL' ? '$' + price.toFixed(2)
             : price >= 1000 ? '$' + price.toLocaleString('en-US', {maximumFractionDigits:0})
             : '$' + price.toFixed(2);
           return '<div class="stock-item">'
@@ -2499,8 +2504,8 @@ onAuthStateChanged(auth, user => {
       // Tier 2: Direct Yahoo Finance (works in some browsers without CORS issues)
       if (!stocksLoaded) {
         try {
-          const TICKERS = ['APP','U','BTC-USD','AAPL','TSLA','META','GOOG','NVDA','^GSPC','^IXIC'];
-          const LABELS  = {'BTC-USD':'BTC','^GSPC':'S&P 500','^IXIC':'Nasdaq'};
+          const TICKERS = ['APP','U','AAPL','TSLA','META','GOOG','NVDA','^GSPC','^IXIC','BTC-USD','ETH-USD','SOL-USD'];
+          const LABELS  = {'BTC-USD':'BTC','ETH-USD':'ETH','SOL-USD':'SOL','^GSPC':'S&P 500','^IXIC':'Nasdaq'};
           const results = await Promise.race([
             Promise.all(TICKERS.map(async function(t) {
               try {
@@ -2523,7 +2528,7 @@ onAuthStateChanged(auth, user => {
       // Tier 3: Claude fallback (uses tokens but works when everything else fails)
       if (!stocksLoaded) {
         try {
-          const clean = await claudeSearch('Current prices and 1-day % change for: APP, U, BTC, AAPL, TSLA, META, GOOG, NVDA, S&P 500, Nasdaq. Return ONLY a JSON array: [{"label":"APP","price":100.00,"changePct":1.5}]', 400);
+          const clean = await claudeSearch('Current prices and 1-day % change for: APP, U, AAPL, TSLA, META, GOOG, NVDA, S&P 500, Nasdaq, BTC, ETH, SOL. Return ONLY a JSON array: [{"label":"APP","price":100.00,"changePct":1.5}]', 450);
           const stocks = JSON.parse(clean);
           if (Array.isArray(stocks) && stocks.length) { renderStocks(stocks, 'via Claude'); stocksLoaded = true; }
         } catch(e) {
