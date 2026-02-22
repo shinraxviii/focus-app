@@ -2230,7 +2230,6 @@ onAuthStateChanged(auth, user => {
   ];
 
 
-  function renderSorcery
   function renderSorcery(list, cards) {
     list.innerHTML = cards.map(function(c) {
       const tcgUrl = 'https://www.tcgplayer.com/search/sorcery-contested-realm/product?q=' + encodeURIComponent(c.name) + (c.label === 'Foil' ? '&Foil=Yes' : '');
@@ -2249,7 +2248,6 @@ onAuthStateChanged(auth, user => {
   }
 
 
-  function renderSanderson
   function renderSanderson(list, projects) {
     list.innerHTML = `
       ${projects.map(p => `
