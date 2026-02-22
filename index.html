@@ -371,6 +371,31 @@
     background-position: center;
   }
 
+  @keyframes taskComplete {
+    0%   { transform: scale(1);    background: transparent; }
+    25%  { transform: scale(1.018); background: rgba(127,184,154,0.07); }
+    60%  { transform: scale(1.012); background: rgba(127,184,154,0.04); }
+    100% { transform: scale(1);    background: transparent; }
+  }
+
+  @keyframes checkPop {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.45); }
+    70%  { transform: scale(0.88); }
+    100% { transform: scale(1); }
+  }
+
+  .task-item.completing { animation: taskComplete 0.45s ease-out forwards; }
+  .task-checkbox.popping { animation: checkPop 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+
+  #complete-canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 9999;
+  }
+
   .task-text {
     font-size: 12px;
     color: var(--text);
@@ -1765,6 +1790,136 @@ onAuthStateChanged(auth, user => {
     if (sec) render([sec]); else render();
   }
 
+  // ── COMPLETION PARTICLE BURST ──────────────────────────────
+  (function() {
+    let canvas, ctx;
+    let particles = [];
+    let rafId = null;
+
+    function init() {
+      canvas = document.getElementById('complete-canvas');
+      if (!canvas) return;
+      ctx = canvas.getContext('2d');
+      resize();
+    }
+
+    function resize() {
+      if (!canvas) return;
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    // Init after DOM ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+
+    const COLORS = ['#7fb89a','#7aaabb','#a896cc','#c9a96e','#c9949a','#d4d4d8'];
+
+    function Particle(x, y) {
+      const angle  = Math.random() * Math.PI * 2;
+      const speed  = 3.5 + Math.random() * 5.5;
+      const size   = 2.5 + Math.random() * 3.5;
+      return {
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 2.5,   // bias upward
+        size,
+        color: COLORS[Math.floor(Math.random() * COLORS.length)],
+        alpha: 1,
+        decay: 0.032 + Math.random() * 0.025,
+        gravity: 0.18,
+        wobble: (Math.random() - 0.5) * 0.4,
+        isRect: Math.random() > 0.5,
+        rotation: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 0.25,
+      };
+    }
+
+    function tick() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles = particles.filter(p => p.alpha > 0.02);
+      if (!particles.length) { rafId = null; return; }
+
+      particles.forEach(p => {
+        p.vx += p.wobble;
+        p.vy += p.gravity;
+        p.x  += p.vx;
+        p.y  += p.vy;
+        p.alpha -= p.decay;
+        p.rotation += p.rotSpeed;
+
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, p.alpha);
+        ctx.fillStyle = p.color;
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rotation);
+        if (p.isRect) {
+          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.55);
+        } else {
+          ctx.beginPath();
+          ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      });
+
+      rafId = requestAnimationFrame(tick);
+    }
+
+    window._burstComplete = function(el) {
+      if (!canvas || !ctx) init();
+      if (!canvas || !ctx) return;
+      const rect = el.getBoundingClientRect();
+      const cx = rect.left + rect.width  / 2;
+      const cy = rect.top  + rect.height / 2;
+      const count = 26 + Math.floor(Math.random() * 10);
+      for (let i = 0; i < count; i++) particles.push(Particle(cx, cy));
+      if (!rafId) rafId = requestAnimationFrame(tick);
+    };
+  })();
+
+  // ── COMPLETION SOUND ────────────────────────────────────────
+  (function() {
+    let audioCtx = null;
+
+    function getCtx() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      return audioCtx;
+    }
+
+    function playTone(ctx, freq, startTime, duration, gainPeak, type = 'sine') {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, startTime);
+      // Snappy attack, quick decay — coin-like
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(gainPeak, startTime + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+      osc.start(startTime);
+      osc.stop(startTime + duration + 0.01);
+    }
+
+    window._playComplete = function() {
+      try {
+        const ctx   = getCtx();
+        const now   = ctx.currentTime;
+        // First blip — lower note
+        playTone(ctx, 660,  now,        0.12, 0.28, 'square');
+        playTone(ctx, 660,  now,        0.12, 0.08, 'sine');
+        // Second blip — higher note, offset by 95ms = the "collect" feel
+        playTone(ctx, 1050, now + 0.095, 0.15, 0.22, 'square');
+        playTone(ctx, 1050, now + 0.095, 0.15, 0.10, 'sine');
+      } catch(e) {}
+    };
+  })();
+
   function toggleComplete(id) {
     const t = tasks.find(t => t.id === id);
     if (!t) return;
@@ -1848,7 +2003,20 @@ onAuthStateChanged(auth, user => {
     cb.type = 'checkbox';
     cb.className = 'task-checkbox';
     cb.checked = t.section === 'completed';
-    cb.addEventListener('change', () => toggleComplete(t.id));
+    cb.addEventListener('change', () => {
+      if (cb.checked) {
+        // Animate item row
+        const item = cb.closest('.task-item');
+        if (item) { item.classList.add('completing'); item.addEventListener('animationend', () => item.classList.remove('completing'), { once: true }); }
+        // Animate checkbox
+        cb.classList.add('popping');
+        cb.addEventListener('animationend', () => cb.classList.remove('popping'), { once: true });
+        // Particle burst + sound
+        window._burstComplete(cb);
+        window._playComplete();
+      }
+      toggleComplete(t.id);
+    });
 
     // Text
     let txt;
@@ -2043,6 +2211,7 @@ onAuthStateChanged(auth, user => {
   const _delay = ms => new Promise(r => setTimeout(r, ms));
 
   function _staleOrError(el, key, errMsg) {
+    console.error('[Digest:' + key + ']', errMsg);
     const stale = cacheGetStale(key);
     el.innerHTML = stale
       ? stale.data + '<div style="font-size:9px;color:var(--text-muted);margin-top:4px;">stale · ' + cacheAge(stale.ts) + '</div>'
@@ -2135,6 +2304,7 @@ onAuthStateChanged(auth, user => {
           document.getElementById('stocks-updated').textContent = 'via Claude · ' + timeNow();
           cacheSet('stocks', stocksEl.innerHTML);
         } catch(e2) {
+          console.error('[Digest:stocks]', e2.message || e2);
           const stale = cacheGetStale('stocks');
           stocksEl.innerHTML = stale
             ? stale.data + '<div style="font-size:9px;color:var(--text-muted);margin-top:4px;">stale · ' + cacheAge(stale.ts) + '</div>'
@@ -2261,6 +2431,7 @@ onAuthStateChanged(auth, user => {
         renderSanderson(sandEl, projects);
         cacheSet('sanderson', sandEl.innerHTML);
       } catch(e) {
+        console.error('[Digest:sanderson]', e && e.message || e);
         // Fallback to last known values if API fails
         renderSanderson(sandEl, [
           { title: 'Mistborn Movie Script',         pct: 2   },
@@ -2370,7 +2541,7 @@ onAuthStateChanged(auth, user => {
 
     try {
       const results = await Promise.all(SPORTS_TEAMS.map(async t => {
-        const empty = { name: t.name, league: t.league, result: '—', score: '', opponent: '', gameDate: '', record: '—', isLive: false, liveClock: '' };
+        const empty = { name: t.name, league: t.league, result: '—', score: '', opponent: '', gameDate: '', record: '—', isLive: false, liveClock: '', isNext: false };
         try {
           // Step 1: Check today's scoreboard for live/scheduled games — most reliable for live
           let liveGame = null;
@@ -2418,30 +2589,66 @@ onAuthStateChanged(auth, user => {
 
           const completed = (sd.events || []).filter(e => e.competitions?.[0]?.status?.type?.completed === true);
           const last = completed[completed.length - 1];
-          if (!last) return { ...empty, record };
+
+          // Find next upcoming game if no completed game exists or as fallback
+          const now = Date.now();
+          const upcoming = (sd.events || []).filter(e => {
+            const s = e.competitions?.[0]?.status?.type;
+            return s && !s.completed && s.state !== 'in' && new Date(e.date).getTime() > now;
+          });
+          const next = upcoming[0] || null;
+
+          if (!last && !next) return { ...empty, record };
+
+          if (!last && next) {
+            // No result yet — show next game
+            const comp = next.competitions[0];
+            const myTeam = comp.competitors.find(c =>
+              String(c.id) === String(t.espnId) || c.team?.id === String(t.espnId));
+            const other = comp.competitors.find(c => c !== myTeam);
+            if (!myTeam || !other) return { ...empty, record };
+            const isHome = myTeam.homeAway === 'home';
+            const oppName = other.team?.abbreviation || other.team?.shortDisplayName || '?';
+            const gameDate = new Date(next.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const gameTime = new Date(next.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+            return { name: t.name, league: t.league, record,
+              result: 'NEXT', score: '', isLive: false, liveClock: '',
+              opponent: `${isHome ? 'vs' : '@'} ${oppName}`,
+              gameDate: `${gameDate} · ${gameTime}`, isNext: true };
+          }
+
           const parsed = parseComp(t, last, false);
-          return { name: t.name, league: t.league, record, ...(parsed || { result: '—', score: '', opponent: '', gameDate: '', isLive: false, liveClock: '' }) };
+          return { name: t.name, league: t.league, record, ...(parsed || { result: '—', score: '', opponent: '', gameDate: '', isLive: false, liveClock: '' }), isNext: false };
 
         } catch(e) { return empty; }
       }));
 
       list.innerHTML = results.map(t => {
         const isLive = t.isLive;
+        const isNext = t.isNext;
         const resultColor = isLive ? 'var(--live-color)'
           : t.result === 'W' ? 'var(--win-color)'
           : t.result === 'L' ? 'var(--loss-color)'
-          : 'var(--text-dim)';
+          : isNext ? 'var(--color-slate-text)'
+          : 'var(--text-muted)';
         const subLine = isLive
           ? `${t.opponent} · <span style="color:var(--live-color);">${t.liveClock}</span>`
           : `${t.opponent}${t.gameDate ? ' · ' + t.gameDate : ''}`;
-        return `<div class="sport-row"${isLive ? ' style="background:rgba(245,158,11,0.07);border-radius:6px;padding:4px 6px;margin:-4px -6px;"' : ''}>
+        const rowStyle = isLive
+          ? ' style="background:rgba(245,158,11,0.07);border-radius:6px;padding:4px 6px;margin:-4px -6px;"'
+          : isNext
+          ? ' style="background:rgba(122,170,187,0.06);border-radius:6px;padding:4px 6px;margin:-4px -6px;"'
+          : '';
+        const resultSize = isNext ? '11px' : '18px';
+        const resultFont = isNext ? "'DM Mono',monospace" : "'DM Serif Display',serif";
+        return `<div class="sport-row"${rowStyle}>
           <div>
             <div class="sport-team">${t.name}</div>
             <div class="sport-league">${t.league} · ${t.record}</div>
           </div>
           <div style="text-align:right;">
             <div style="display:flex; align-items:baseline; gap:6px; justify-content:flex-end;">
-              <span style="font-family:'DM Serif Display',serif; font-size:18px; color:${resultColor};">${t.result}</span>
+              <span style="font-family:${resultFont}; font-size:${resultSize}; color:${resultColor}; letter-spacing:${isNext?'0.06em':'0'};">${t.result}</span>
               <span style="font-size:13px; color:var(--text);">${t.score}</span>
             </div>
             <div class="sport-last">${subLine}</div>
@@ -2450,6 +2657,7 @@ onAuthStateChanged(auth, user => {
       }).join('');
       document.getElementById('sports-updated').textContent = 'as of ' + timeNow();
     } catch(e) {
+      console.error('[Digest:sports]', e && e.message || e);
       list.innerHTML = _errorHTML('sports');
     }
   }
@@ -3170,5 +3378,6 @@ onAuthStateChanged(auth, user => {
 
 
 </script>
+  <canvas id="complete-canvas"></canvas>
 </body>
 </html>
