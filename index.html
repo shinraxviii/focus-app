@@ -1898,6 +1898,40 @@ onAuthStateChanged(auth, user => {
 
 
 
+  // ── CONFIG ──────────────────────────────────────────────────
+  // Paste your Anthropic API key here for Digest live data
+  // Get one at: https://console.anthropic.com
+  const ANTHROPIC_API_KEY = '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';
+
+  async function claudeSearch(prompt, max_tokens) {
+    if (!ANTHROPIC_API_KEY) throw new Error('No API key configured');
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: max_tokens || 1000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error?.message || response.status);
+    }
+    const data = await response.json();
+    const text = data.content
+      .filter(function(b) { return b.type === 'text'; })
+      .map(function(b) { return b.text; })
+      .join('');
+    return text.replace(/```json|```/g, '').trim();
+  }
+
   // ── DIGEST ───────────────────────────────────────────────────
 
   let digestLoaded = false;
@@ -1951,22 +1985,7 @@ onAuthStateChanged(auth, user => {
     const grid = document.getElementById('stocks-grid');
     grid.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1200,
-          tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-          messages: [{
-            role: 'user',
-            content: "Search for today's current stock prices and percentage change for: APP (Applovin), U (Unity), BTC (Bitcoin), AAPL, TSLA, META, GOOG, NVDA, S&P 500, Nasdaq. Return ONLY a JSON array, no markdown, no backticks. Format: [{label: 'APP', price: 123.45, changePct: 1.23}, ...]. Negative changePct for stocks that are down. BTC price should be full dollar amount."
-          }]
-        })
-      });
-      const data = await response.json();
-      const text = data.content.filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
-      const clean = text.replace(/```json|```/g, '').trim();
+      const clean = await claudeSearch("Search for today's current stock prices and percentage change for: APP (Applovin), U (Unity), BTC (Bitcoin), AAPL, TSLA, META, GOOG, NVDA, S&P 500, Nasdaq. Return ONLY a JSON array, no markdown, no backticks. Format: [{label: 'APP', price: 123.45, changePct: 1.23}, ...]. Negative changePct for stocks that are down. BTC price should be full dollar amount.", 1200);
       const stocks = JSON.parse(clean);
       grid.innerHTML = stocks.map(function(s) {
         const dir = s.changePct > 0 ? 'up' : s.changePct < 0 ? 'down' : 'flat';
@@ -1984,7 +2003,7 @@ onAuthStateChanged(auth, user => {
       }).join('');
       document.getElementById('stocks-updated').textContent = 'as of ' + timeNow();
     } catch(e) {
-      grid.innerHTML = '<span class="digest-error">Unable to load market data</span>';
+      grid.innerHTML = '<span class="digest-error">' + (e.message.includes('API key') ? 'Add API key in config' : 'Unable to load: ' + e.message) + '</span>';
     }
   }
 
@@ -2004,22 +2023,7 @@ onAuthStateChanged(auth, user => {
     list.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
     try {
       const cardQuery = MTG_CARDS.map(function(c) { return c.name; }).join(' and ');
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 800,
-          tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-          messages: [{
-            role: 'user',
-            content: 'Search for the current market prices for these Magic: The Gathering cards on MTGGoldfish or TCGPlayer: ' + cardQuery + '. Return ONLY a JSON array, no markdown, no backticks. Format: [{"name": "Card Name", "set": "Set Name", "usd": 299.99, "usd_foil": null}, ...]. Include all cards. Use null for usd or usd_foil if price not found.'
-          }]
-        })
-      });
-      const data = await response.json();
-      const text = data.content.filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
-      const clean = text.replace(/```json|```/g, '').trim();
+      const clean = await claudeSearch('Search for the current market prices for these Magic: The Gathering cards on MTGGoldfish or TCGPlayer: ' + cardQuery + '. Return ONLY a JSON array, no markdown, no backticks. Format: [{"name": "Card Name", "set": "Set Name", "usd": 299.99, "usd_foil": null}, ...]. Include all cards. Use null for usd or usd_foil if price not found.', 1000);
       const cards = JSON.parse(clean);
       list.innerHTML = cards.map(function(c) {
         const price = c.usd ? '$' + parseFloat(c.usd).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
@@ -2030,7 +2034,7 @@ onAuthStateChanged(auth, user => {
           + '</div>';
       }).join('');
     } catch(e) {
-      list.innerHTML = '<span class="digest-error">Unable to load card prices</span>';
+      list.innerHTML = '<span class="digest-error">' + (e.message.includes('API key') ? 'Add API key in config' : 'Unable to load: ' + e.message) + '</span>';
     }
   }
 
@@ -2048,22 +2052,7 @@ onAuthStateChanged(auth, user => {
     list.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
     try {
       const cardQuery = SORCERY_CARD_LIST.map(c => c.name + ' (' + c.label + ')').join(', ');
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-          messages: [{
-            role: 'user',
-            content: 'Search TCGPlayer for the current market prices of these Sorcery: Contested Realm cards: ' + cardQuery + '. Return ONLY a JSON array, no other text, no markdown, no backticks. Format: [{"name": "Card Name", "label": "Foil", "price": 49.99}, ...]. Use null for price if not found.'
-          }]
-        })
-      });
-      const data = await response.json();
-      const text = data.content.filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
-      const clean = text.replace(/```json|```/g, '').trim();
+      const clean = await claudeSearch('Search TCGPlayer for the current market prices of these Sorcery: Contested Realm cards: ' + cardQuery + '. Return ONLY a JSON array, no other text, no markdown, no backticks. Format: [{"name": "Card Name", "label": "Foil", "price": 49.99}, ...]. Use null for price if not found.', 1000);
       const cards = JSON.parse(clean);
       renderSorcery(list, cards);
     } catch(e) {
@@ -2093,26 +2082,7 @@ onAuthStateChanged(auth, user => {
     const list = document.getElementById('sanderson-list');
     list.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-          messages: [{
-            role: 'user',
-            content: `Search brandonsanderson.com for his current writing progress update. Return ONLY a JSON array, no other text, no markdown, no backticks. Format: [{"title": "Book Name", "pct": 35}, ...]. Include all projects listed with their percentage. If a project is 100% complete include it with pct: 100.`
-          }]
-        })
-      });
-      const data = await response.json();
-      const text = data.content
-        .filter(b => b.type === 'text')
-        .map(b => b.text)
-        .join('');
-
-      const clean = text.replace(/\`\`\`json|\`\`\`/g, '').trim();
+      const clean = await claudeSearch('Search brandonsanderson.com for his current writing progress update. Return ONLY a JSON array, no other text, no markdown, no backticks. Format: [{"title": "Book Name", "pct": 35}, ...]. Include all projects listed with their percentage. If a project is 100% complete include it with pct: 100.', 1000);
       const projects = JSON.parse(clean);
 
       renderSanderson(list, projects);
@@ -2232,22 +2202,7 @@ onAuthStateChanged(auth, user => {
     el.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
     const topic = type === 'tech' ? 'technology and AI industry' : 'top world news';
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1500,
-          tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-          messages: [{
-            role: 'user',
-            content: 'Search for the 6 most recent and important ' + topic + ' headlines from today or the past 24 hours. Return ONLY a JSON array, no markdown, no backticks. Format: [{"title": "Headline text", "source": "BBC", "url": "https://..."}, ...]. Use real URLs.'
-          }]
-        })
-      });
-      const data = await response.json();
-      const text = data.content.filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
-      const clean = text.replace(/```json|```/g, '').trim();
+      const clean = await claudeSearch('Search for the 6 most recent and important ' + topic + ' headlines from today or the past 24 hours. Return ONLY a JSON array, no markdown, no backticks. Format: [{"title": "Headline text", "source": "BBC", "url": "https://..."}, ...]. Use real URLs.', 1500);
       const items = JSON.parse(clean);
       el.innerHTML = items.map(function(item) {
         return '<a class="news-item" href="' + item.url + '" target="_blank" rel="noopener">'
@@ -2256,7 +2211,7 @@ onAuthStateChanged(auth, user => {
           + '</a>';
       }).join('');
     } catch(e) {
-      el.innerHTML = '<span class="digest-error">Unable to load headlines</span>';
+      el.innerHTML = '<span class="digest-error">' + (e.message.includes('API key') ? 'Add API key in config' : 'Unable to load: ' + e.message) + '</span>';
     }
   }
 
