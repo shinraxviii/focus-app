@@ -720,12 +720,17 @@
       z-index: 300;
     }
 
-    #header-right .theme-toggle {
+    #theme-toggle {
       position: fixed;
       top: calc(env(safe-area-inset-top) + 10px);
-      right: calc(env(safe-area-inset-right) + 90px);
+      right: calc(env(safe-area-inset-right) + 16px);
       z-index: 300;
     }
+
+    /* Hide sign-out on mobile (already handled above) */
+    #header-right .signout-btn { display: none; }
+    /* Also hide theme toggle from header flow — it's now fixed */
+    #header-right #theme-toggle { /* stays visible, just fixed */ }
 
     /* Header inner: stack title on top, date+weather row on bottom */
     #header-inner {
@@ -2821,21 +2826,28 @@ onAuthStateChanged(auth, user => {
 
           if (!last && !next) return { ...empty, record };
 
-          if (!last && next) {
-            // No result yet — show next game
+          // Show NEXT if: no last game, OR last game was >4 days ago and there's an upcoming game
+          const lastDate = last ? new Date(last.date).getTime() : 0;
+          const daysSinceLast = (now - lastDate) / (1000 * 60 * 60 * 24);
+          const showNext = next && (!last || daysSinceLast > 2);
+
+          if (showNext) {
             const comp = next.competitions[0];
             const myTeam = comp.competitors.find(c =>
               String(c.id) === String(t.espnId) || c.team?.id === String(t.espnId));
             const other = comp.competitors.find(c => c !== myTeam);
-            if (!myTeam || !other) return { ...empty, record };
-            const isHome = myTeam.homeAway === 'home';
-            const oppName = other.team?.abbreviation || other.team?.shortDisplayName || '?';
-            const gameDate = new Date(next.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            const gameTime = new Date(next.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-            return { name: t.name, league: t.league, record,
-              result: 'NEXT', score: '', isLive: false, liveClock: '',
-              opponent: `${isHome ? 'vs' : '@'} ${oppName}`,
-              gameDate: `${gameDate} · ${gameTime}`, isNext: true };
+            if (!myTeam || !other) {
+              // Fall through to show last result
+            } else {
+              const isHome = myTeam.homeAway === 'home';
+              const oppName = other.team?.abbreviation || other.team?.shortDisplayName || '?';
+              const gameDate = new Date(next.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              const gameTime = new Date(next.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+              return { name: t.name, league: t.league, record,
+                result: 'NEXT', score: '', isLive: false, liveClock: '',
+                opponent: `${isHome ? 'vs' : '@'} ${oppName}`,
+                gameDate: `${gameDate} · ${gameTime}`, isNext: true };
+            }
           }
 
           const parsed = parseComp(t, last, false);
@@ -2982,8 +2994,126 @@ onAuthStateChanged(auth, user => {
     }, { passive: true });
   })();
 
+  // ── TOUCH DRAG (mobile) ─────────────────────────────────────
+  (function() {
+    let ghost = null, draggingEl = null, dragTaskId = null;
+    let startY = 0, startX = 0, offsetY = 0;
+    let lastTarget = null;
+
+    function getTaskItem(el) {
+      while (el && !el.classList?.contains('task-item')) el = el.parentElement;
+      return el;
+    }
+
+    document.addEventListener('touchstart', function(e) {
+      const item = getTaskItem(e.target);
+      if (!item) return;
+      // Don't activate on checkbox or interactive elements
+      if (e.target.closest('input, button, a')) return;
+
+      const touch = e.touches[0];
+      startX = touch.clientX;
+      startY = touch.clientY;
+
+      // Long press to initiate drag (300ms)
+      item._dragTimer = setTimeout(() => {
+        draggingEl = item;
+        dragTaskId = item.dataset.id;
+        const rect = item.getBoundingClientRect();
+        offsetY = touch.clientY - rect.top;
+
+        // Create ghost clone
+        ghost = item.cloneNode(true);
+        ghost.style.cssText = `
+          position:fixed; left:${rect.left}px; top:${rect.top}px;
+          width:${rect.width}px; opacity:0.85; pointer-events:none;
+          z-index:9999; box-shadow:0 8px 32px rgba(0,0,0,0.4);
+          transform:scale(1.02); transition:transform 0.1s;
+          background:var(--surface2); border-radius:8px;
+        `;
+        document.body.appendChild(ghost);
+        item.style.opacity = '0.3';
+        if (navigator.vibrate) navigator.vibrate(40);
+      }, 300);
+    }, { passive: true });
+
+    document.addEventListener('touchmove', function(e) {
+      const item = getTaskItem(e.target);
+      if (item) clearTimeout(item._dragTimer);
+      if (!draggingEl || !ghost) return;
+      e.preventDefault();
+
+      const touch = e.touches[0];
+      ghost.style.top = (touch.clientY - offsetY) + 'px';
+
+      // Find element under touch (excluding ghost)
+      ghost.style.display = 'none';
+      const elBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+      ghost.style.display = '';
+
+      const targetItem = getTaskItem(elBelow);
+      if (targetItem && targetItem !== draggingEl && targetItem !== lastTarget) {
+        lastTarget = targetItem;
+        // Show drop indicator
+        document.querySelectorAll('.touch-drop-line').forEach(el => el.remove());
+        const line = document.createElement('div');
+        line.className = 'touch-drop-line';
+        line.style.cssText = 'height:2px;background:var(--sage);border-radius:1px;margin:2px 0;transition:none;';
+        const targetRect = targetItem.getBoundingClientRect();
+        const insertBefore = touch.clientY < targetRect.top + targetRect.height / 2;
+        if (insertBefore) {
+          targetItem.parentElement.insertBefore(line, targetItem);
+        } else {
+          targetItem.parentElement.insertBefore(line, targetItem.nextSibling);
+        }
+      }
+    }, { passive: false });
+
+    document.addEventListener('touchend', function(e) {
+      const item = getTaskItem(e.target);
+      if (item) clearTimeout(item._dragTimer);
+      if (!draggingEl || !ghost) return;
+
+      const touch = e.changedTouches[0];
+      ghost.style.display = 'none';
+      const elBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+      ghost.style.display = '';
+
+      document.querySelectorAll('.touch-drop-line').forEach(el => el.remove());
+      ghost.remove(); ghost = null;
+      draggingEl.style.opacity = '';
+
+      const targetItem = getTaskItem(elBelow);
+      if (targetItem && targetItem !== draggingEl) {
+        const targetRect = targetItem.getBoundingClientRect();
+        const insertBefore = touch.clientY < targetRect.top + targetRect.height / 2;
+
+        // Reorder in tasks array
+        const fromId = dragTaskId;
+        const toId = targetItem.dataset.id;
+        const fromIdx = tasks.findIndex(t => t.id === fromId);
+        const toIdx   = tasks.findIndex(t => t.id === toId);
+        if (fromIdx !== -1 && toIdx !== -1) {
+          const [moved] = tasks.splice(fromIdx, 1);
+          const newIdx = tasks.findIndex(t => t.id === toId);
+          tasks.splice(insertBefore ? newIdx : newIdx + 1, 0, moved);
+          save();
+          render();
+        }
+      }
+
+      draggingEl = null; dragTaskId = null; lastTarget = null;
+    }, { passive: true });
+
+    document.addEventListener('touchcancel', function() {
+      document.querySelectorAll('.touch-drop-line').forEach(el => el.remove());
+      if (ghost) { ghost.remove(); ghost = null; }
+      if (draggingEl) { draggingEl.style.opacity = ''; draggingEl = null; }
+      dragTaskId = null; lastTarget = null;
+    }, { passive: true });
+  })();
+
   function setPeriod(p) {
-    currentPeriod = p;
     document.querySelectorAll('[data-period]').forEach(b => b.classList.toggle('active', b.dataset.period === p));
     renderChart();
   }
