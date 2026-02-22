@@ -34,6 +34,10 @@
     --color-lavender:#5a4d72;
     --color-sand:    #6b5f4a;
 
+    --win-color:  #7fb89a;
+    --loss-color: #c9949a;
+    --live-color: #f59e0b;
+
     --color-rose-text:    #c9949a;
     --color-amber-text:   #c9a96e;
     --color-sage-text:    #7fb89a;
@@ -48,6 +52,9 @@
     --surface:  #ffffff;
     --surface2: #e4e4e7;
     --border:   #d1d1d6;
+    --win-color: #2d7a52;
+    --loss-color: #a33a3a;
+    --live-color: #b45309;
     --text:     #18181b;
     --text-muted: #71717a;
     --text-dim:   #a1a1aa;
@@ -838,7 +845,7 @@
   .stock-price {
     font-family: 'DM Serif Display', serif;
     font-size: 20px;
-    color: #e4e4e7;
+    color: var(--text);
     line-height: 1;
     letter-spacing: -0.5px;
   }
@@ -848,7 +855,7 @@
     letter-spacing: 0.04em;
   }
 
-  .stock-change.up   { color: #7fb89a; }
+  .stock-change.up   { color: var(--win-color); }
   .stock-change.down { color: #c9949a; }
   .stock-change.flat { color: var(--text-dim); }
 
@@ -884,7 +891,7 @@
   .card-price {
     font-family: 'DM Serif Display', serif;
     font-size: 18px;
-    color: #e4e4e7;
+    color: var(--text);
     letter-spacing: -0.5px;
     text-align: right;
   }
@@ -929,7 +936,7 @@
   .sport-record {
     font-family: 'DM Serif Display', serif;
     font-size: 16px;
-    color: #e4e4e7;
+    color: var(--text);
     text-align: right;
   }
 
@@ -966,7 +973,7 @@
     transition: color 0.1s;
   }
 
-  .news-item:hover .news-headline { color: #e4e4e7; }
+  .news-item:hover .news-headline { color: var(--text); }
 
   .news-meta {
     font-size: 9px;
@@ -1002,7 +1009,7 @@
 
   .sanderson-bar {
     height: 100%;
-    background: #7aaabb;
+    background: var(--color-slate-text);
     border-radius: 2px;
     transition: width 0.4s ease;
   }
@@ -1023,7 +1030,7 @@
 
   .digest-error {
     font-size: 10px;
-    color: #7a4a50;
+    color: var(--color-rose-text);
     letter-spacing: 0.06em;
   }
 
@@ -1724,24 +1731,27 @@ onAuthStateChanged(auth, user => {
     textEl.value = '';
     dateEl.value = '';
     save();
-    render();
+    render([section]);
   }
 
   function clearCompleted() {
     tasks = tasks.filter(t => t.section !== 'completed');
     save();
-    render();
+    render(['completed']);
   }
 
   function deleteTask(id) {
+    const t = tasks.find(t => t.id === id);
+    const sec = t ? t.section : null;
     tasks = tasks.filter(t => t.id !== id);
     save();
-    render();
+    if (sec) render([sec]); else render();
   }
 
   function toggleComplete(id) {
     const t = tasks.find(t => t.id === id);
     if (!t) return;
+    const prevSection = t.section;
     if (t.section === 'completed') {
       t.section = 'todo';
       if (t.color === 'sage') t.color = t._prevColor || 'none';
@@ -1753,7 +1763,9 @@ onAuthStateChanged(auth, user => {
       logCompletion(t);
     }
     save();
-    render();
+    // Only re-render the two affected sections
+    const affected = [...new Set([prevSection, t.section])];
+    render(affected);
   }
 
   function editTask(id, txtEl) {
@@ -1786,7 +1798,7 @@ onAuthStateChanged(auth, user => {
 
   function setColor(id, color) {
     const t = tasks.find(t => t.id === id);
-    if (t) { t.color = color; save(); render(); }
+    if (t) { t.color = color; save(); patchItem(id); }
   }
 
   function buildItem(t) {
@@ -1913,9 +1925,9 @@ onAuthStateChanged(auth, user => {
     const body = {
       model: 'claude-sonnet-4-5-20250929',
       max_tokens: max_tokens || 1000,
-      system: 'You are a data API. You MUST respond with ONLY a valid JSON array. No explanations, no prose, no markdown, no backticks. Just the raw JSON array starting with [ and ending with ].',
+      system: 'You are a data API. Respond with ONLY valid JSON — either an object {} or array []. No explanations, no prose, no markdown, no backticks. Raw JSON only.',
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-      messages: [{ role: 'user', content: prompt + ' Respond with ONLY the JSON array, nothing else.' }]
+      messages: [{ role: 'user', content: prompt + ' Respond with ONLY the JSON (object or array), nothing else.' }]
     };
     const proxyUrl = PROXY_URL || 'https://api.anthropic.com/v1/messages';
     const response = await fetch(proxyUrl, {
@@ -1934,9 +1946,9 @@ onAuthStateChanged(auth, user => {
       .filter(function(b) { return b.type === 'text'; })
       .map(function(b) { return b.text; })
       .join('');
-    // Extract JSON array even if there's surrounding text
-    const match = text.match(/\[[\s\S]*\]/);
-    if (!match) throw new Error('No JSON array found in response');
+    // Extract JSON object or array even if there's surrounding text
+    const match = text.match(/([\[\{][\s\S]*[\]\}])/);
+    if (!match) throw new Error('No JSON found in response');
     return match[0];
   }
 
@@ -1947,8 +1959,23 @@ onAuthStateChanged(auth, user => {
       if (!raw) return null;
       const entry = JSON.parse(raw);
       if (Date.now() - entry.ts > maxAgeMs) return null;
-      return entry.data;
+      return entry;  // return full entry {ts, data}
     } catch(e) { return null; }
+  }
+  // Returns stale data even if expired — for fallback display
+  function cacheGetStale(key) {
+    try {
+      const raw = localStorage.getItem('focus-digest-' + key);
+      if (!raw) return null;
+      return JSON.parse(raw); // {ts, data}
+    } catch(e) { return null; }
+  }
+  function cacheAge(ts) {
+    const mins = Math.round((Date.now() - ts) / 60000);
+    if (mins < 60) return mins + 'm ago';
+    const hrs = Math.round(mins / 60);
+    if (hrs < 24) return hrs + 'h ago';
+    return Math.round(hrs / 24) + 'd ago';
   }
   function cacheSet(key, data) {
     try {
@@ -1958,25 +1985,10 @@ onAuthStateChanged(auth, user => {
 
   // ── DIGEST ───────────────────────────────────────────────────
 
-  let digestLoaded = false;
-
   async function loadDigest() {
-    // Sanderson always re-fetches for live data; others cache after first load
-    loadSanderson();
-    if (digestLoaded) return;
-    digestLoaded = true;
-    // Run sequentially to avoid rate limits
-    const delay = ms => new Promise(r => setTimeout(r, ms));
-    loadSports(); // ESPN - no rate limit, run immediately
-    await loadStocks();
-    await delay(3000);
-    await loadMTG();
-    await delay(3000);
-    await loadSorcery();
-    await delay(3000);
-    await loadNews('general');
-    await delay(3000);
-    await loadNews('tech');
+    loadSports();           // ESPN — no tokens, always fresh
+    await loadLiveData();   // Stocks (Yahoo) + News (Claude) — handles own 1hr cache
+    await loadDailyData();  // MTG + Sorcery + Sanderson — handles own 24hr cache
   }
 
   // ── THEME ────────────────────────────────────────────────
@@ -2009,35 +2021,193 @@ onAuthStateChanged(auth, user => {
   }
 
   // ── STOCKS ──────────────────────────────────────────────────
-  async function loadStocks() {
-    const grid = document.getElementById('stocks-grid');
-    const cached = cacheGet('stocks', 60 * 60 * 1000); // 1 hour
-    if (cached) { grid.innerHTML = cached; document.getElementById('stocks-updated').textContent = 'cached'; return; }
-    grid.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
-    try {
-      const clean = await claudeSearch('Current prices and day % change for: APP, U, BTC, AAPL, TSLA, META, GOOG, NVDA, SPY, QQQ. JSON array only: [{label,price,changePct}]', 400);
-      const stocks = JSON.parse(clean);
-      grid.innerHTML = stocks.map(function(s) {
-        const dir = s.changePct > 0 ? 'up' : s.changePct < 0 ? 'down' : 'flat';
-        const sign = s.changePct > 0 ? '+' : '';
-        const price = parseFloat(s.price);
-        const priceStr = s.label === 'BTC'
-          ? '$' + Math.round(price).toLocaleString()
-          : price >= 1000 ? '$' + price.toLocaleString('en-US', {maximumFractionDigits:0})
-          : '$' + price.toFixed(2);
-        return '<div class="stock-item">'
-          + '<span class="stock-ticker">' + s.label + '</span>'
-          + '<span class="stock-price">' + priceStr + '</span>'
-          + '<span class="stock-change ' + dir + '">' + sign + parseFloat(s.changePct).toFixed(2) + '%</span>'
-          + '</div>';
+  // ── LIVE DATA: Stocks via Yahoo Finance (0 tokens), News via Claude ──
+  async function loadLiveData() {
+    const stocksEl = document.getElementById('stocks-grid');
+    const newsGenEl = document.getElementById('news-general');
+    const newsTechEl = document.getElementById('news-tech');
+
+    // Load cached versions immediately (fresh or stale)
+    const cachedStocks = cacheGet('stocks', 60 * 60 * 1000);
+    const cachedNewsGen = cacheGet('news-general', 60 * 60 * 1000);
+    const cachedNewsTech = cacheGet('news-tech', 60 * 60 * 1000);
+    if (cachedStocks) stocksEl.innerHTML = cachedStocks.data;
+    if (cachedNewsGen) newsGenEl.innerHTML = cachedNewsGen.data;
+    if (cachedNewsTech) newsTechEl.innerHTML = cachedNewsTech.data;
+
+    // Stocks: use Yahoo Finance directly — zero Claude tokens
+    if (!cachedStocks) {
+      stocksEl.innerHTML = '<span class="digest-loading">Loading...</span>';
+      try {
+        const TICKERS = ['APP','U','BTC-USD','AAPL','TSLA','META','GOOG','NVDA','^GSPC','^IXIC'];
+        const LABELS  = {'BTC-USD':'BTC','^GSPC':'S&P 500','^IXIC':'Nasdaq'};
+        const results = await Promise.all(TICKERS.map(async function(t) {
+          try {
+            const url = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(t) + '?interval=1d&range=1d';
+            const r = await fetch(url, { signal: AbortSignal.timeout(5000) });
+            const data = await r.json();
+            const meta = data.chart.result[0].meta;
+            const price = meta.regularMarketPrice;
+            const prev  = meta.chartPreviousClose;
+            const changePct = ((price - prev) / prev * 100);
+            return { label: LABELS[t] || t, price, changePct };
+          } catch(e) { return null; }
+        }));
+        const valid = results.filter(Boolean);
+        if (valid.length > 0) {
+          stocksEl.innerHTML = valid.map(function(s) {
+            const dir = s.changePct > 0 ? 'up' : s.changePct < 0 ? 'down' : 'flat';
+            const sign = s.changePct > 0 ? '+' : '';
+            const price = parseFloat(s.price);
+            const priceStr = s.label === 'BTC'
+              ? '$' + Math.round(price).toLocaleString()
+              : price >= 1000 ? '$' + price.toLocaleString('en-US', {maximumFractionDigits:0})
+              : '$' + price.toFixed(2);
+            return '<div class="stock-item">'
+              + '<span class="stock-ticker">' + s.label + '</span>'
+              + '<span class="stock-price">' + priceStr + '</span>'
+              + '<span class="stock-change ' + dir + '">' + sign + s.changePct.toFixed(2) + '%</span>'
+              + '</div>';
+          }).join('');
+          document.getElementById('stocks-updated').textContent = 'as of ' + timeNow();
+          cacheSet('stocks', stocksEl.innerHTML);
+        }
+      } catch(e) {
+        // Yahoo Finance blocked (CORS) — fall back to Claude for stock prices
+        try {
+          const clean = await claudeSearch('Current prices and 1-day % change for: APP, U, BTC, AAPL, TSLA, META, GOOG, NVDA, S&P 500, Nasdaq. JSON: [{"label","price","changePct"}]', 400);
+          const stocks = JSON.parse(clean);
+          stocksEl.innerHTML = stocks.map(function(s) {
+            const dir = s.changePct > 0 ? 'up' : s.changePct < 0 ? 'down' : 'flat';
+            const sign = s.changePct > 0 ? '+' : '';
+            const price = parseFloat(s.price);
+            const priceStr = s.label === 'BTC' ? '$' + Math.round(price).toLocaleString()
+              : price >= 1000 ? '$' + price.toLocaleString('en-US',{maximumFractionDigits:0})
+              : '$' + price.toFixed(2);
+            return '<div class="stock-item"><span class="stock-ticker">' + s.label + '</span><span class="stock-price">' + priceStr + '</span><span class="stock-change ' + dir + '">' + sign + parseFloat(s.changePct).toFixed(2) + '%</span></div>';
+          }).join('');
+          document.getElementById('stocks-updated').textContent = 'via Claude · ' + timeNow();
+          cacheSet('stocks', stocksEl.innerHTML);
+        } catch(e2) {
+          const stale = cacheGetStale('stocks');
+          stocksEl.innerHTML = stale
+            ? stale.data + '<div style="font-size:9px;color:var(--text-dim);margin-top:4px;">stale · ' + cacheAge(stale.ts) + '</div>'
+            : '<span class="digest-error">Unable to load market data</span>';
+        }
+      }
+    }
+
+    // News: Claude API — only if not cached
+    if (cachedNewsGen && cachedNewsTech) return;
+
+    function renderNewsItems(items) {
+      return items.map(function(item) {
+        return '<a class="news-item" href="' + item.url + '" target="_blank" rel="noopener">'
+          + '<div class="news-headline">' + item.title + '</div>'
+          + '<div class="news-meta">' + (item.source || '') + '</div>'
+          + '</a>';
       }).join('');
-      document.getElementById('stocks-updated').textContent = 'as of ' + timeNow();
-      cacheSet('stocks', grid.innerHTML);
+    }
+
+    if (!cachedNewsGen) newsGenEl.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
+    if (!cachedNewsTech) newsTechEl.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
+
+    try {
+      const clean = await claudeSearch(
+        'Give me 5 top world news headlines AND 5 top tech/AI headlines from today. ' +
+        'JSON only: {"newsGeneral":[{"title","source","url"}],"newsTech":[{"title","source","url"}]}',
+        600
+      );
+      const d = JSON.parse(clean);
+      if (d.newsGeneral && !cachedNewsGen) {
+        newsGenEl.innerHTML = renderNewsItems(d.newsGeneral);
+        cacheSet('news-general', newsGenEl.innerHTML);
+      }
+      if (d.newsTech && !cachedNewsTech) {
+        newsTechEl.innerHTML = renderNewsItems(d.newsTech);
+        cacheSet('news-tech', newsTechEl.innerHTML);
+      }
     } catch(e) {
-      grid.innerHTML = '<span class="digest-error">' + (e.message.includes('API key') ? 'Add API key in config' : 'Unable to load: ' + e.message) + '</span>';
+      if (!cachedNewsGen) {
+        const stale = cacheGetStale('news-general');
+        newsGenEl.innerHTML = stale ? stale.data + '<div style="font-size:9px;color:var(--text-dim);margin-top:4px;">stale · ' + cacheAge(stale.ts) + '</div>' : '<span class="digest-error">Unable to load news</span>';
+      }
+      if (!cachedNewsTech) {
+        const stale = cacheGetStale('news-tech');
+        newsTechEl.innerHTML = stale ? stale.data + '<div style="font-size:9px;color:var(--text-dim);margin-top:4px;">stale · ' + cacheAge(stale.ts) + '</div>' : '<span class="digest-error">Unable to load news</span>';
+      }
     }
   }
 
+  // ── BATCHED CALL 2: Daily data (MTG + Sorcery + Sanderson) ── 24hr cache ──
+  async function loadDailyData() {
+    const mtgEl = document.getElementById('mtg-list');
+    const sorcEl = document.getElementById('sorcery-list');
+    const sandEl = document.getElementById('sanderson-list');
+
+    const cachedMTG = cacheGet('mtg', 24 * 60 * 60 * 1000);
+    const cachedSorc = cacheGet('sorcery', 24 * 60 * 60 * 1000);
+    const cachedSand = cacheGet('sanderson', 24 * 60 * 60 * 1000);
+
+    if (cachedMTG) mtgEl.innerHTML = cachedMTG.data;
+    if (cachedSorc) sorcEl.innerHTML = cachedSorc.data;
+    if (cachedSand) sandEl.innerHTML = cachedSand.data;
+    if (cachedMTG && cachedSorc && cachedSand) return;
+
+    if (!cachedMTG) mtgEl.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
+    if (!cachedSorc) sorcEl.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
+    if (!cachedSand) sandEl.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
+
+    const mtgNames = MTG_CARDS.map(function(c) { return c.name; }).join(', ');
+    const sorcNames = SORCERY_CARD_LIST.map(function(c) { return c.name + ' (' + c.label + ')'; }).join(', ');
+
+    try {
+      const clean = await claudeSearch(
+        'Give me: (1) current MTG card prices from MTGGoldfish for: ' + mtgNames + '; ' +
+        '(2) current Sorcery Contested Realm card prices from TCGPlayer for: ' + sorcNames + '; ' +
+        '(3) Brandon Sanderson current writing progress from brandonsanderson.com. ' +
+        'Respond ONLY with this JSON: {"mtg":[{"name","set","usd","usd_foil"}],"sorcery":[{"name","label","price"}],"sanderson":[{"title","pct"}]}',
+        800
+      );
+      const d = JSON.parse(clean);
+
+      if (d.mtg && !cachedMTG) {
+        mtgEl.innerHTML = d.mtg.map(function(c) {
+          const price = c.usd ? '$' + parseFloat(c.usd).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
+          const foil  = c.usd_foil ? 'Foil $' + parseFloat(c.usd_foil).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '';
+          return '<div class="card-row">'
+            + '<div><div class="card-name">' + c.name + '</div><div class="card-set">' + (c.set || '') + '</div></div>'
+            + '<div><div class="card-price">' + price + '</div><div class="card-price-sub">' + foil + '</div></div>'
+            + '</div>';
+        }).join('');
+        cacheSet('mtg', mtgEl.innerHTML);
+      }
+
+      if (d.sorcery && !cachedSorc) {
+        renderSorcery(sorcEl, d.sorcery);
+        cacheSet('sorcery', sorcEl.innerHTML);
+      }
+
+      if (d.sanderson && !cachedSand) {
+        renderSanderson(sandEl, d.sanderson);
+        cacheSet('sanderson', sandEl.innerHTML);
+      }
+    } catch(e) {
+      function showStaleOrError(el, key, cached) {
+        if (cached) return; // already showing fresh cache
+        const stale = cacheGetStale(key);
+        el.innerHTML = stale
+          ? stale.data + '<div style="font-size:9px;color:var(--text-dim);margin-top:4px;">stale · ' + cacheAge(stale.ts) + '</div>'
+          : '<span class="digest-error">Unable to load</span>';
+      }
+      showStaleOrError(mtgEl, 'mtg', cachedMTG);
+      showStaleOrError(sorcEl, 'sorcery', cachedSorc);
+      showStaleOrError(sandEl, 'sanderson', cachedSand);
+    }
+  }
+
+
+  // ── MTG CARDS
   // ── MTG CARDS ───────────────────────────────────────────────
   const MTG_CARDS = [
     { name: "Gaia's Cradle",              set: "Urza's Saga"      },
@@ -2049,29 +2219,8 @@ onAuthStateChanged(auth, user => {
     { name: "Sephiroth, Fabled Soldier",  set: "Final Fantasy"    }
   ];
 
-  async function loadMTG() {
-    const list = document.getElementById('mtg-list');
-    const cached = cacheGet('mtg', 24 * 60 * 60 * 1000);
-    if (cached) { list.innerHTML = cached; return; }
-    list.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
-    try {
-      const cardQuery = MTG_CARDS.map(function(c) { return c.name; }).join(', ');
-      const clean = await claudeSearch('MTG card prices on MTGGoldfish for: ' + cardQuery + '. JSON array only: [{"name","set","usd","usd_foil"}]. null if not found.', 400);
-      const cards = JSON.parse(clean);
-      list.innerHTML = cards.map(function(c) {
-        const price = c.usd ? '$' + parseFloat(c.usd).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
-        const foil  = c.usd_foil ? 'Foil $' + parseFloat(c.usd_foil).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '';
-        return '<div class="card-row">'
-          + '<div><div class="card-name">' + c.name + '</div><div class="card-set">' + (c.set || '') + '</div></div>'
-          + '<div><div class="card-price">' + price + '</div><div class="card-price-sub">' + foil + '</div></div>'
-          + '</div>';
-      }).join('');
-      cacheSet('mtg', list.innerHTML);
-    } catch(e) {
-      list.innerHTML = '<span class="digest-error">' + (e.message.includes('API key') ? 'Add API key in config' : 'Unable to load: ' + e.message) + '</span>';
-    }
-  }
 
+  // ── SORCERY CARDS
   // ── SORCERY CARDS ──────────────────────────────────────────
   const SORCERY_CARD_LIST = [
     { name: 'Avatar of Air',     set: 'Alpha',  label: 'Foil'     },
@@ -2081,22 +2230,8 @@ onAuthStateChanged(auth, user => {
     { name: 'Gothic Booster Box',set: 'Gothic', label: 'Sealed'   }
   ];
 
-  async function loadSorcery() {
-    const list = document.getElementById('sorcery-list');
-    const cachedSorc = cacheGet('sorcery', 24 * 60 * 60 * 1000);
-    if (cachedSorc) { list.innerHTML = cachedSorc; return; }
-    list.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
-    try {
-      const cardQuery = SORCERY_CARD_LIST.map(function(c) { return c.name + ' (' + c.label + ')'; }).join(', ');
-      const clean = await claudeSearch('TCGPlayer prices for Sorcery Contested Realm cards: ' + cardQuery + '. JSON array only: [{"name","label","price"}]. null if not found.', 400);
-      const cards = JSON.parse(clean);
-      renderSorcery(list, cards);
-      cacheSet('sorcery', list.innerHTML);
-    } catch(e) {
-      list.innerHTML = '<span class="digest-error">Unable to load: ' + e.message + '</span>';
-    }
-  }
 
+  function renderSorcery
   function renderSorcery(list, cards) {
     list.innerHTML = cards.map(function(c) {
       const tcgUrl = 'https://www.tcgplayer.com/search/sorcery-contested-realm/product?q=' + encodeURIComponent(c.name) + (c.label === 'Foil' ? '&Foil=Yes' : '');
@@ -2114,35 +2249,15 @@ onAuthStateChanged(auth, user => {
     }).join('');
   }
 
-  // ── BRANDON SANDERSON ──────────────────────────────────────
-  async function loadSanderson() {
-    const list = document.getElementById('sanderson-list');
-    const cached = cacheGet('sanderson', 24 * 60 * 60 * 1000);
-    if (cached) { list.innerHTML = cached; return; }
-    list.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
-    try {
-      const clean = await claudeSearch('Brandon Sanderson current writing progress from brandonsanderson.com. JSON array only: [{"title","pct"}]. pct is integer 0-100.', 400);
-      const projects = JSON.parse(clean);
-      renderSanderson(list, projects);
-      cacheSet('sanderson', list.innerHTML);
-    } catch(e) {
-      // Fallback to last known values
-      renderSanderson(list, [
-        { title: 'Mistborn Movie Script',         pct: 2   },
-        { title: 'Ghostbloods Book 1 (1.0)',      pct: 100 },
-        { title: "Brandon's Songrise 2.0 Review", pct: 100 },
-        { title: 'Songrise 3.0',                  pct: 35  },
-      ]);
-    }
-  }
 
+  function renderSanderson
   function renderSanderson(list, projects) {
     list.innerHTML = `
       ${projects.map(p => `
         <div class="sanderson-item">
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <span class="sanderson-book">${p.title}</span>
-            <span class="sanderson-pct" style="color:${p.pct === 100 ? '#7fb89a' : 'var(--text-muted)'};">${p.pct === 100 ? '✓ Done' : p.pct + '%'}</span>
+            <span class="sanderson-pct" style="color:${p.pct === 100 ? 'var(--win-color)' : 'var(--text-muted)'};">${p.pct === 100 ? '✓ Done' : p.pct + '%'}</span>
           </div>
           ${p.pct < 100 ? `<div class="sanderson-bar-wrap"><div class="sanderson-bar" style="width:${p.pct}%"></div></div>` : ''}
         </div>`).join('')}
@@ -2162,60 +2277,101 @@ onAuthStateChanged(auth, user => {
 
   async function loadSports() {
     const list = document.getElementById('sports-list');
+
+    // Helper: parse a competition into our team result object
+    function parseComp(t, event, forceLive) {
+      const comp = event.competitions[0];
+      const status = comp.status?.type;
+      const myTeam = comp.competitors.find(c =>
+        String(c.id) === String(t.espnId) ||
+        c.team?.id === String(t.espnId)
+      );
+      const other = comp.competitors.find(c => c !== myTeam);
+      if (!myTeam || !other) return null;
+
+      const myScore    = myTeam.score?.displayValue ?? String(myTeam.score ?? '0');
+      const theirScore = other.score?.displayValue  ?? String(other.score  ?? '0');
+      const oppName    = other.team?.abbreviation || other.team?.shortDisplayName || '?';
+      const isHome     = myTeam.homeAway === 'home';
+      const isLive     = forceLive || (status && !status.completed && (status.state === 'in' || status.name === 'in'));
+
+      return {
+        score:     `${myScore}–${theirScore}`,
+        opponent:  `${isHome ? 'vs' : '@'} ${oppName}`,
+        isLive,
+        liveClock: isLive ? (comp.status?.displayClock || status?.shortDetail || 'LIVE') : '',
+        result:    isLive ? 'LIVE' : (myTeam.winner === true ? 'W' : myTeam.winner === false ? 'L' : '—'),
+        gameDate:  !isLive ? new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''
+      };
+    }
+
     try {
       const results = await Promise.all(SPORTS_TEAMS.map(async t => {
+        const empty = { name: t.name, league: t.league, result: '—', score: '', opponent: '', gameDate: '', record: '—', isLive: false, liveClock: '' };
         try {
-          // Get team's recent schedule to find last game result
-          const schedUrl = `https://site.api.espn.com/apis/site/v2/sports/${t.sport}/${t.league_path}/teams/${t.espnId}/schedule`;
-          const r = await fetch(schedUrl, { signal: AbortSignal.timeout(7000) });
-          const d = await r.json();
-          const events = d.events || [];
+          // Step 1: Check today's scoreboard for live/scheduled games — most reliable for live
+          let liveGame = null;
+          try {
+            const sbUrl = `https://site.api.espn.com/apis/site/v2/sports/${t.sport}/${t.league_path}/scoreboard`;
+            const sbr = await fetch(sbUrl, { signal: AbortSignal.timeout(5000) });
+            if (sbr.ok) {
+              const sbd = await sbr.json();
+              const todayEvents = (sbd.events || []).filter(e => {
+                const comps = e.competitions || [];
+                return comps.some(c => c.competitors?.some(cx =>
+                  String(cx.id) === String(t.espnId) || cx.team?.id === String(t.espnId)
+                ));
+              });
+              // Prefer in-progress, then most recent
+              liveGame = todayEvents.find(e => {
+                const s = e.competitions[0]?.status?.type;
+                return s && !s.completed && (s.state === 'in' || s.name === 'in');
+              }) || null;
+            }
+          } catch(_) {}
 
-          // Find the most recent completed game
-          const now = Date.now();
-          const completed = events.filter(e => {
-            const s = e.competitions?.[0]?.status?.type;
-            return s?.completed === true;
-          });
-          const last = completed[completed.length - 1];
-
-          let result = '—', opponent = '', score = '', gameDate = '';
-
-          if (last) {
-            const comp = last.competitions[0];
-            const home = comp.competitors.find(c => c.homeAway === 'home');
-            const away = comp.competitors.find(c => c.homeAway === 'away');
-            const myTeam = comp.competitors.find(c => c.id === t.espnId || c.team?.abbreviation?.toLowerCase() === t.espnId.toLowerCase());
-            const otherTeam = comp.competitors.find(c => c !== myTeam);
-
-            if (myTeam && otherTeam) {
-              const won = myTeam.winner === true;
-              const myScore = myTeam.score?.displayValue ?? myTeam.score ?? '?';
-              const theirScore = otherTeam.score?.displayValue ?? otherTeam.score ?? '?';
-              const oppName = otherTeam.team?.abbreviation || otherTeam.team?.shortDisplayName || '?';
-              const isHome = myTeam.homeAway === 'home';
-              result = won ? 'W' : 'L';
-              score = `${myScore}–${theirScore}`;
-              opponent = `${isHome ? 'vs' : '@'} ${oppName}`;
-              gameDate = new Date(last.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          // Step 2: If live found on scoreboard, use it (no extra fetch needed)
+          if (liveGame) {
+            const parsed = parseComp(t, liveGame, true);
+            if (parsed) {
+              // Try to get record from scoreboard team data
+              const sbTeam = (liveGame.competitions[0]?.competitors || []).find(c =>
+                String(c.id) === String(t.espnId) || c.team?.id === String(t.espnId));
+              const record = sbTeam?.records?.[0]?.summary || sbTeam?.team?.record?.items?.[0]?.summary || '—';
+              return { name: t.name, league: t.league, record, ...parsed };
             }
           }
 
-          // Also get record
-          const teamUrl = `https://site.api.espn.com/apis/site/v2/sports/${t.sport}/${t.league_path}/teams/${t.espnId}`;
-          const tr = await fetch(teamUrl, { signal: AbortSignal.timeout(6000) });
-          const td = await tr.json();
-          const record = td.team?.record?.items?.[0]?.summary || '—';
+          // Step 3: Schedule response contains record — one fetch covers both
+          const schedUrl = `https://site.api.espn.com/apis/site/v2/sports/${t.sport}/${t.league_path}/teams/${t.espnId}/schedule`;
+          const sr = await fetch(schedUrl, { signal: AbortSignal.timeout(7000) });
+          if (!sr.ok) return empty;
+          const sd = await sr.json();
 
-          return { name: t.name, league: t.league, result, score, opponent, gameDate, record };
-        } catch(e) {
-          return { name: t.name, league: t.league, result: '—', score: '', opponent: '', gameDate: '', record: '—' };
-        }
+          // Record is on the team object in the schedule response
+          const record = sd.team?.record?.items?.[0]?.summary
+            || sd.season?.displayName && '—'
+            || '—';
+
+          const completed = (sd.events || []).filter(e => e.competitions?.[0]?.status?.type?.completed === true);
+          const last = completed[completed.length - 1];
+          if (!last) return { ...empty, record };
+          const parsed = parseComp(t, last, false);
+          return { name: t.name, league: t.league, record, ...(parsed || { result: '—', score: '', opponent: '', gameDate: '', isLive: false, liveClock: '' }) };
+
+        } catch(e) { return empty; }
       }));
 
       list.innerHTML = results.map(t => {
-        const resultColor = t.result === 'W' ? '#7fb89a' : t.result === 'L' ? '#c9949a' : 'var(--text-dim)';
-        return `<div class="sport-row">
+        const isLive = t.isLive;
+        const resultColor = isLive ? 'var(--live-color)'
+          : t.result === 'W' ? 'var(--win-color)'
+          : t.result === 'L' ? 'var(--loss-color)'
+          : 'var(--text-dim)';
+        const subLine = isLive
+          ? `${t.opponent} · <span style="color:var(--live-color);">${t.liveClock}</span>`
+          : `${t.opponent}${t.gameDate ? ' · ' + t.gameDate : ''}`;
+        return `<div class="sport-row"${isLive ? ' style="background:rgba(245,158,11,0.07);border-radius:6px;padding:4px 6px;margin:-4px -6px;"' : ''}>
           <div>
             <div class="sport-team">${t.name}</div>
             <div class="sport-league">${t.league} · ${t.record}</div>
@@ -2225,7 +2381,7 @@ onAuthStateChanged(auth, user => {
               <span style="font-family:'DM Serif Display',serif; font-size:18px; color:${resultColor};">${t.result}</span>
               <span style="font-size:13px; color:var(--text);">${t.score}</span>
             </div>
-            <div class="sport-last">${t.opponent} · ${t.gameDate}</div>
+            <div class="sport-last">${subLine}</div>
           </div>
         </div>`;
       }).join('');
@@ -2235,34 +2391,15 @@ onAuthStateChanged(auth, user => {
     }
   }
 
-  // ── NEWS ──────────────────────────────────────────────────
-  async function loadNews(type) {
-    const el = document.getElementById('news-' + type);
-    const cached = cacheGet('news-' + type, 60 * 60 * 1000);
-    if (cached) { el.innerHTML = cached; return; }
-    el.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
-    const topic = type === 'tech' ? 'technology and AI industry' : 'top world news';
-    try {
-      const clean = await claudeSearch('6 latest ' + topic + ' news headlines today. JSON array only: [{"title","source","url"}].', 400);
-      const items = JSON.parse(clean);
-      el.innerHTML = items.map(function(item) {
-        return '<a class="news-item" href="' + item.url + '" target="_blank" rel="noopener">'
-          + '<div class="news-headline">' + item.title + '</div>'
-          + '<div class="news-meta">' + (item.source || '') + '</div>'
-          + '</a>';
-      }).join('');
-      cacheSet('news-' + type, el.innerHTML);
-    } catch(e) {
-      el.innerHTML = '<span class="digest-error">' + (e.message.includes('API key') ? 'Add API key in config' : 'Unable to load: ' + e.message) + '</span>';
-    }
-  }
 
+  // ── ANALYTICS
   // ── ANALYTICS ────────────────────────────────────────────────
 
   let completionLog = []; // [{id, timestamp, text}]
   let analyticsChart = null;
   let currentPeriod = 'day';
   let currentChartType = 'bar';
+  let chartDataHash = null; // dirty flag: only rebuild chart when data changes
 
   async function loadLog() {
     try {
@@ -2332,6 +2469,27 @@ onAuthStateChanged(auth, user => {
     }
   }
 
+  // ── SWIPE GESTURES (mobile) ─────────────────────────────────
+  (function() {
+    const PAGES = ['digest', 'tasks', 'analytics'];
+    let touchStartX = 0, touchStartY = 0;
+    document.addEventListener('touchstart', function(e) {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+    document.addEventListener('touchend', function(e) {
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const dy = e.changedTouches[0].clientY - touchStartY;
+      if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.4) return; // min 60px, must be mostly horizontal
+      const activeBtnIdx = PAGES.findIndex(p => document.getElementById('btn-' + p)?.classList.contains('active'));
+      if (activeBtnIdx === -1) return;
+      const next = dx < 0
+        ? PAGES[Math.min(activeBtnIdx + 1, PAGES.length - 1)]
+        : PAGES[Math.max(activeBtnIdx - 1, 0)];
+      if (next !== PAGES[activeBtnIdx]) showPage(next);
+    }, { passive: true });
+  })();
+
   function setPeriod(p) {
     currentPeriod = p;
     document.querySelectorAll('[data-period]').forEach(b => b.classList.toggle('active', b.dataset.period === p));
@@ -2364,10 +2522,9 @@ onAuthStateChanged(auth, user => {
   function getChartData() {
     const counts = {};
     completionLog.forEach(e => {
-      let k;
-      if (currentPeriod === 'day') k = dateKey(e.timestamp);
-      else if (currentPeriod === 'week') k = weekKey(e.timestamp);
-      else k = monthKey(e.timestamp);
+      const k = currentPeriod === 'day' ? dateKey(e.timestamp)
+              : currentPeriod === 'week' ? weekKey(e.timestamp)
+              : monthKey(e.timestamp);
       counts[k] = (counts[k] || 0) + 1;
     });
 
@@ -2400,45 +2557,48 @@ onAuthStateChanged(auth, user => {
     return { labels, data };
   }
 
-  function calcStreak() {
-    if (!completionLog.length) return 0;
-    const days = new Set(completionLog.map(e => dateKey(e.timestamp)));
+  // Single pass over completionLog — computes streak, best day, and daily counts together
+  function calcAnalyticsStats() {
+    const dailyCounts = {};
+    completionLog.forEach(e => {
+      const k = dateKey(e.timestamp);
+      dailyCounts[k] = (dailyCounts[k] || 0) + 1;
+    });
+
+    // Streak
     let streak = 0;
     const d = new Date();
-    if (!days.has(dateKey(d))) d.setDate(d.getDate() - 1);
-    while (days.has(dateKey(d))) {
+    if (!dailyCounts[dateKey(d)]) d.setDate(d.getDate() - 1);
+    while (dailyCounts[dateKey(d)]) {
       streak++;
       d.setDate(d.getDate() - 1);
     }
-    return streak;
-  }
 
-  function calcBestDay() {
-    const counts = {};
-    completionLog.forEach(e => {
-      const k = dateKey(e.timestamp);
-      counts[k] = (counts[k] || 0) + 1;
+    // Best day
+    let bestCount = 0, bestLabel = 'none yet';
+    Object.entries(dailyCounts).forEach(([k, v]) => {
+      if (v > bestCount) {
+        bestCount = v;
+        bestLabel = new Date(k).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      }
     });
-    const max = Math.max(0, ...Object.values(counts));
-    const day = Object.entries(counts).find(([,v]) => v === max);
-    if (!day) return { count: 0, label: 'none yet' };
-    const d = new Date(day[0]);
-    return { count: max, label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) };
+
+    return { streak, bestCount, bestLabel, dailyCounts };
   }
 
   function renderTiles() {
     const total = completionLog.length;
+    const { streak, bestCount, bestLabel } = calcAnalyticsStats();
+
     document.getElementById('tile-total-pts').textContent = total;
     document.getElementById('tile-total-sub').textContent =
       total + ' task' + (total !== 1 ? 's' : '') + ' completed all time';
 
-    const streak = calcStreak();
     document.getElementById('tile-streak').innerHTML =
       streak + '<span class="unit"> day' + (streak !== 1 ? 's' : '') + '</span>';
 
-    const best = calcBestDay();
     document.getElementById('tile-streak-sub').textContent =
-      best.count > 0 ? 'Best day: ' + best.count + ' pts on ' + best.label : 'No completions yet';
+      bestCount > 0 ? 'Best day: ' + bestCount + ' pts on ' + bestLabel : 'No completions yet';
   }
 
   function renderChart() {
@@ -2451,18 +2611,25 @@ onAuthStateChanged(auth, user => {
       canvas.style.display = 'none';
       emptyEl.style.display = 'flex';
       if (analyticsChart) { analyticsChart.destroy(); analyticsChart = null; }
+      chartDataHash = null;
       return;
     }
     canvas.style.display = 'block';
     emptyEl.style.display = 'none';
 
+    // Only rebuild if data or chart type actually changed
+    const newHash = currentPeriod + ':' + currentChartType + ':' + (isLight?'L':'D') + ':' + data.join(',');
+    if (analyticsChart && newHash === chartDataHash) return;
+    chartDataHash = newHash;
+
     if (analyticsChart) { analyticsChart.destroy(); analyticsChart = null; }
 
     const ctx = canvas.getContext('2d');
+    const isLight = document.documentElement.classList.contains('light');
     const accent = '#7aaabb';
     const accentFill = 'rgba(122,170,187,0.12)';
-    const gridColor = 'rgba(255,255,255,0.05)';
-    const textColor = '#52525b';
+    const gridColor = isLight ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.05)';
+    const textColor = isLight ? '#71717a' : '#52525b';
 
     analyticsChart = new Chart(ctx, {
       type: currentChartType,
@@ -2487,11 +2654,11 @@ onAuthStateChanged(auth, user => {
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: '#1a1a1e',
-            borderColor: '#2e2e34',
+            backgroundColor: isLight ? '#ffffff' : '#1a1a1e',
+            borderColor: isLight ? '#d1d1d6' : '#2e2e34',
             borderWidth: 1,
             titleColor: '#71717a',
-            bodyColor: '#e4e4e7',
+            bodyColor: isLight ? '#18181b' : '#e4e4e7',
             padding: 10,
             callbacks: {
               label: ctx => '  ' + ctx.parsed.y + (ctx.parsed.y === 1 ? ' point' : ' points')
@@ -2638,7 +2805,7 @@ onAuthStateChanged(auth, user => {
     if (t) {
       t.link = url.trim();
       save();
-      render();
+      patchItem(taskId);
     }
     closeLinkPopover();
   }
@@ -2648,28 +2815,41 @@ onAuthStateChanged(auth, user => {
     activeLinkId = null;
   }
 
-  function render() {
-    ['todo','notrightnow','completed'].forEach(sec => {
-      const list = document.getElementById('list-' + sec);
-      const secTasks = tasks.filter(t => t.section === sec);
-      list.innerHTML = '';
-      if (secTasks.length === 0) {
-        const empty = document.createElement('div');
-        empty.className = 'empty-state';
-        empty.textContent = sec === 'completed' ? 'Nothing done yet' : sec === 'notrightnow' ? 'Drag tasks here to park them' : 'All clear';
-        list.appendChild(empty);
-      } else {
-        secTasks.forEach(t => list.appendChild(buildItem(t)));
-      }
-      document.getElementById('count-' + sec).textContent = secTasks.length;
-      if (sec === 'completed') {
-        const btn = document.getElementById('clear-completed-btn');
-        btn.style.display = secTasks.length > 0 ? 'inline' : 'none';
-      }
-      // Sync mobile tab counts
-      const tabCount = document.getElementById('tab-count-' + sec);
-      if (tabCount) tabCount.textContent = secTasks.length;
-    });
+  function renderSection(sec) {
+    const list = document.getElementById('list-' + sec);
+    const secTasks = tasks.filter(t => t.section === sec);
+    list.innerHTML = '';
+    if (secTasks.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.textContent = sec === 'completed' ? 'Nothing done yet' : sec === 'notrightnow' ? 'Drag tasks here to park them' : 'All clear';
+      list.appendChild(empty);
+    } else {
+      secTasks.forEach(t => list.appendChild(buildItem(t)));
+    }
+    document.getElementById('count-' + sec).textContent = secTasks.length;
+    if (sec === 'completed') {
+      const btn = document.getElementById('clear-completed-btn');
+      btn.style.display = secTasks.length > 0 ? 'inline' : 'none';
+    }
+    const tabCount = document.getElementById('tab-count-' + sec);
+    if (tabCount) tabCount.textContent = secTasks.length;
+  }
+
+  // Full render — used after load, drag-drop, or multi-section changes
+  function render(sectionsToUpdate) {
+    const secs = sectionsToUpdate || ['todo','notrightnow','completed'];
+    secs.forEach(renderSection);
+  }
+
+  // Patch a single task item in-place without rebuilding the whole list
+  function patchItem(id) {
+    const t = tasks.find(t => t.id === id);
+    if (!t) return;
+    const existing = document.querySelector('.task-item[data-id="' + id + '"]');
+    if (!existing) { render([t.section]); return; }
+    const fresh = buildItem(t);
+    existing.replaceWith(fresh);
   }
 
   function onDragOver(e) {
@@ -2861,13 +3041,13 @@ onAuthStateChanged(auth, user => {
 
   // Fallback static data (Tarzana, CA — refreshed on load when network available)
   const STATIC_WEATHER = {
-    current: { temperature_2m: 41, weathercode: 3 },
+    current: { temperature_2m: 65, weathercode: 1 },
     daily: {
-      time: ['2026-02-20','2026-02-21','2026-02-22','2026-02-23'],
-      temperature_2m_max: [55, 62, 70, 75],
-      weathercode: [3, 1, 1, 1]
+      time: ['2026-02-22','2026-02-23','2026-02-24','2026-02-25'],
+      temperature_2m_max: [68, 70, 72, 71],
+      weathercode: [1, 1, 2, 1]
     },
-    city: 'Tarzana'
+    city: 'Los Angeles'
   };
 
   async function fetchWeather(lat, lon) {
@@ -2879,13 +3059,30 @@ onAuthStateChanged(auth, user => {
       clearTimeout(timeout);
       const data = await res.json();
       renderWeather(data, null);
+
+      // City name: check cache first (7-day TTL) before hitting Nominatim
+      const cityKey = 'focus-weather-city';
       try {
-        const geo = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
-        const gd = await geo.json();
-        const city = gd.address.city || gd.address.town || gd.address.village || gd.address.county || '';
-        const el = document.getElementById('weather-city');
-        if (el && city) el.textContent = city;
-      } catch(e) {}
+        const cached = localStorage.getItem(cityKey);
+        if (cached) {
+          const c = JSON.parse(cached);
+          if (Date.now() - c.ts < 7 * 24 * 60 * 60 * 1000) {
+            const el = document.getElementById('weather-city');
+            if (el && c.city) el.textContent = c.city;
+          } else { throw new Error('stale'); }
+        } else { throw new Error('miss'); }
+      } catch(_) {
+        try {
+          const geo = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+          const gd = await geo.json();
+          const city = gd.address.city || gd.address.town || gd.address.village || gd.address.county || '';
+          if (city) {
+            localStorage.setItem(cityKey, JSON.stringify({ ts: Date.now(), city }));
+            const el = document.getElementById('weather-city');
+            if (el) el.textContent = city;
+          }
+        } catch(e) {}
+      }
     } catch(e) {
       // Network blocked (e.g. sandbox) — use static fallback
       renderWeather(STATIC_WEATHER, STATIC_WEATHER.city);
