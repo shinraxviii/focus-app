@@ -1940,6 +1940,22 @@ onAuthStateChanged(auth, user => {
     return match[0];
   }
 
+  // ── CACHE (localStorage, persists across sessions) ─────────
+  function cacheGet(key, maxAgeMs) {
+    try {
+      const raw = localStorage.getItem('focus-digest-' + key);
+      if (!raw) return null;
+      const entry = JSON.parse(raw);
+      if (Date.now() - entry.ts > maxAgeMs) return null;
+      return entry.data;
+    } catch(e) { return null; }
+  }
+  function cacheSet(key, data) {
+    try {
+      localStorage.setItem('focus-digest-' + key, JSON.stringify({ ts: Date.now(), data }));
+    } catch(e) {}
+  }
+
   // ── DIGEST ───────────────────────────────────────────────────
 
   let digestLoaded = false;
@@ -1995,6 +2011,8 @@ onAuthStateChanged(auth, user => {
   // ── STOCKS ──────────────────────────────────────────────────
   async function loadStocks() {
     const grid = document.getElementById('stocks-grid');
+    const cached = cacheGet('stocks', 60 * 60 * 1000); // 1 hour
+    if (cached) { grid.innerHTML = cached; document.getElementById('stocks-updated').textContent = 'cached'; return; }
     grid.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
     try {
       const clean = await claudeSearch('Current prices and day % change for: APP, U, BTC, AAPL, TSLA, META, GOOG, NVDA, SPY, QQQ. JSON array only: [{label,price,changePct}]', 400);
@@ -2014,6 +2032,7 @@ onAuthStateChanged(auth, user => {
           + '</div>';
       }).join('');
       document.getElementById('stocks-updated').textContent = 'as of ' + timeNow();
+      cacheSet('stocks', grid.innerHTML);
     } catch(e) {
       grid.innerHTML = '<span class="digest-error">' + (e.message.includes('API key') ? 'Add API key in config' : 'Unable to load: ' + e.message) + '</span>';
     }
@@ -2032,9 +2051,11 @@ onAuthStateChanged(auth, user => {
 
   async function loadMTG() {
     const list = document.getElementById('mtg-list');
+    const cached = cacheGet('mtg', 24 * 60 * 60 * 1000);
+    if (cached) { list.innerHTML = cached; return; }
     list.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
     try {
-      const cardQuery = MTG_CARDS.map(function(c) { return c.name; }).join(' and ');
+      const cardQuery = MTG_CARDS.map(function(c) { return c.name; }).join(', ');
       const clean = await claudeSearch('MTG card prices on MTGGoldfish for: ' + cardQuery + '. JSON array only: [{"name","set","usd","usd_foil"}]. null if not found.', 400);
       const cards = JSON.parse(clean);
       list.innerHTML = cards.map(function(c) {
@@ -2045,6 +2066,7 @@ onAuthStateChanged(auth, user => {
           + '<div><div class="card-price">' + price + '</div><div class="card-price-sub">' + foil + '</div></div>'
           + '</div>';
       }).join('');
+      cacheSet('mtg', list.innerHTML);
     } catch(e) {
       list.innerHTML = '<span class="digest-error">' + (e.message.includes('API key') ? 'Add API key in config' : 'Unable to load: ' + e.message) + '</span>';
     }
@@ -2061,14 +2083,17 @@ onAuthStateChanged(auth, user => {
 
   async function loadSorcery() {
     const list = document.getElementById('sorcery-list');
+    const cachedSorc = cacheGet('sorcery', 24 * 60 * 60 * 1000);
+    if (cachedSorc) { list.innerHTML = cachedSorc; return; }
     list.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
     try {
-      const cardQuery = SORCERY_CARD_LIST.map(c => c.name + ' (' + c.label + ')').join(', ');
+      const cardQuery = SORCERY_CARD_LIST.map(function(c) { return c.name + ' (' + c.label + ')'; }).join(', ');
       const clean = await claudeSearch('TCGPlayer prices for Sorcery Contested Realm cards: ' + cardQuery + '. JSON array only: [{"name","label","price"}]. null if not found.', 400);
       const cards = JSON.parse(clean);
       renderSorcery(list, cards);
+      cacheSet('sorcery', list.innerHTML);
     } catch(e) {
-      renderSorcery(list, SORCERY_CARD_LIST.map(function(c) { return Object.assign({}, c, { price: null }); }));
+      list.innerHTML = '<span class="digest-error">Unable to load: ' + e.message + '</span>';
     }
   }
 
@@ -2092,12 +2117,14 @@ onAuthStateChanged(auth, user => {
   // ── BRANDON SANDERSON ──────────────────────────────────────
   async function loadSanderson() {
     const list = document.getElementById('sanderson-list');
+    const cached = cacheGet('sanderson', 24 * 60 * 60 * 1000);
+    if (cached) { list.innerHTML = cached; return; }
     list.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
     try {
       const clean = await claudeSearch('Brandon Sanderson current writing progress from brandonsanderson.com. JSON array only: [{"title","pct"}]. pct is integer 0-100.', 400);
       const projects = JSON.parse(clean);
-
       renderSanderson(list, projects);
+      cacheSet('sanderson', list.innerHTML);
     } catch(e) {
       // Fallback to last known values
       renderSanderson(list, [
@@ -2211,6 +2238,8 @@ onAuthStateChanged(auth, user => {
   // ── NEWS ──────────────────────────────────────────────────
   async function loadNews(type) {
     const el = document.getElementById('news-' + type);
+    const cached = cacheGet('news-' + type, 60 * 60 * 1000);
+    if (cached) { el.innerHTML = cached; return; }
     el.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
     const topic = type === 'tech' ? 'technology and AI industry' : 'top world news';
     try {
@@ -2222,6 +2251,7 @@ onAuthStateChanged(auth, user => {
           + '<div class="news-meta">' + (item.source || '') + '</div>'
           + '</a>';
       }).join('');
+      cacheSet('news-' + type, el.innerHTML);
     } catch(e) {
       el.innerHTML = '<span class="digest-error">' + (e.message.includes('API key') ? 'Add API key in config' : 'Unable to load: ' + e.message) + '</span>';
     }
