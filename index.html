@@ -2540,6 +2540,9 @@ onAuthStateChanged(auth, user => {
   // Option B: Direct API key (may fail due to CORS on some browsers)
   const ANTHROPIC_API_KEY = ''; // Not needed when using proxy
 
+  // GNews API key — free tier at https://gnews.io (10 req/day, enough with 4hr cache)
+  const GNEWS_API_KEY = ''; // ← paste your key here
+
   async function claudeSearch(prompt, max_tokens) {
     const key = ANTHROPIC_API_KEY ? ANTHROPIC_API_KEY.trim().replace(/[\u200B-\u200D\uFEFF\u00A0]/g, '') : '';
     const proxySet = PROXY_URL && PROXY_URL.trim() !== '';
@@ -2548,7 +2551,7 @@ onAuthStateChanged(auth, user => {
       model: 'claude-sonnet-4-5-20250929',
       max_tokens: max_tokens || 1000,
       system: 'You are a data API. Respond with ONLY valid JSON — either an object {} or array []. No explanations, no prose, no markdown, no backticks. Raw JSON only.',
-      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 2 }],
       messages: [{ role: 'user', content: prompt + ' Respond with ONLY the JSON (object or array), nothing else.' }]
     };
     const proxyUrl = PROXY_URL || 'https://api.anthropic.com/v1/messages';
@@ -2790,28 +2793,40 @@ onAuthStateChanged(auth, user => {
       }
     }
 
-    // News: two separate calls to keep tokens low and avoid parse errors
+    // News via GNews API (free, structured JSON, no tokens)
+    // Get your free key at https://gnews.io — free tier: 10 req/day, plenty with 4hr cache
     if (cachedNewsGen && cachedNewsTech) return;
 
     function renderNewsItems(items) {
       return items.map(function(item) {
         return '<a class="news-item" href="' + item.url + '" target="_blank" rel="noopener">'
           + '<div class="news-headline">' + item.title + '</div>'
-          + '<div class="news-meta">' + (item.source || '') + '</div>'
+          + '<div class="news-meta">' + (item.source?.name || item.source || '') + '</div>'
           + '</a>';
       }).join('');
+    }
+
+    async function fetchGNews(topic, category) {
+      if (!GNEWS_API_KEY) throw new Error('No GNEWS_API_KEY set');
+      // Use topic search for general, category for tech
+      const base = 'https://gnews.io/api/v4/';
+      const url = topic
+        ? base + 'search?q=' + encodeURIComponent(topic) + '&lang=en&max=5&apikey=' + GNEWS_API_KEY
+        : base + 'top-headlines?category=' + category + '&lang=en&max=5&apikey=' + GNEWS_API_KEY;
+      const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!r.ok) throw new Error('GNews ' + r.status);
+      const d = await r.json();
+      if (!d.articles?.length) throw new Error('GNews: no articles');
+      return d.articles.map(function(a) {
+        return { title: a.title, url: a.url, source: a.source?.name || '' };
+      });
     }
 
     // General news
     if (!cachedNewsGen) {
       newsGenEl.innerHTML = '<span class="digest-loading">Loading headlines...</span>';
       try {
-        const clean = await claudeSearch(
-          'Search for the 5 biggest world news headlines right now. ' +
-          'Return ONLY a JSON array like: [{"title":"Headline here","source":"BBC","url":"https://bbc.com/article"}]',
-          500
-        );
-        const items = JSON.parse(clean);
+        const items = await fetchGNews(null, 'general');
         newsGenEl.innerHTML = renderNewsItems(items);
         cacheSet('news-general', newsGenEl.innerHTML);
       } catch(e) {
@@ -2819,17 +2834,11 @@ onAuthStateChanged(auth, user => {
       }
     }
 
-    // Tech news — wait 15s to stay well under per-minute token limit
+    // Tech news
     if (!cachedNewsTech) {
-      await _delay(15000);
       newsTechEl.innerHTML = '<span class="digest-loading">Loading tech news...</span>';
       try {
-        const clean = await claudeSearch(
-          'Search for the 5 biggest tech and AI news headlines right now. ' +
-          'Return ONLY a JSON array like: [{"title":"Headline here","source":"TechCrunch","url":"https://techcrunch.com/article"}]',
-          500
-        );
-        const items = JSON.parse(clean);
+        const items = await fetchGNews(null, 'technology');
         newsTechEl.innerHTML = renderNewsItems(items);
         cacheSet('news-tech', newsTechEl.innerHTML);
       } catch(e) {
@@ -2853,33 +2862,45 @@ onAuthStateChanged(auth, user => {
     if (cachedSand) sandEl.innerHTML = cachedSand.data;
     if (cachedMTG && cachedSorc && cachedSand) return;
 
-    // MTG prices — wait 20s after news calls to stay under rate limit
-    if (!cachedMTG || !cachedSorc || !cachedSand) await _delay(20000);
+    // MTG prices via Scryfall (free, no key, no tokens)
     if (!cachedMTG) {
       mtgEl.innerHTML = '<span class="digest-loading">Loading MTG prices...</span>';
       try {
-        const names = MTG_CARDS.map(c => c.name).join(', ');
-        const clean = await claudeSearch(
-          'Look up current MTG card prices on MTGGoldfish for: ' + names + '. ' +
-          'Return ONLY a JSON array: [{"name":"Gaia Cradle","set":"Urza Saga","usd":"450.00","usd_foil":"600.00"}]',
-          600
-        );
-        const cards = JSON.parse(clean);
-        mtgEl.innerHTML = cards.map(function(c) {
-          const price = c.usd ? '$' + parseFloat(c.usd).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
+        const results = await Promise.all(MTG_CARDS.map(async function(card) {
+          const url = 'https://api.scryfall.com/cards/named?exact=' + encodeURIComponent(card.name)
+            + (card.set ? '&set=' + encodeURIComponent(card.scryfallSet || '') : '');
+          const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
+          if (!r.ok) throw new Error('Scryfall ' + r.status + ' for ' + card.name);
+          const d = await r.json();
+          return {
+            name:      d.name,
+            set:       d.set_name,
+            usd:       d.prices?.usd       || null,
+            usd_foil:  d.prices?.usd_foil  || null,
+            scryfallUrl: d.scryfall_uri
+          };
+        }));
+        mtgEl.innerHTML = results.map(function(c) {
+          const price = c.usd      ? '$' + parseFloat(c.usd).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
           const foil  = c.usd_foil ? 'Foil $' + parseFloat(c.usd_foil).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '';
           return '<div class="card-row">'
-            + '<div><div class="card-name">' + c.name + '</div><div class="card-set">' + (c.set || '') + '</div></div>'
-            + '<div><div class="card-price">' + price + '</div><div class="card-price-sub">' + foil + '</div></div>'
+            + '<div>'
+            + '<div class="card-name">' + c.name + '</div>'
+            + '<div class="card-set">' + (c.set || '') + '</div>'
+            + '</div>'
+            + '<div style="text-align:right;">'
+            + '<div class="card-price">' + price + '</div>'
+            + '<div class="card-price-sub">' + foil + '</div>'
+            + '</div>'
             + '</div>';
         }).join('');
         cacheSet('mtg', mtgEl.innerHTML);
       } catch(e) { _staleOrError(mtgEl, 'mtg', e.message || 'MTG load failed'); }
     }
 
-    // Sorcery prices — wait 20s between daily calls
+    // Sorcery prices — still via Claude (no public API), small delay after MTG parallel fetches
     if (!cachedSorc) {
-      await _delay(20000);
+      await _delay(5000);
       sorcEl.innerHTML = '<span class="digest-loading">Loading Sorcery prices...</span>';
       try {
         const names = SORCERY_CARD_LIST.map(c => c.name + ' ' + c.label).join(', ');
@@ -2894,9 +2915,9 @@ onAuthStateChanged(auth, user => {
       } catch(e) { _staleOrError(sorcEl, 'sorcery', e.message || 'Sorcery load failed'); }
     }
 
-    // Sanderson progress — wait 20s between daily calls
+    // Sanderson progress — wait 15s after Sorcery Claude call
     if (!cachedSand) {
-      await _delay(20000);
+      await _delay(15000);
       sandEl.innerHTML = '<span class="digest-loading">Loading Sanderson progress...</span>';
       try {
         const clean = await claudeSearch(
@@ -2923,13 +2944,13 @@ onAuthStateChanged(auth, user => {
 
   // ── MTG CARDS ───────────────────────────────────────────────
   const MTG_CARDS = [
-    { name: "Gaia's Cradle",              set: "Urza's Saga"      },
-    { name: "Bazaar of Baghdad",          set: "Arabian Nights"   },
-    { name: "The One Ring",               set: "Lord of the Rings" },
-    { name: "Wheel of Fortune",           set: "Revised Edition"  },
-    { name: "Sheoldred, the Apocalypse",  set: "Dominaria United" },
-    { name: "Mana Vault",                 set: "Fourth Edition"   },
-    { name: "Sephiroth, Fabled Soldier",  set: "Final Fantasy"    }
+    { name: "Gaia's Cradle",              set: "Urza's Saga",       scryfallSet: 'usg' },
+    { name: "Bazaar of Baghdad",          set: "Arabian Nights",    scryfallSet: 'arn' },
+    { name: "The One Ring",               set: "Lord of the Rings",  scryfallSet: 'ltr' },
+    { name: "Wheel of Fortune",           set: "Revised Edition",   scryfallSet: '3ed' },
+    { name: "Sheoldred, the Apocalypse",  set: "Dominaria United",  scryfallSet: 'dmu' },
+    { name: "Mana Vault",                 set: "Fourth Edition",    scryfallSet: '4ed' },
+    { name: "Sephiroth, Fabled Soldier",  set: "Final Fantasy",     scryfallSet: 'fft' }
   ];
 
 
