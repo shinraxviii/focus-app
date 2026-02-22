@@ -1911,7 +1911,7 @@ onAuthStateChanged(auth, user => {
     const proxySet = PROXY_URL && PROXY_URL.trim() !== '';
     if (!key && !proxySet) throw new Error('No API key — add PROXY_URL or ANTHROPIC_API_KEY in the file');
     const body = {
-      model: 'claude-haiku-4-5',
+      model: 'claude-sonnet-4-5-20250929',
       max_tokens: max_tokens || 1000,
       system: 'You are a data API. You MUST respond with ONLY a valid JSON array. No explanations, no prose, no markdown, no backticks. Just the raw JSON array starting with [ and ending with ].',
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
@@ -1953,13 +1953,13 @@ onAuthStateChanged(auth, user => {
     const delay = ms => new Promise(r => setTimeout(r, ms));
     loadSports(); // ESPN - no rate limit, run immediately
     await loadStocks();
-    await delay(1000);
+    await delay(3000);
     await loadMTG();
-    await delay(1000);
+    await delay(3000);
     await loadSorcery();
-    await delay(1000);
+    await delay(3000);
     await loadNews('general');
-    await delay(1000);
+    await delay(3000);
     await loadNews('tech');
   }
 
@@ -1997,7 +1997,7 @@ onAuthStateChanged(auth, user => {
     const grid = document.getElementById('stocks-grid');
     grid.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
     try {
-      const clean = await claudeSearch("Search for today's current stock prices and percentage change for: APP (Applovin), U (Unity), BTC (Bitcoin), AAPL, TSLA, META, GOOG, NVDA, S&P 500, Nasdaq. Return ONLY a JSON array, no markdown, no backticks. Format: [{label: 'APP', price: 123.45, changePct: 1.23}, ...]. Negative changePct for stocks that are down. BTC price should be full dollar amount.", 600);
+      const clean = await claudeSearch('Current prices and day % change for: APP, U, BTC, AAPL, TSLA, META, GOOG, NVDA, SPY, QQQ. JSON array only: [{label,price,changePct}]', 400);
       const stocks = JSON.parse(clean);
       grid.innerHTML = stocks.map(function(s) {
         const dir = s.changePct > 0 ? 'up' : s.changePct < 0 ? 'down' : 'flat';
@@ -2035,7 +2035,7 @@ onAuthStateChanged(auth, user => {
     list.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
     try {
       const cardQuery = MTG_CARDS.map(function(c) { return c.name; }).join(' and ');
-      const clean = await claudeSearch('Search for the current market prices for these Magic: The Gathering cards on MTGGoldfish or TCGPlayer: ' + cardQuery + '. Return ONLY a JSON array, no markdown, no backticks. Format: [{"name": "Card Name", "set": "Set Name", "usd": 299.99, "usd_foil": null}, ...]. Include all cards. Use null for usd or usd_foil if price not found.', 500);
+      const clean = await claudeSearch('MTG card prices on MTGGoldfish for: ' + cardQuery + '. JSON array only: [{"name","set","usd","usd_foil"}]. null if not found.', 400);
       const cards = JSON.parse(clean);
       list.innerHTML = cards.map(function(c) {
         const price = c.usd ? '$' + parseFloat(c.usd).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
@@ -2064,7 +2064,7 @@ onAuthStateChanged(auth, user => {
     list.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
     try {
       const cardQuery = SORCERY_CARD_LIST.map(c => c.name + ' (' + c.label + ')').join(', ');
-      const clean = await claudeSearch('Search TCGPlayer for the current market prices of these Sorcery: Contested Realm cards: ' + cardQuery + '. Return ONLY a JSON array, no other text, no markdown, no backticks. Format: [{"name": "Card Name", "label": "Foil", "price": 49.99}, ...]. Use null for price if not found.', 500);
+      const clean = await claudeSearch('TCGPlayer prices for Sorcery Contested Realm cards: ' + cardQuery + '. JSON array only: [{"name","label","price"}]. null if not found.', 400);
       const cards = JSON.parse(clean);
       renderSorcery(list, cards);
     } catch(e) {
@@ -2094,7 +2094,7 @@ onAuthStateChanged(auth, user => {
     const list = document.getElementById('sanderson-list');
     list.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
     try {
-      const clean = await claudeSearch('Search brandonsanderson.com for his current writing progress update. Return ONLY a JSON array, no other text, no markdown, no backticks. Format: [{"title": "Book Name", "pct": 35}, ...]. Include all projects listed with their percentage. If a project is 100% complete include it with pct: 100.', 500);
+      const clean = await claudeSearch('Brandon Sanderson current writing progress from brandonsanderson.com. JSON array only: [{"title","pct"}]. pct is integer 0-100.', 400);
       const projects = JSON.parse(clean);
 
       renderSanderson(list, projects);
@@ -2214,7 +2214,7 @@ onAuthStateChanged(auth, user => {
     el.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
     const topic = type === 'tech' ? 'technology and AI industry' : 'top world news';
     try {
-      const clean = await claudeSearch('Search for the 6 most recent and important ' + topic + ' headlines from today or the past 24 hours. Return ONLY a JSON array, no markdown, no backticks. Format: [{"title": "Headline text", "source": "BBC", "url": "https://..."}, ...]. Use real URLs.', 600);
+      const clean = await claudeSearch('6 latest ' + topic + ' news headlines today. JSON array only: [{"title","source","url"}].', 400);
       const items = JSON.parse(clean);
       el.innerHTML = items.map(function(item) {
         return '<a class="news-item" href="' + item.url + '" target="_blank" rel="noopener">'
