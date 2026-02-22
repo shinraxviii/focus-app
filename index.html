@@ -889,7 +889,6 @@
 
   .stock-ticker {
     font-size: 13px;
-    font-weight: 700;
     color: var(--text-muted);
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -1291,7 +1290,7 @@
   .tile-value {
     font-family: 'DM Serif Display', serif;
     font-size: 52px;
-    color: #e4e4e7;
+    color: var(--text);
     line-height: 1;
     letter-spacing: -1px;
   }
@@ -1340,7 +1339,7 @@
     cursor: pointer;
     transition: all 0.15s;
   }
-  .ctrl-btn.active { background: var(--border); color: var(--text); border-color: #4a4a56; }
+  .ctrl-btn.active { background: var(--border); color: var(--text); border-color: var(--text-dim); }
   .ctrl-btn:hover { background: var(--border); color: var(--text); }
 
   .chart-wrap {
@@ -1371,7 +1370,7 @@
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script type="module">
-// ── FIREBASE INIT ──────────────────────────────────────────────
+// ── FIREBASE + AUTH ────────────────────────────────────────────
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup }
   from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -1391,48 +1390,38 @@ const fbApp    = initializeApp(firebaseConfig);
 const auth     = getAuth(fbApp);
 const db       = getFirestore(fbApp);
 const provider = new GoogleAuthProvider();
-
 let currentUser = null;
 
 window._fbSaveTasks = async (tasks) => {
   if (!currentUser) return;
   await setDoc(doc(db, 'users', currentUser.uid, 'data', 'tasks'), { tasks: JSON.stringify(tasks) });
 };
-
 window._fbSaveLog = async (log) => {
   if (!currentUser) return;
   await setDoc(doc(db, 'users', currentUser.uid, 'data', 'log'), { log: JSON.stringify(log) });
 };
-
 window._fbLoadTasks = async () => {
   if (!currentUser) return null;
   const snap = await getDoc(doc(db, 'users', currentUser.uid, 'data', 'tasks'));
   return snap.exists() ? JSON.parse(snap.data().tasks) : [];
 };
-
 window._fbLoadLog = async () => {
   if (!currentUser) return null;
   const snap = await getDoc(doc(db, 'users', currentUser.uid, 'data', 'log'));
   return snap.exists() ? JSON.parse(snap.data().log) : [];
 };
-
-window._fbSignInWithGoogle = async () => {
-  return signInWithPopup(auth, provider);
-};
-
-window._fbSignOut = async () => {
-  return signOut(auth);
-};
+window._fbSignInWithGoogle = async () => signInWithPopup(auth, provider);
+window._fbSignOut = async () => signOut(auth);
 
 onAuthStateChanged(auth, user => {
   currentUser = user;
   if (user) {
     document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('app-wrapper').style.display = 'block';
+    document.getElementById('app-wrapper').style.display  = 'block';
     window._onUserReady(user);
   } else {
     document.getElementById('login-screen').style.display = 'flex';
-    document.getElementById('app-wrapper').style.display = 'none';
+    document.getElementById('app-wrapper').style.display  = 'none';
   }
 });
 </script>
@@ -2732,12 +2721,12 @@ onAuthStateChanged(auth, user => {
 
   // ── SPORTS ─────────────────────────────────────────────────
   const SPORTS_TEAMS = [
-    { name: 'LA Lakers',    league: 'NBA',     sport: 'basketball', league_path: 'nba',                    espnId: 'lal' },
-    { name: 'LA Dodgers',   league: 'MLB',     sport: 'baseball',   league_path: 'mlb',                    espnId: 'lad' },
-    { name: 'LA Kings',     league: 'NHL',     sport: 'hockey',     league_path: 'nhl',                    espnId: '8'   },
-    { name: 'Cal Basketball',league: 'NCAAB',  sport: 'basketball', league_path: 'mens-college-basketball', espnId: '25'  },
-    { name: 'Cal Football', league: 'NCAAF',   sport: 'football',   league_path: 'college-football',       espnId: '25'  },
-    { name: 'Venezia FC',   league: 'Serie B', sport: 'soccer',     league_path: 'ita.2',                  espnId: '17530'}
+    { name: 'LA Lakers',    league: 'NBA',     sport: 'basketball', league_path: 'nba',                    espnId: '13',    abbrev: 'LAL' },
+    { name: 'LA Dodgers',   league: 'MLB',     sport: 'baseball',   league_path: 'mlb',                    espnId: 'lad',   abbrev: 'LAD' },
+    { name: 'LA Kings',     league: 'NHL',     sport: 'hockey',     league_path: 'nhl',                    espnId: '8',     abbrev: 'LAK' },
+    { name: 'Cal Basketball',league: 'NCAAB',  sport: 'basketball', league_path: 'mens-college-basketball', espnId: '25',   abbrev: 'CAL' },
+    { name: 'Cal Football', league: 'NCAAF',   sport: 'football',   league_path: 'college-football',       espnId: '25',    abbrev: 'CAL' },
+    { name: 'Venezia FC',   league: 'Serie B', sport: 'soccer',     league_path: 'ita.2',                  espnId: '17530', abbrev: 'VEN' },
   ];
 
   async function loadSports() {
@@ -2749,7 +2738,8 @@ onAuthStateChanged(auth, user => {
       const status = comp.status?.type;
       const myTeam = comp.competitors.find(c =>
         String(c.id) === String(t.espnId) ||
-        c.team?.id === String(t.espnId)
+        c.team?.id === String(t.espnId) ||
+        c.team?.abbreviation === t.abbrev
       );
       const other = comp.competitors.find(c => c !== myTeam);
       if (!myTeam || !other) return null;
@@ -2801,7 +2791,7 @@ onAuthStateChanged(auth, user => {
             if (parsed) {
               // Try to get record from scoreboard team data
               const sbTeam = (liveGame.competitions[0]?.competitors || []).find(c =>
-                String(c.id) === String(t.espnId) || c.team?.id === String(t.espnId));
+                String(c.id) === String(t.espnId) || c.team?.id === String(t.espnId) || c.team?.abbreviation === t.abbrev);
               const record = sbTeam?.records?.[0]?.summary || sbTeam?.team?.record?.items?.[0]?.summary || '—';
               return { name: t.name, league: t.league, record, ...parsed };
             }
@@ -2839,7 +2829,7 @@ onAuthStateChanged(auth, user => {
           if (showNext) {
             const comp = next.competitions[0];
             const myTeam = comp.competitors.find(c =>
-              String(c.id) === String(t.espnId) || c.team?.id === String(t.espnId));
+              String(c.id) === String(t.espnId) || c.team?.id === String(t.espnId) || c.team?.abbreviation === t.abbrev);
             const other = comp.competitors.find(c => c !== myTeam);
             if (!myTeam || !other) {
               // Fall through to show last result
@@ -3253,10 +3243,14 @@ onAuthStateChanged(auth, user => {
     if (analyticsChart) { analyticsChart.destroy(); analyticsChart = null; }
 
     const ctx = canvas.getContext('2d');
+    const cssVars = getComputedStyle(document.documentElement);
     const accent = '#7aaabb';
     const accentFill = 'rgba(122,170,187,0.12)';
-    const gridColor = isLight ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.05)';
-    const textColor = isLight ? '#71717a' : '#52525b';
+    const gridColor  = isLight ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.05)';
+    const textColor  = cssVars.getPropertyValue('--text-muted').trim() || (isLight ? '#71717a' : '#71717a');
+    const textMain   = cssVars.getPropertyValue('--text').trim()       || (isLight ? '#18181b' : '#e4e4e7');
+    const surfaceBg  = cssVars.getPropertyValue('--surface').trim()    || (isLight ? '#ffffff' : '#1a1a1e');
+    const borderClr  = cssVars.getPropertyValue('--border').trim()     || (isLight ? '#d1d1d6' : '#2e2e34');
 
     analyticsChart = new Chart(ctx, {
       type: currentChartType,
@@ -3265,7 +3259,7 @@ onAuthStateChanged(auth, user => {
         datasets: [{
           label: 'Points',
           data,
-          backgroundColor: currentChartType === 'bar' ? 'rgba(61,80,96,0.7)' : accentFill,
+          backgroundColor: currentChartType === 'bar' ? (isLight ? 'rgba(61,80,96,0.4)' : 'rgba(61,80,96,0.7)') : accentFill,
           borderColor: accent,
           borderWidth: currentChartType === 'line' ? 2 : 0,
           borderRadius: currentChartType === 'bar' ? 4 : 0,
@@ -3281,11 +3275,11 @@ onAuthStateChanged(auth, user => {
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: isLight ? '#ffffff' : '#1a1a1e',
-            borderColor: isLight ? '#d1d1d6' : '#2e2e34',
+            backgroundColor: surfaceBg,
+            borderColor: borderClr,
             borderWidth: 1,
-            titleColor: '#71717a',
-            bodyColor: isLight ? '#18181b' : '#e4e4e7',
+            titleColor: textColor,
+            bodyColor: textMain,
             padding: 10,
             callbacks: {
               label: ctx => '  ' + ctx.parsed.y + (ctx.parsed.y === 1 ? ' point' : ' points')
