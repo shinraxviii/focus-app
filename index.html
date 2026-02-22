@@ -1901,31 +1901,36 @@ onAuthStateChanged(auth, user => {
   // ── CONFIG ──────────────────────────────────────────────────
   // Paste your Anthropic API key here for Digest live data
   // Get one at: https://console.anthropic.com
-  const ANTHROPIC_API_KEY = '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';
+  const ANTHROPIC_API_KEY = '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';
 
   async function claudeSearch(prompt, max_tokens) {
-    if (!ANTHROPIC_API_KEY || ANTHROPIC_API_KEY.trim() === '') throw new Error('No API key — add it to ANTHROPIC_API_KEY in the file');
+    const key = ANTHROPIC_API_KEY ? ANTHROPIC_API_KEY.trim().replace(/[\u200B-\u200D\uFEFF\u00A0]/g, '') : '';
+    if (!key) throw new Error('No API key — add it to ANTHROPIC_API_KEY in the file');
+    console.log('[claudeSearch] key prefix:', key.substring(0, 16) + '...', 'length:', key.length);
+    const body = {
+      model: 'claude-haiku-4-5',
+      max_tokens: max_tokens || 1000,
+      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+      messages: [{ role: 'user', content: prompt }]
+    };
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
+        'x-api-key': key,
         'anthropic-version': '2023-06-01',
         'anthropic-dangerous-direct-browser-access': 'true'
       },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-5-20250929',
-        max_tokens: max_tokens || 1000,
-        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        messages: [{ role: 'user', content: prompt }]
-      })
+      body: JSON.stringify(body)
     });
+    const raw = await response.text();
+    console.log('[claudeSearch] status:', response.status, 'body:', raw.substring(0, 300));
     if (!response.ok) {
       let errMsg = 'HTTP ' + response.status;
-      try { const err = await response.json(); errMsg = err.error?.message || errMsg; } catch(e) {}
+      try { const err = JSON.parse(raw); errMsg = err.error?.message || errMsg; } catch(e) {}
       throw new Error(errMsg);
     }
-    const data = await response.json();
+    const data = JSON.parse(raw);
     const text = data.content
       .filter(function(b) { return b.type === 'text'; })
       .map(function(b) { return b.text; })
@@ -2116,10 +2121,10 @@ onAuthStateChanged(auth, user => {
   const SPORTS_TEAMS = [
     { name: 'LA Lakers',    league: 'NBA',     sport: 'basketball', league_path: 'nba',                    espnId: 'lal' },
     { name: 'LA Dodgers',   league: 'MLB',     sport: 'baseball',   league_path: 'mlb',                    espnId: 'lad' },
-    { name: 'LA Kings',     league: 'NHL',     sport: 'hockey',     league_path: 'nhl',                    espnId: 'lak' },
+    { name: 'LA Kings',     league: 'NHL',     sport: 'hockey',     league_path: 'nhl',                    espnId: '8'   },
     { name: 'Cal Basketball',league: 'NCAAB',  sport: 'basketball', league_path: 'mens-college-basketball', espnId: '25'  },
     { name: 'Cal Football', league: 'NCAAF',   sport: 'football',   league_path: 'college-football',       espnId: '25'  },
-    { name: 'Venezia FC',   league: 'Serie B', sport: 'soccer',     league_path: 'ita.2',                  espnId: '3776'}
+    { name: 'Venezia FC',   league: 'Serie B', sport: 'soccer',     league_path: 'ita.2',                  espnId: '17530'}
   ];
 
   async function loadSports() {
