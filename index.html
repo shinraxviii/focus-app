@@ -2144,6 +2144,13 @@ onAuthStateChanged(auth, user => {
     const mtgEl = document.getElementById('mtg-list');
     const sorcEl = document.getElementById('sorcery-list');
     const sandEl = document.getElementById('sanderson-list');
+    const showStaleOrError = (el, key, cached) => {
+      if (cached) return;
+      const stale = cacheGetStale(key);
+      el.innerHTML = stale
+        ? stale.data + '<div style="font-size:9px;color:var(--text-dim);margin-top:4px;">stale · ' + cacheAge(stale.ts) + '</div>'
+        : '<span class="digest-error">Unable to load</span>';
+    };
 
     const cachedMTG = cacheGet('mtg', 24 * 60 * 60 * 1000);
     const cachedSorc = cacheGet('sorcery', 24 * 60 * 60 * 1000);
@@ -2193,13 +2200,6 @@ onAuthStateChanged(auth, user => {
         cacheSet('sanderson', sandEl.innerHTML);
       }
     } catch(e) {
-      function showStaleOrError(el, key, cached) {
-        if (cached) return; // already showing fresh cache
-        const stale = cacheGetStale(key);
-        el.innerHTML = stale
-          ? stale.data + '<div style="font-size:9px;color:var(--text-dim);margin-top:4px;">stale · ' + cacheAge(stale.ts) + '</div>'
-          : '<span class="digest-error">Unable to load</span>';
-      }
       showStaleOrError(mtgEl, 'mtg', cachedMTG);
       showStaleOrError(sorcEl, 'sorcery', cachedSorc);
       showStaleOrError(sandEl, 'sanderson', cachedSand);
@@ -2207,7 +2207,6 @@ onAuthStateChanged(auth, user => {
   }
 
 
-  // ── MTG CARDS
   // ── MTG CARDS ───────────────────────────────────────────────
   const MTG_CARDS = [
     { name: "Gaia's Cradle",              set: "Urza's Saga"      },
