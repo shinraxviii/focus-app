@@ -2568,11 +2568,21 @@ onAuthStateChanged(auth, user => {
       .filter(function(b) { return b.type === 'text'; })
       .map(function(b) { return b.text; })
       .join('');
-    // Extract JSON object or array even if there's surrounding text
-    // Try to extract outermost JSON object or array
-    const match = text.match(/\{[\s\S]*\}/) || text.match(/\[[\s\S]*\]/);
-    if (!match) throw new Error('No JSON in response: ' + text.slice(0, 120));
-    return match[0];
+    // Strip markdown fences if model ignores instructions
+    const stripped = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    // Find the first complete JSON array or object by locating opening bracket/brace
+    const firstArr = stripped.indexOf('[');
+    const firstObj = stripped.indexOf('{');
+    let jsonStr = null;
+    if (firstArr !== -1 && (firstObj === -1 || firstArr < firstObj)) {
+      const end = stripped.lastIndexOf(']');
+      if (end > firstArr) jsonStr = stripped.slice(firstArr, end + 1);
+    } else if (firstObj !== -1) {
+      const end = stripped.lastIndexOf('}');
+      if (end > firstObj) jsonStr = stripped.slice(firstObj, end + 1);
+    }
+    if (!jsonStr) throw new Error('No JSON in response: ' + text.slice(0, 120));
+    return jsonStr;
   }
 
   // ── CACHE (localStorage, persists across sessions) ─────────
@@ -2609,8 +2619,10 @@ onAuthStateChanged(auth, user => {
   // ── DIGEST ───────────────────────────────────────────────────
 
   async function loadDigest() {
+    if (loadDigest._sessionLoaded) return; // already loaded this session
+    loadDigest._sessionLoaded = true;
     loadSports();           // ESPN — no tokens, always fresh
-    await loadLiveData();   // Stocks (Yahoo) + News (Claude) — handles own 1hr cache
+    await loadLiveData();   // Stocks (Yahoo) + News (Claude) — handles own cache
     await loadDailyData();  // MTG + Sorcery + Sanderson — handles own 24hr cache
   }
 
@@ -2684,9 +2696,9 @@ onAuthStateChanged(auth, user => {
     const newsTechEl = document.getElementById('news-tech');
 
     // Load cached versions immediately (fresh or stale)
-    const cachedStocks = cacheGet('stocks', 60 * 60 * 1000);
-    const cachedNewsGen = cacheGet('news-general', 60 * 60 * 1000);
-    const cachedNewsTech = cacheGet('news-tech', 60 * 60 * 1000);
+    const cachedStocks   = cacheGet('stocks',      60 * 60 * 1000);       // 1hr
+    const cachedNewsGen  = cacheGet('news-general', 4 * 60 * 60 * 1000);  // 4hrs
+    const cachedNewsTech = cacheGet('news-tech',    4 * 60 * 60 * 1000);  // 4hrs
     if (cachedStocks) stocksEl.innerHTML = cachedStocks.data;
     if (cachedNewsGen) newsGenEl.innerHTML = cachedNewsGen.data;
     if (cachedNewsTech) newsTechEl.innerHTML = cachedNewsTech.data;
@@ -2807,9 +2819,9 @@ onAuthStateChanged(auth, user => {
       }
     }
 
-    // Tech news — wait to avoid rate limit
+    // Tech news — wait 15s to stay well under per-minute token limit
     if (!cachedNewsTech) {
-      await _delay(6000);
+      await _delay(15000);
       newsTechEl.innerHTML = '<span class="digest-loading">Loading tech news...</span>';
       try {
         const clean = await claudeSearch(
@@ -2841,8 +2853,8 @@ onAuthStateChanged(auth, user => {
     if (cachedSand) sandEl.innerHTML = cachedSand.data;
     if (cachedMTG && cachedSorc && cachedSand) return;
 
-    // MTG prices — wait after news calls
-    if (!cachedMTG || !cachedSorc || !cachedSand) await _delay(8000);
+    // MTG prices — wait 20s after news calls to stay under rate limit
+    if (!cachedMTG || !cachedSorc || !cachedSand) await _delay(20000);
     if (!cachedMTG) {
       mtgEl.innerHTML = '<span class="digest-loading">Loading MTG prices...</span>';
       try {
@@ -2865,9 +2877,9 @@ onAuthStateChanged(auth, user => {
       } catch(e) { _staleOrError(mtgEl, 'mtg', e.message || 'MTG load failed'); }
     }
 
-    // Sorcery prices — wait to stay under rate limit
+    // Sorcery prices — wait 20s between daily calls
     if (!cachedSorc) {
-      await _delay(8000);
+      await _delay(20000);
       sorcEl.innerHTML = '<span class="digest-loading">Loading Sorcery prices...</span>';
       try {
         const names = SORCERY_CARD_LIST.map(c => c.name + ' ' + c.label).join(', ');
@@ -2882,9 +2894,9 @@ onAuthStateChanged(auth, user => {
       } catch(e) { _staleOrError(sorcEl, 'sorcery', e.message || 'Sorcery load failed'); }
     }
 
-    // Sanderson progress — wait to stay under rate limit
+    // Sanderson progress — wait 20s between daily calls
     if (!cachedSand) {
-      await _delay(8000);
+      await _delay(20000);
       sandEl.innerHTML = '<span class="digest-loading">Loading Sanderson progress...</span>';
       try {
         const clean = await claudeSearch(
