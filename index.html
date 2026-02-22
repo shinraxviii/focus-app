@@ -2185,7 +2185,7 @@ onAuthStateChanged(auth, user => {
           window._burstComplete(cb);
         });
 
-        setTimeout(() => toggleComplete(t.id), 80);
+        setTimeout(() => toggleComplete(t.id), 480);
       } else {
         const item = cb.closest('.task-item');
         const wrap = item ? item.querySelector('.task-text-wrap') : null;
