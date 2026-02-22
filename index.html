@@ -2863,9 +2863,21 @@ onAuthStateChanged(auth, user => {
       mtgEl.innerHTML = '<span class="digest-loading">Loading MTG prices...</span>';
       try {
         const results = await Promise.all(MTG_CARDS.map(async function(card) {
-          const url = 'https://api.scryfall.com/cards/named?fuzzy=' + encodeURIComponent(card.name);
+          // Use set+collector number lookup when we have a set code — guarantees correct printing
+          // Falls back to fuzzy name search if no set code
+          const base = 'https://api.scryfall.com/cards/named?fuzzy=' + encodeURIComponent(card.name);
+          const url  = card.setCode ? base + '&set=' + card.setCode : base;
           const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
-          if (!r.ok) throw new Error('Scryfall ' + r.status + ' for ' + card.name);
+          if (!r.ok) {
+            // If set-scoped lookup fails, retry with name only
+            if (card.setCode) {
+              const r2 = await fetch(base, { signal: AbortSignal.timeout(6000) });
+              if (!r2.ok) throw new Error('Scryfall ' + r2.status + ' for ' + card.name);
+              const d2 = await r2.json();
+              return { name: d2.name, set: d2.set_name, usd: d2.prices?.usd || null, usd_foil: d2.prices?.usd_foil || null };
+            }
+            throw new Error('Scryfall ' + r.status + ' for ' + card.name);
+          }
           const d = await r.json();
           return {
             name:      d.name,
@@ -2876,11 +2888,12 @@ onAuthStateChanged(auth, user => {
           };
         }));
         mtgEl.innerHTML = results.map(function(c) {
+          const displayName = c.name.includes(' // ') ? c.name.split(' // ')[0] : c.name;
           const price = c.usd      ? '$' + parseFloat(c.usd).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
           const foil  = c.usd_foil ? 'Foil $' + parseFloat(c.usd_foil).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '';
           return '<div class="card-row">'
             + '<div>'
-            + '<div class="card-name">' + c.name + '</div>'
+            + '<div class="card-name">' + displayName + '</div>'
             + '<div class="card-set">' + (c.set || '') + '</div>'
             + '</div>'
             + '<div style="text-align:right;">'
@@ -2939,13 +2952,13 @@ onAuthStateChanged(auth, user => {
 
   // ── MTG CARDS ───────────────────────────────────────────────
   const MTG_CARDS = [
-    { name: "Gaia's Cradle",              set: "Urza's Saga"       },
-    { name: "Bazaar of Baghdad",          set: "Arabian Nights"    },
-    { name: "The One Ring",               set: "Lord of the Rings" },
-    { name: "Wheel of Fortune",           set: "Revised Edition"   },
-    { name: "Sheoldred, the Apocalypse",  set: "Dominaria United"  },
-    { name: "Mana Vault",                 set: "Fourth Edition"    },
-    { name: "Sephiroth, Fabled Soldier",  set: "Final Fantasy"     }
+    { name: "Gaia's Cradle",              set: "Urza's Saga",        setCode: 'usg' },
+    { name: "Bazaar of Baghdad",          set: "Arabian Nights",     setCode: 'arn' },
+    { name: "The One Ring",               set: "Lord of the Rings",  setCode: 'ltr' },
+    { name: "Wheel of Fortune",           set: "Revised Edition",    setCode: '3ed' },
+    { name: "Sheoldred, the Apocalypse",  set: "Dominaria United",   setCode: 'dmu' },
+    { name: "Mana Vault",                 set: "Fourth Edition",     setCode: '4ed' },
+    { name: "Sephiroth, Fabled Soldier",  set: "Final Fantasy",      setCode: 'fft' }
   ];
 
 
