@@ -570,7 +570,7 @@
   .weather-widget { display:flex; align-items:center; gap:16px; }
   .weather-main { display:flex; align-items:center; gap:10px; }
   .weather-icon { font-size:28px; line-height:1; }
-  .weather-temp { font-family:'DM Serif Display',serif; font-size:36px; color:#e4e4e7; line-height:1; letter-spacing:-0.5px; }
+  .weather-temp { font-family:'DM Serif Display',serif; font-size:36px; color:var(--text); line-height:1; letter-spacing:-0.5px; }
   .weather-details { display:flex; flex-direction:column; align-items:flex-start; gap:2px; }
   .weather-condition { font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.08em; }
   .weather-location { font-size:10px; color:var(--text-dim); letter-spacing:0.05em; }
@@ -883,7 +883,7 @@
 
   .card-set {
     font-size: 9px;
-    color: var(--text-dim);
+    color: var(--text-muted);
     margin-top: 2px;
     letter-spacing: 0.04em;
   }
@@ -898,7 +898,7 @@
 
   .card-price-sub {
     font-size: 9px;
-    color: var(--text-dim);
+    color: var(--text-muted);
     text-align: right;
     margin-top: 1px;
   }
@@ -927,7 +927,7 @@
 
   .sport-league {
     font-size: 9px;
-    color: var(--text-dim);
+    color: var(--text-muted);
     margin-top: 2px;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -942,7 +942,7 @@
 
   .sport-last {
     font-size: 9px;
-    color: var(--text-dim);
+    color: var(--text-muted);
     text-align: right;
     margin-top: 1px;
   }
@@ -977,7 +977,7 @@
 
   .news-meta {
     font-size: 9px;
-    color: var(--text-dim);
+    color: var(--text-muted);
     letter-spacing: 0.04em;
     text-transform: uppercase;
   }
@@ -1923,7 +1923,7 @@ onAuthStateChanged(auth, user => {
     const proxySet = PROXY_URL && PROXY_URL.trim() !== '';
     if (!key && !proxySet) throw new Error('No API key — add PROXY_URL or ANTHROPIC_API_KEY in the file');
     const body = {
-      model: 'claude-sonnet-4-5-20250929',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: max_tokens || 1000,
       system: 'You are a data API. Respond with ONLY valid JSON — either an object {} or array []. No explanations, no prose, no markdown, no backticks. Raw JSON only.',
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
@@ -1947,8 +1947,9 @@ onAuthStateChanged(auth, user => {
       .map(function(b) { return b.text; })
       .join('');
     // Extract JSON object or array even if there's surrounding text
-    const match = text.match(/([\[\{][\s\S]*[\]\}])/);
-    if (!match) throw new Error('No JSON found in response');
+    // Try to extract outermost JSON object or array
+    const match = text.match(/\{[\s\S]*\}/) || text.match(/\[[\s\S]*\]/);
+    if (!match) throw new Error('No JSON in response: ' + text.slice(0, 120));
     return match[0];
   }
 
@@ -2128,13 +2129,14 @@ onAuthStateChanged(auth, user => {
         cacheSet('news-tech', newsTechEl.innerHTML);
       }
     } catch(e) {
+      const newsErrMsg = e && e.message ? e.message : 'load failed';
       if (!cachedNewsGen) {
         const stale = cacheGetStale('news-general');
-        newsGenEl.innerHTML = stale ? stale.data + '<div style="font-size:9px;color:var(--text-dim);margin-top:4px;">stale · ' + cacheAge(stale.ts) + '</div>' : '<span class="digest-error">Unable to load news</span>';
+        newsGenEl.innerHTML = stale ? stale.data + '<div style="font-size:9px;color:var(--text-dim);margin-top:4px;">stale · ' + cacheAge(stale.ts) + '</div>' : '<span class="digest-error">' + newsErrMsg + '</span>';
       }
       if (!cachedNewsTech) {
         const stale = cacheGetStale('news-tech');
-        newsTechEl.innerHTML = stale ? stale.data + '<div style="font-size:9px;color:var(--text-dim);margin-top:4px;">stale · ' + cacheAge(stale.ts) + '</div>' : '<span class="digest-error">Unable to load news</span>';
+        newsTechEl.innerHTML = stale ? stale.data + '<div style="font-size:9px;color:var(--text-dim);margin-top:4px;">stale · ' + cacheAge(stale.ts) + '</div>' : '<span class="digest-error">' + newsErrMsg + '</span>';
       }
     }
   }
@@ -2174,7 +2176,7 @@ onAuthStateChanged(auth, user => {
         '(2) current Sorcery Contested Realm card prices from TCGPlayer for: ' + sorcNames + '; ' +
         '(3) Brandon Sanderson current writing progress from brandonsanderson.com. ' +
         'Respond ONLY with this JSON: {"mtg":[{"name","set","usd","usd_foil"}],"sorcery":[{"name","label","price"}],"sanderson":[{"title","pct"}]}',
-        800
+        1200
       );
       const d = JSON.parse(clean);
 
@@ -2200,9 +2202,17 @@ onAuthStateChanged(auth, user => {
         cacheSet('sanderson', sandEl.innerHTML);
       }
     } catch(e) {
-      showStaleOrError(mtgEl, 'mtg', cachedMTG);
-      showStaleOrError(sorcEl, 'sorcery', cachedSorc);
-      showStaleOrError(sandEl, 'sanderson', cachedSand);
+      const errMsg = e && e.message ? e.message : 'unknown error';
+      const showErr = (el, key, cached) => {
+        if (cached) return;
+        const stale = cacheGetStale(key);
+        el.innerHTML = stale
+          ? stale.data + '<div style="font-size:9px;color:var(--text-dim);margin-top:4px;">stale · ' + cacheAge(stale.ts) + '</div>'
+          : '<span class="digest-error">' + errMsg + '</span>';
+      };
+      showErr(mtgEl, 'mtg', cachedMTG);
+      showErr(sorcEl, 'sorcery', cachedSorc);
+      showErr(sandEl, 'sanderson', cachedSand);
     }
   }
 
@@ -2384,7 +2394,7 @@ onAuthStateChanged(auth, user => {
       }).join('');
       document.getElementById('sports-updated').textContent = 'as of ' + timeNow();
     } catch(e) {
-      list.innerHTML = '<span class="digest-error">Unable to load sports data</span>';
+      list.innerHTML = '<span class="digest-error">Sports: ' + (e && e.message ? e.message : 'load failed') + '</span>';
     }
   }
 
