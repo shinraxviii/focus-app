@@ -1499,6 +1499,7 @@ onAuthStateChanged(auth, user => {
         <button class="ctrl-btn active" data-period="day" onclick="setPeriod('day')">Day</button>
         <button class="ctrl-btn" data-period="week" onclick="setPeriod('week')">Week</button>
         <button class="ctrl-btn" data-period="month" onclick="setPeriod('month')">Month</button>
+        <button class="ctrl-btn" data-period="dow" onclick="setPeriod('dow')">By Day</button>
       </div>
       <div class="control-group" id="chart-type-controls">
         <button class="ctrl-btn active" data-type="bar" onclick="setChartType('bar')">Bar</button>
@@ -1509,7 +1510,60 @@ onAuthStateChanged(auth, user => {
       <canvas id="analytics-chart"></canvas>
       <div class="chart-empty" id="chart-empty" style="display:none;">No completions yet — start checking things off</div>
     </div>
+    <div id="dow-insight" style="display:none; margin-top:14px; font-size:11px; color:var(--text-muted); letter-spacing:0.06em;"></div>
   </div>
+
+  <!-- CONSISTENCY SCORE -->
+  <div class="analytics-card" style="margin-top:16px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px;">
+      <div>
+        <div style="font-size:9px; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px;">Consistency Score</div>
+        <div style="font-family:'DM Serif Display',serif; font-size:42px; line-height:1; letter-spacing:-1px; color:var(--text);" id="cv-score">—</div>
+        <div style="font-size:11px; color:var(--text-muted); margin-top:6px;" id="cv-label">coefficient of variation</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-dim); margin-bottom:4px;">Daily avg</div>
+        <div style="font-size:18px; font-family:'DM Serif Display',serif; color:var(--text);" id="cv-mean">—</div>
+        <div style="font-size:9px; color:var(--text-dim); margin-top:8px;">Std dev</div>
+        <div style="font-size:18px; font-family:'DM Serif Display',serif; color:var(--text);" id="cv-std">—</div>
+      </div>
+    </div>
+    <div id="cv-bar-wrap" style="height:6px; background:var(--border); border-radius:3px; overflow:hidden;">
+      <div id="cv-bar" style="height:100%; width:0%; border-radius:3px; transition:width 0.6s ease;"></div>
+    </div>
+    <div style="font-size:10px; color:var(--text-dim); margin-top:10px; line-height:1.6;" id="cv-interpret"></div>
+  </div>
+
+  <!-- MOMENTUM INDEX -->
+  <div class="analytics-card" style="margin-top:16px;">
+    <div style="font-size:9px; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-muted); margin-bottom:14px;">Momentum Index</div>
+    <div style="display:flex; gap:24px; margin-bottom:16px;">
+      <div>
+        <div style="font-size:9px; color:var(--text-dim); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:4px;">7-day avg</div>
+        <div style="font-size:28px; font-family:'DM Serif Display',serif; color:var(--text); line-height:1;" id="mom-7">—</div>
+      </div>
+      <div style="display:flex; align-items:center; padding-top:12px; font-size:20px; color:var(--text-dim);">vs</div>
+      <div>
+        <div style="font-size:9px; color:var(--text-dim); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:4px;">30-day avg</div>
+        <div style="font-size:28px; font-family:'DM Serif Display',serif; color:var(--text); line-height:1;" id="mom-30">—</div>
+      </div>
+      <div style="margin-left:auto; text-align:right; padding-top:4px;">
+        <div style="font-size:9px; color:var(--text-dim); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:4px;">Signal</div>
+        <div style="font-size:13px; letter-spacing:0.06em; font-weight:600;" id="mom-signal">—</div>
+      </div>
+    </div>
+    <canvas id="momentum-chart" style="width:100%; height:90px;"></canvas>
+    <div style="font-size:10px; color:var(--text-dim); margin-top:10px; line-height:1.6;" id="mom-interpret"></div>
+  </div>
+
+  <!-- DOW Z-SCORES -->
+  <div class="analytics-card" style="margin-top:16px;">
+    <div style="font-size:9px; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px;">Day-of-Week Z-Scores</div>
+    <div style="font-size:10px; color:var(--text-dim); margin-bottom:16px; line-height:1.5;" id="zscore-header">Standard deviations above/below your daily mean — filters out volume noise</div>
+    <div id="zscore-bars" style="display:flex; flex-direction:column; gap:10px;"></div>
+    <div style="font-size:10px; color:var(--text-dim); margin-top:14px; line-height:1.6; border-top:1px solid var(--border); padding-top:12px;" id="zscore-sig"></div>
+  </div>
+
 </div>
 
 
@@ -2390,6 +2444,12 @@ onAuthStateChanged(auth, user => {
   function toggleTheme() {
     const current = document.documentElement.classList.contains('light') ? 'light' : 'dark';
     applyTheme(current === 'light' ? 'dark' : 'light');
+    // Re-render stat cards so colors update
+    chartDataHash = null;
+    if (document.getElementById('analytics-page').classList.contains('visible')) {
+      renderChart();
+      renderStatCards();
+    }
   }
 
   // Load saved theme on startup
@@ -3109,7 +3169,11 @@ onAuthStateChanged(auth, user => {
   })();
 
   function setPeriod(p) {
+    currentPeriod = p;
     document.querySelectorAll('[data-period]').forEach(b => b.classList.toggle('active', b.dataset.period === p));
+    // Hide chart-type controls for DOW (bar only makes sense)
+    const typeControls = document.getElementById('chart-type-controls');
+    if (typeControls) typeControls.style.visibility = p === 'dow' ? 'hidden' : 'visible';
     renderChart();
   }
 
@@ -3139,9 +3203,10 @@ onAuthStateChanged(auth, user => {
   function getChartData() {
     const counts = {};
     completionLog.forEach(e => {
-      const k = currentPeriod === 'day' ? dateKey(e.timestamp)
-              : currentPeriod === 'week' ? weekKey(e.timestamp)
-              : monthKey(e.timestamp);
+      const k = currentPeriod === 'day'   ? dateKey(e.timestamp)
+              : currentPeriod === 'week'  ? weekKey(e.timestamp)
+              : currentPeriod === 'month' ? monthKey(e.timestamp)
+              : new Date(e.timestamp).getDay(); // 0=Sun … 6=Sat
       counts[k] = (counts[k] || 0) + 1;
     });
 
@@ -3162,13 +3227,21 @@ onAuthStateChanged(auth, user => {
         labels.push(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
         data.push(counts[k] || 0);
       }
-    } else {
+    } else if (currentPeriod === 'month') {
       for (let i = 11; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const k = monthKey(d);
         labels.push(d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }));
         data.push(counts[k] || 0);
       }
+    } else {
+      // Day of week — Mon first
+      const DOW = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+      const ORDER = [1,2,3,4,5,6,0]; // JS getDay(): Sun=0, so reorder Mon-first
+      ORDER.forEach((jsDay, i) => {
+        labels.push(DOW[i]);
+        data.push(counts[jsDay] || 0);
+      });
     }
 
     return { labels, data };
@@ -3236,9 +3309,23 @@ onAuthStateChanged(auth, user => {
     emptyEl.style.display = 'none';
 
     // Only rebuild if data or chart type actually changed
-    const newHash = currentPeriod + ':' + currentChartType + ':' + (isLight?'L':'D') + ':' + data.join(',');
+    const newHash = currentPeriod + ':' + currentChartType + ':' + (isLight?'L':'D') + ':' + (isDow?peakIdx:'') + ':' + data.join(',');
     if (analyticsChart && newHash === chartDataHash) return;
     chartDataHash = newHash;
+
+    // DOW insight text
+    const insightEl = document.getElementById('dow-insight');
+    if (insightEl) {
+      if (isDow && data.some(v => v > 0)) {
+        const DOW_NAMES = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+        const total = data.reduce((a,b) => a+b, 0);
+        const pct = total > 0 ? Math.round((data[peakIdx] / total) * 100) : 0;
+        insightEl.textContent = `Your most productive day is ${DOW_NAMES[peakIdx]} — ${data[peakIdx]} completions (${pct}% of all time)`;
+        insightEl.style.display = 'block';
+      } else {
+        insightEl.style.display = 'none';
+      }
+    }
 
     if (analyticsChart) { analyticsChart.destroy(); analyticsChart = null; }
 
@@ -3252,20 +3339,29 @@ onAuthStateChanged(auth, user => {
     const surfaceBg  = cssVars.getPropertyValue('--surface').trim()    || (isLight ? '#ffffff' : '#1a1a1e');
     const borderClr  = cssVars.getPropertyValue('--border').trim()     || (isLight ? '#d1d1d6' : '#2e2e34');
 
+    const isDow = currentPeriod === 'dow';
+    const peakIdx = isDow ? data.indexOf(Math.max(...data)) : -1;
+
     analyticsChart = new Chart(ctx, {
-      type: currentChartType,
+      type: isDow ? 'bar' : currentChartType,
       data: {
         labels,
         datasets: [{
           label: 'Points',
           data,
-          backgroundColor: currentChartType === 'bar' ? (isLight ? 'rgba(61,80,96,0.4)' : 'rgba(61,80,96,0.7)') : accentFill,
+          backgroundColor: isDow
+            ? data.map((_, i) => i === peakIdx
+                ? 'rgba(127,184,154,0.85)'   // sage highlight for peak
+                : (isLight ? 'rgba(61,80,96,0.25)' : 'rgba(61,80,96,0.55)'))
+            : currentChartType === 'bar'
+              ? (isLight ? 'rgba(61,80,96,0.4)' : 'rgba(61,80,96,0.7)')
+              : accentFill,
           borderColor: accent,
-          borderWidth: currentChartType === 'line' ? 2 : 0,
-          borderRadius: currentChartType === 'bar' ? 4 : 0,
-          fill: currentChartType === 'line',
+          borderWidth: (!isDow && currentChartType === 'line') ? 2 : 0,
+          borderRadius: (isDow || currentChartType === 'bar') ? 4 : 0,
+          fill: !isDow && currentChartType === 'line',
           pointBackgroundColor: accent,
-          pointRadius: currentChartType === 'line' ? 3 : 0,
+          pointRadius: (!isDow && currentChartType === 'line') ? 3 : 0,
           tension: 0.4,
         }]
       },
@@ -3303,9 +3399,213 @@ onAuthStateChanged(auth, user => {
     });
   }
 
+  function calcConsistency(dailyCounts) {
+    const vals = Object.values(dailyCounts);
+    if (vals.length < 3) return null;
+    const mean = vals.reduce((a,b) => a+b, 0) / vals.length;
+    const variance = vals.reduce((a,b) => a + (b-mean)**2, 0) / vals.length;
+    const std = Math.sqrt(variance);
+    const cv = mean > 0 ? std / mean : null;
+    return { mean, std, cv, n: vals.length };
+  }
+
+  function calcMomentum(dailyCounts) {
+    const now = new Date();
+    let sum7 = 0, days7 = 0, sum30 = 0, days30 = 0;
+    // Last 60 days for sparkline
+    const sparkline = [];
+    for (let i = 59; i >= 0; i--) {
+      const d = new Date(now); d.setDate(d.getDate() - i);
+      const v = dailyCounts[dateKey(d)] || 0;
+      sparkline.push(v);
+      if (i < 30) { sum30 += v; days30++; }
+      if (i < 7)  { sum7  += v; days7++;  }
+    }
+    const avg7  = days7  > 0 ? sum7  / days7  : 0;
+    const avg30 = days30 > 0 ? sum30 / days30 : 0;
+    const delta = avg30 > 0 ? (avg7 - avg30) / avg30 : 0;
+    return { avg7, avg30, delta, sparkline };
+  }
+
+  function calcDowZScores(dailyCounts) {
+    // Group all daily counts by weekday
+    const byDow = [0,1,2,3,4,5,6].map(() => []);
+    Object.entries(dailyCounts).forEach(([k, v]) => {
+      const dow = new Date(k + 'T12:00:00').getDay(); // noon to avoid DST
+      byDow[dow].push(v);
+    });
+    // Overall mean and std across all active days
+    const allVals = Object.values(dailyCounts);
+    const globalMean = allVals.reduce((a,b)=>a+b,0) / allVals.length;
+    const globalStd  = Math.sqrt(allVals.reduce((a,b)=>a+(b-globalMean)**2,0) / allVals.length);
+
+    const DOW_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    return [1,2,3,4,5,6,0].map(jsDay => { // Mon-first
+      const vals = byDow[jsDay];
+      const dowMean = vals.length > 0 ? vals.reduce((a,b)=>a+b,0) / vals.length : 0;
+      const z = globalStd > 0 ? (dowMean - globalMean) / globalStd : 0;
+      // Two-sample t-test approximation for significance
+      const n = vals.length;
+      const nOther = allVals.length - n;
+      const otherVals = allVals.filter((_,i) => {
+        // approximate — use all-day as "other"
+        return true;
+      });
+      // p-value approximation using t-distribution (simplified)
+      const se = globalStd / Math.sqrt(Math.max(n, 1));
+      const t = se > 0 ? Math.abs(dowMean - globalMean) / se : 0;
+      // p < 0.05 if |t| > ~2 (rough for df > 20)
+      const significant = t > 2.0 && n >= 5;
+      return { name: DOW_NAMES[jsDay], dowMean, z, n, significant };
+    });
+  }
+
+  let momentumChart = null;
+
+  function renderStatCards() {
+    const { dailyCounts } = calcAnalyticsStats();
+    const isLight = document.documentElement.classList.contains('light');
+    const cssVars = getComputedStyle(document.documentElement);
+    const textColor = cssVars.getPropertyValue('--text-muted').trim();
+    const textMain  = cssVars.getPropertyValue('--text').trim();
+
+    // ── CONSISTENCY ──────────────────────────────────────────
+    const cons = calcConsistency(dailyCounts);
+    if (cons) {
+      const { mean, std, cv } = cons;
+      document.getElementById('cv-mean').textContent = mean.toFixed(1);
+      document.getElementById('cv-std').textContent  = std.toFixed(1);
+      const cvPct = Math.round(cv * 100);
+      document.getElementById('cv-score').textContent = cvPct + '%';
+      // Lower CV = more consistent. Map 0-150% → bar width
+      const barPct = Math.min(cv * 100 / 1.5, 100); // 150% CV = full bar
+      const barColor = cv < 0.4 ? '#7fb89a' : cv < 0.8 ? '#f59e0b' : '#c9949a';
+      const bar = document.getElementById('cv-bar');
+      bar.style.width = barPct + '%';
+      bar.style.background = barColor;
+      const interp = cv < 0.3  ? 'Highly consistent — your output is very stable day to day.'
+                   : cv < 0.5  ? 'Moderately consistent — some variance but reliable overall.'
+                   : cv < 0.8  ? 'Variable output — high days and low days diverge significantly.'
+                   : 'Feast-or-famine pattern — your productivity swings widely.';
+      document.getElementById('cv-label').textContent = `coefficient of variation · ${cons.n} active days`;
+      document.getElementById('cv-interpret').textContent = interp;
+    } else {
+      document.getElementById('cv-score').textContent = '—';
+      document.getElementById('cv-interpret').textContent = 'Need at least 3 active days to calculate.';
+    }
+
+    // ── MOMENTUM ─────────────────────────────────────────────
+    const mom = calcMomentum(dailyCounts);
+    document.getElementById('mom-7').textContent  = mom.avg7.toFixed(1);
+    document.getElementById('mom-30').textContent = mom.avg30.toFixed(1);
+    const deltaSign = mom.delta > 0 ? '+' : '';
+    const deltaPct  = Math.round(mom.delta * 100);
+    const sigEl     = document.getElementById('mom-signal');
+    if (mom.avg30 === 0) {
+      sigEl.textContent = '—'; sigEl.style.color = textColor;
+    } else if (mom.delta > 0.1) {
+      sigEl.textContent = '▲ Accelerating ' + deltaSign + deltaPct + '%';
+      sigEl.style.color = '#7fb89a';
+    } else if (mom.delta < -0.1) {
+      sigEl.textContent = '▼ Decelerating ' + deltaSign + deltaPct + '%';
+      sigEl.style.color = '#c9949a';
+    } else {
+      sigEl.textContent = '→ Steady ' + deltaSign + deltaPct + '%';
+      sigEl.style.color = textColor;
+    }
+    document.getElementById('mom-interpret').textContent =
+      mom.avg30 > 0
+        ? `Your 7-day pace is ${Math.abs(deltaPct)}% ${mom.delta >= 0 ? 'above' : 'below'} your 30-day baseline. ${
+            mom.delta > 0.2  ? 'Strong upward momentum — keep it going.' :
+            mom.delta > 0    ? 'Slight positive trend.' :
+            mom.delta > -0.2 ? 'Slight dip — within normal variance.' :
+                               'Meaningful slowdown — check what changed.'}`
+        : 'Need more history for momentum analysis.';
+
+    // Momentum sparkline
+    if (momentumChart) { momentumChart.destroy(); momentumChart = null; }
+    const mCanvas = document.getElementById('momentum-chart');
+    if (mCanvas) {
+      const gridColor = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)';
+      // Rolling 7-day average line over last 60 days
+      const labels60 = mom.sparkline.map((_, i) => i === 59 ? 'Today' : '');
+      const rolling7 = mom.sparkline.map((_, i, arr) => {
+        const slice = arr.slice(Math.max(0, i-6), i+1);
+        return slice.reduce((a,b)=>a+b,0) / slice.length;
+      });
+      momentumChart = new Chart(mCanvas.getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: labels60,
+          datasets: [
+            {
+              label: 'Daily',
+              data: mom.sparkline,
+              borderColor: isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.08)',
+              backgroundColor: 'transparent',
+              borderWidth: 1, pointRadius: 0, tension: 0.3, fill: false,
+            },
+            {
+              label: '7-day avg',
+              data: rolling7,
+              borderColor: '#7aaabb',
+              backgroundColor: 'rgba(122,170,187,0.08)',
+              borderWidth: 2, pointRadius: 0, tension: 0.4, fill: false,
+            },
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { enabled: false } },
+          scales: {
+            x: { display: false },
+            y: { display: false, beginAtZero: true }
+          },
+          animation: { duration: 600 }
+        }
+      });
+    }
+
+    // ── DOW Z-SCORES ─────────────────────────────────────────
+    const zScores = calcDowZScores(dailyCounts);
+    const maxZ = Math.max(...zScores.map(d => Math.abs(d.z)), 0.1);
+    const container = document.getElementById('zscore-bars');
+    container.innerHTML = '';
+    zScores.forEach(({ name, dowMean, z, n, significant }) => {
+      const pct = Math.abs(z) / maxZ * 100;
+      const isPos = z >= 0;
+      const barColor = significant
+        ? (isPos ? '#7fb89a' : '#c9949a')
+        : (isLight ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.12)');
+      const zStr = (z >= 0 ? '+' : '') + z.toFixed(2) + 'σ';
+      const row = document.createElement('div');
+      row.style.cssText = 'display:grid; grid-template-columns:36px 1fr 52px 40px; align-items:center; gap:10px;';
+      row.innerHTML = `
+        <span style="font-size:10px; color:var(--text-muted); letter-spacing:0.06em;">${name}</span>
+        <div style="height:6px; background:var(--border); border-radius:3px; overflow:hidden;">
+          <div style="height:100%; width:${pct}%; background:${barColor}; border-radius:3px; transition:width 0.5s ease;"></div>
+        </div>
+        <span style="font-size:10px; font-weight:600; color:${significant ? barColor : 'var(--text-dim)'}; text-align:right;">${zStr}</span>
+        <span style="font-size:9px; color:var(--text-dim); text-align:right;">${n}d${significant ? ' ✦' : ''}</span>`;
+      container.appendChild(row);
+    });
+    const sigDays = zScores.filter(d => d.significant);
+    const sigEl2 = document.getElementById('zscore-sig');
+    if (sigDays.length > 0) {
+      const best  = sigDays.filter(d => d.z > 0).map(d => d.name).join(', ');
+      const worst = sigDays.filter(d => d.z < 0).map(d => d.name).join(', ');
+      sigEl2.textContent = (best  ? `Statistically strong: ${best}. ` : '') +
+                           (worst ? `Statistically weak: ${worst}. ` : '') +
+                           '(✦ = p < 0.05, n ≥ 5)';
+    } else {
+      sigEl2.textContent = 'No day is statistically significant yet — need more data or more variance between days.';
+    }
+  }
+
   function renderAnalytics() {
     renderTiles();
     renderChart();
+    renderStatCards();
   }
 
   // --- Mobile Tabs ---
