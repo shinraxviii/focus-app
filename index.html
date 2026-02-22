@@ -1901,7 +1901,7 @@ onAuthStateChanged(auth, user => {
   // ── CONFIG ──────────────────────────────────────────────────
   // Paste your Anthropic API key here for Digest live data
   // Get one at: https://console.anthropic.com
-  const ANTHROPIC_API_KEY = '';
+  const ANTHROPIC_API_KEY = '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';
 
   async function claudeSearch(prompt, max_tokens) {
     if (!ANTHROPIC_API_KEY || ANTHROPIC_API_KEY.trim() === '') throw new Error('No API key — add it to ANTHROPIC_API_KEY in the file');
