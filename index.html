@@ -1947,78 +1947,88 @@ onAuthStateChanged(auth, user => {
   }
 
   // ── STOCKS ──────────────────────────────────────────────────
-  const TICKERS = ['APP','U','BTC-USD','AAPL','TSLA','META','GOOG','NVDA','^GSPC','^IXIC'];
-  const TICKER_LABELS = {'BTC-USD':'BTC','^GSPC':'S&P 500','^IXIC':'Nasdaq'};
-
   async function loadStocks() {
     const grid = document.getElementById('stocks-grid');
+    grid.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
     try {
-      const results = await Promise.all(TICKERS.map(async t => {
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(t)}?interval=1d&range=1d`;
-        const r = await fetch(url);
-        const d = await r.json();
-        const meta = d.chart.result[0].meta;
-        return {
-          ticker: t,
-          label: TICKER_LABELS[t] || t,
-          price: meta.regularMarketPrice,
-          prev: meta.chartPreviousClose,
-          change: meta.regularMarketPrice - meta.chartPreviousClose,
-          changePct: ((meta.regularMarketPrice - meta.chartPreviousClose) / meta.chartPreviousClose * 100)
-        };
-      }));
-
-      grid.innerHTML = results.map(s => {
-        const dir = s.change > 0 ? 'up' : s.change < 0 ? 'down' : 'flat';
-        const sign = s.change > 0 ? '+' : '';
-        const price = s.ticker === 'BTC-USD'
-          ? '$' + Math.round(s.price).toLocaleString()
-          : s.price >= 1000 ? '$' + s.price.toFixed(0) : '$' + s.price.toFixed(2);
-        return `<div class="stock-item">
-          <span class="stock-ticker">${s.label}</span>
-          <span class="stock-price">${price}</span>
-          <span class="stock-change ${dir}">${sign}${s.changePct.toFixed(2)}%</span>
-        </div>`;
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1200,
+          tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+          messages: [{
+            role: 'user',
+            content: "Search for today's current stock prices and percentage change for: APP (Applovin), U (Unity), BTC (Bitcoin), AAPL, TSLA, META, GOOG, NVDA, S&P 500, Nasdaq. Return ONLY a JSON array, no markdown, no backticks. Format: [{label: 'APP', price: 123.45, changePct: 1.23}, ...]. Negative changePct for stocks that are down. BTC price should be full dollar amount."
+          }]
+        })
+      });
+      const data = await response.json();
+      const text = data.content.filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
+      const clean = text.replace(/```json|```/g, '').trim();
+      const stocks = JSON.parse(clean);
+      grid.innerHTML = stocks.map(function(s) {
+        const dir = s.changePct > 0 ? 'up' : s.changePct < 0 ? 'down' : 'flat';
+        const sign = s.changePct > 0 ? '+' : '';
+        const price = parseFloat(s.price);
+        const priceStr = s.label === 'BTC'
+          ? '$' + Math.round(price).toLocaleString()
+          : price >= 1000 ? '$' + price.toLocaleString('en-US', {maximumFractionDigits:0})
+          : '$' + price.toFixed(2);
+        return '<div class="stock-item">'
+          + '<span class="stock-ticker">' + s.label + '</span>'
+          + '<span class="stock-price">' + priceStr + '</span>'
+          + '<span class="stock-change ' + dir + '">' + sign + parseFloat(s.changePct).toFixed(2) + '%</span>'
+          + '</div>';
       }).join('');
       document.getElementById('stocks-updated').textContent = 'as of ' + timeNow();
     } catch(e) {
-      grid.innerHTML = '<span class="digest-error">Unable to load — market data blocked in preview</span>';
+      grid.innerHTML = '<span class="digest-error">Unable to load market data</span>';
     }
   }
 
   // ── MTG CARDS ───────────────────────────────────────────────
   const MTG_CARDS = [
-    { name: "Gaia's Cradle", set: "Urza's Saga" },
-    { name: "Bazaar of Baghdad", set: "Arabian Nights" }
+    { name: "Gaia's Cradle",              set: "Urza's Saga"      },
+    { name: "Bazaar of Baghdad",          set: "Arabian Nights"   },
+    { name: "The One Ring",               set: "Lord of the Rings" },
+    { name: "Wheel of Fortune",           set: "Revised Edition"  },
+    { name: "Sheoldred, the Apocalypse",  set: "Dominaria United" },
+    { name: "Mana Vault",                 set: "Fourth Edition"   },
+    { name: "Sephiroth, Fabled Soldier",  set: "Final Fantasy"    }
   ];
 
   async function loadMTG() {
     const list = document.getElementById('mtg-list');
+    list.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
     try {
-      const results = await Promise.all(MTG_CARDS.map(async c => {
-        const r = await fetch(`https://api.scryfall.com/cards/named?exact=${encodeURIComponent(c.name)}`, {
-          headers: { 'Accept': 'application/json' }
-        });
-        const d = await r.json();
-        return {
-          name: c.name,
-          set: d.set_name || c.set,
-          usd: d.prices?.usd ? parseFloat(d.prices.usd) : null,
-          usd_foil: d.prices?.usd_foil ? parseFloat(d.prices.usd_foil) : null
-        };
-      }));
-
-      list.innerHTML = results.map(c => `
-        <div class="card-row">
-          <div>
-            <div class="card-name">${c.name}</div>
-            <div class="card-set">${c.set}</div>
-          </div>
-          <div>
-            <div class="card-price">${c.usd ? '$' + c.usd.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—'}</div>
-            <div class="card-price-sub">${c.usd_foil ? 'Foil $' + c.usd_foil.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : ''}</div>
-          </div>
-        </div>`).join('');
+      const cardQuery = MTG_CARDS.map(function(c) { return c.name; }).join(' and ');
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 800,
+          tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+          messages: [{
+            role: 'user',
+            content: 'Search for the current market prices for these Magic: The Gathering cards on MTGGoldfish or TCGPlayer: ' + cardQuery + '. Return ONLY a JSON array, no markdown, no backticks. Format: [{"name": "Card Name", "set": "Set Name", "usd": 299.99, "usd_foil": null}, ...]. Include all cards. Use null for usd or usd_foil if price not found.'
+          }]
+        })
+      });
+      const data = await response.json();
+      const text = data.content.filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
+      const clean = text.replace(/```json|```/g, '').trim();
+      const cards = JSON.parse(clean);
+      list.innerHTML = cards.map(function(c) {
+        const price = c.usd ? '$' + parseFloat(c.usd).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
+        const foil  = c.usd_foil ? 'Foil $' + parseFloat(c.usd_foil).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '';
+        return '<div class="card-row">'
+          + '<div><div class="card-name">' + c.name + '</div><div class="card-set">' + (c.set || '') + '</div></div>'
+          + '<div><div class="card-price">' + price + '</div><div class="card-price-sub">' + foil + '</div></div>'
+          + '</div>';
+      }).join('');
     } catch(e) {
       list.innerHTML = '<span class="digest-error">Unable to load card prices</span>';
     }
@@ -2138,7 +2148,7 @@ onAuthStateChanged(auth, user => {
     { name: 'LA Kings',     league: 'NHL',     sport: 'hockey',     league_path: 'nhl',                    espnId: 'lak' },
     { name: 'Cal Basketball',league: 'NCAAB',  sport: 'basketball', league_path: 'mens-college-basketball', espnId: '25'  },
     { name: 'Cal Football', league: 'NCAAF',   sport: 'football',   league_path: 'college-football',       espnId: '25'  },
-    { name: 'Venezia FC',   league: 'Serie A', sport: 'soccer',     league_path: 'ita.1',                  espnId: '3776'}
+    { name: 'Venezia FC',   league: 'Serie B', sport: 'soccer',     league_path: 'ita.2',                  espnId: '3776'}
   ];
 
   async function loadSports() {
@@ -2171,8 +2181,8 @@ onAuthStateChanged(auth, user => {
 
             if (myTeam && otherTeam) {
               const won = myTeam.winner === true;
-              const myScore = myTeam.score;
-              const theirScore = otherTeam.score;
+              const myScore = myTeam.score?.displayValue ?? myTeam.score ?? '?';
+              const theirScore = otherTeam.score?.displayValue ?? otherTeam.score ?? '?';
               const oppName = otherTeam.team?.abbreviation || otherTeam.team?.shortDisplayName || '?';
               const isHome = myTeam.homeAway === 'home';
               result = won ? 'W' : 'L';
@@ -2219,22 +2229,34 @@ onAuthStateChanged(auth, user => {
   // ── NEWS ──────────────────────────────────────────────────
   async function loadNews(type) {
     const el = document.getElementById('news-' + type);
-    const feeds = {
-      general: 'https://feeds.bbci.co.uk/news/rss.xml',
-      tech:    'https://feeds.feedburner.com/TechCrunch'
-    };
+    el.innerHTML = '<span class="digest-loading">Asking Claude...</span>';
+    const topic = type === 'tech' ? 'technology and AI industry' : 'top world news';
     try {
-      const proxy = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feeds[type])}&count=6`;
-      const r = await fetch(proxy, { signal: AbortSignal.timeout(8000) });
-      const d = await r.json();
-      if (d.status !== 'ok') throw new Error('bad');
-      el.innerHTML = d.items.map(item => `
-        <a class="news-item" href="${item.link}" target="_blank" rel="noopener">
-          <div class="news-headline">${item.title}</div>
-          <div class="news-meta">${new Date(item.pubDate).toLocaleDateString('en-US', {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'})}</div>
-        </a>`).join('');
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1500,
+          tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+          messages: [{
+            role: 'user',
+            content: 'Search for the 6 most recent and important ' + topic + ' headlines from today or the past 24 hours. Return ONLY a JSON array, no markdown, no backticks. Format: [{"title": "Headline text", "source": "BBC", "url": "https://..."}, ...]. Use real URLs.'
+          }]
+        })
+      });
+      const data = await response.json();
+      const text = data.content.filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
+      const clean = text.replace(/```json|```/g, '').trim();
+      const items = JSON.parse(clean);
+      el.innerHTML = items.map(function(item) {
+        return '<a class="news-item" href="' + item.url + '" target="_blank" rel="noopener">'
+          + '<div class="news-headline">' + item.title + '</div>'
+          + '<div class="news-meta">' + (item.source || '') + '</div>'
+          + '</a>';
+      }).join('');
     } catch(e) {
-      el.innerHTML = '<span class="digest-error">Unable to load — network blocked in preview</span>';
+      el.innerHTML = '<span class="digest-error">Unable to load headlines</span>';
     }
   }
 
