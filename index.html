@@ -1910,12 +1910,12 @@ onAuthStateChanged(auth, user => {
     const key = ANTHROPIC_API_KEY ? ANTHROPIC_API_KEY.trim().replace(/[\u200B-\u200D\uFEFF\u00A0]/g, '') : '';
     const proxySet = PROXY_URL && PROXY_URL.trim() !== '';
     if (!key && !proxySet) throw new Error('No API key — add PROXY_URL or ANTHROPIC_API_KEY in the file');
-    console.log('[claudeSearch] key prefix:', key.substring(0, 16) + '...', 'length:', key.length);
     const body = {
       model: 'claude-haiku-4-5',
       max_tokens: max_tokens || 1000,
+      system: 'You are a data API. You MUST respond with ONLY a valid JSON array. No explanations, no prose, no markdown, no backticks. Just the raw JSON array starting with [ and ending with ].',
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-      messages: [{ role: 'user', content: prompt }]
+      messages: [{ role: 'user', content: prompt + ' Respond with ONLY the JSON array, nothing else.' }]
     };
     const proxyUrl = PROXY_URL || 'https://api.anthropic.com/v1/messages';
     const response = await fetch(proxyUrl, {
@@ -1924,7 +1924,6 @@ onAuthStateChanged(auth, user => {
       body: JSON.stringify(body)
     });
     const raw = await response.text();
-    console.log('[claudeSearch] status:', response.status, 'body:', raw.substring(0, 300));
     if (!response.ok) {
       let errMsg = 'HTTP ' + response.status;
       try { const err = JSON.parse(raw); errMsg = err.error?.message || errMsg; } catch(e) {}
@@ -1935,7 +1934,10 @@ onAuthStateChanged(auth, user => {
       .filter(function(b) { return b.type === 'text'; })
       .map(function(b) { return b.text; })
       .join('');
-    return text.replace(/```json|```/g, '').trim();
+    // Extract JSON array even if there's surrounding text
+    const match = text.match(/\[[\s\S]*\]/);
+    if (!match) throw new Error('No JSON array found in response');
+    return match[0];
   }
 
   // ── DIGEST ───────────────────────────────────────────────────
