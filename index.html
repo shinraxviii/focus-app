@@ -1367,6 +1367,190 @@
     .analytics-controls { flex-direction: column; align-items: flex-start; gap: 10px; }
   }
 
+  /* ── STAT CARDS ─────────────────────────────────────────── */
+  .stat-card { margin-top: 16px; }
+
+  .stat-card-label {
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+
+  .stat-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 18px;
+  }
+
+  .stat-big {
+    font-family: 'DM Serif Display', serif;
+    font-size: 42px;
+    line-height: 1;
+    letter-spacing: -1px;
+    color: var(--text);
+  }
+
+  .stat-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 6px;
+  }
+
+  .stat-aside { text-align: right; }
+
+  .stat-aside-label {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+
+  .stat-aside-label + .stat-aside-label { margin-top: 8px; }
+
+  .stat-aside-val {
+    font-size: 18px;
+    font-family: 'DM Serif Display', serif;
+    color: var(--text);
+  }
+
+  .stat-bar-track {
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .stat-bar-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 3px;
+    transition: width 0.6s ease;
+  }
+
+  .stat-interpret {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 10px;
+    line-height: 1.6;
+  }
+
+  /* Momentum */
+  .mom-row {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 16px;
+  }
+
+  .mom-avg-label {
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .mom-avg-val {
+    font-size: 28px;
+    font-family: 'DM Serif Display', serif;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .mom-vs {
+    display: flex;
+    align-items: center;
+    padding-top: 12px;
+    font-size: 20px;
+    color: var(--text-dim);
+  }
+
+  .mom-signal-wrap {
+    margin-left: auto;
+    text-align: right;
+    padding-top: 4px;
+  }
+
+  .mom-signal-label {
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .mom-signal-val {
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+  }
+
+  .mom-canvas-wrap {
+    position: relative;
+    width: 100%;
+    height: 90px;
+  }
+
+  /* Z-scores */
+  .zscore-desc {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+
+  .zscore-bars { display: flex; flex-direction: column; gap: 10px; }
+
+  .zscore-sig {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 14px;
+    line-height: 1.6;
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+  }
+
+  .zscore-row {
+    display: grid;
+    grid-template-columns: 36px 1fr 52px 40px;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .zscore-day {
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+  }
+
+  .zscore-track {
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .zscore-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+  }
+
+  .zscore-val {
+    font-size: 10px;
+    font-weight: 600;
+    text-align: right;
+  }
+
+  .zscore-n {
+    font-size: 9px;
+    color: var(--text-dim);
+    text-align: right;
+  }
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script type="module">
@@ -1514,54 +1698,56 @@ onAuthStateChanged(auth, user => {
   </div>
 
   <!-- CONSISTENCY SCORE -->
-  <div class="analytics-card" style="margin-top:16px;">
-    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px;">
+  <div class="analytics-card stat-card">
+    <div class="stat-card-header">
       <div>
-        <div style="font-size:9px; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px;">Consistency Score</div>
-        <div style="font-family:'DM Serif Display',serif; font-size:42px; line-height:1; letter-spacing:-1px; color:var(--text);" id="cv-score">—</div>
-        <div style="font-size:11px; color:var(--text-muted); margin-top:6px;" id="cv-label">coefficient of variation</div>
+        <div class="stat-card-label">Consistency Score</div>
+        <div class="stat-big" id="cv-score">—</div>
+        <div class="stat-sub" id="cv-label">coefficient of variation</div>
       </div>
-      <div style="text-align:right;">
-        <div style="font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-dim); margin-bottom:4px;">Daily avg</div>
-        <div style="font-size:18px; font-family:'DM Serif Display',serif; color:var(--text);" id="cv-mean">—</div>
-        <div style="font-size:9px; color:var(--text-dim); margin-top:8px;">Std dev</div>
-        <div style="font-size:18px; font-family:'DM Serif Display',serif; color:var(--text);" id="cv-std">—</div>
+      <div class="stat-aside">
+        <div class="stat-aside-label">Daily avg</div>
+        <div class="stat-aside-val" id="cv-mean">—</div>
+        <div class="stat-aside-label">Std dev</div>
+        <div class="stat-aside-val" id="cv-std">—</div>
       </div>
     </div>
-    <div id="cv-bar-wrap" style="height:6px; background:var(--border); border-radius:3px; overflow:hidden;">
-      <div id="cv-bar" style="height:100%; width:0%; border-radius:3px; transition:width 0.6s ease;"></div>
+    <div class="stat-bar-track" id="cv-bar-wrap">
+      <div class="stat-bar-fill" id="cv-bar"></div>
     </div>
-    <div style="font-size:10px; color:var(--text-dim); margin-top:10px; line-height:1.6;" id="cv-interpret"></div>
+    <div class="stat-interpret" id="cv-interpret"></div>
   </div>
 
   <!-- MOMENTUM INDEX -->
-  <div class="analytics-card" style="margin-top:16px;">
-    <div style="font-size:9px; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-muted); margin-bottom:14px;">Momentum Index</div>
-    <div style="display:flex; gap:24px; margin-bottom:16px;">
+  <div class="analytics-card stat-card">
+    <div class="stat-card-label">Momentum Index</div>
+    <div class="mom-row">
       <div>
-        <div style="font-size:9px; color:var(--text-dim); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:4px;">7-day avg</div>
-        <div style="font-size:28px; font-family:'DM Serif Display',serif; color:var(--text); line-height:1;" id="mom-7">—</div>
+        <div class="mom-avg-label">7-day avg</div>
+        <div class="mom-avg-val" id="mom-7">—</div>
       </div>
-      <div style="display:flex; align-items:center; padding-top:12px; font-size:20px; color:var(--text-dim);">vs</div>
+      <div class="mom-vs">vs</div>
       <div>
-        <div style="font-size:9px; color:var(--text-dim); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:4px;">30-day avg</div>
-        <div style="font-size:28px; font-family:'DM Serif Display',serif; color:var(--text); line-height:1;" id="mom-30">—</div>
+        <div class="mom-avg-label">30-day avg</div>
+        <div class="mom-avg-val" id="mom-30">—</div>
       </div>
-      <div style="margin-left:auto; text-align:right; padding-top:4px;">
-        <div style="font-size:9px; color:var(--text-dim); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:4px;">Signal</div>
-        <div style="font-size:13px; letter-spacing:0.06em; font-weight:600;" id="mom-signal">—</div>
+      <div class="mom-signal-wrap">
+        <div class="mom-signal-label">Signal</div>
+        <div class="mom-signal-val" id="mom-signal">—</div>
       </div>
     </div>
-    <canvas id="momentum-chart" style="width:100%; height:90px;"></canvas>
-    <div style="font-size:10px; color:var(--text-dim); margin-top:10px; line-height:1.6;" id="mom-interpret"></div>
+    <div class="mom-canvas-wrap">
+      <canvas id="momentum-chart"></canvas>
+    </div>
+    <div class="stat-interpret" id="mom-interpret"></div>
   </div>
 
   <!-- DOW Z-SCORES -->
-  <div class="analytics-card" style="margin-top:16px;">
-    <div style="font-size:9px; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px;">Day-of-Week Z-Scores</div>
-    <div style="font-size:10px; color:var(--text-dim); margin-bottom:16px; line-height:1.5;" id="zscore-header">Standard deviations above/below your daily mean — filters out volume noise</div>
-    <div id="zscore-bars" style="display:flex; flex-direction:column; gap:10px;"></div>
-    <div style="font-size:10px; color:var(--text-dim); margin-top:14px; line-height:1.6; border-top:1px solid var(--border); padding-top:12px;" id="zscore-sig"></div>
+  <div class="analytics-card stat-card">
+    <div class="stat-card-label">Day-of-Week Z-Scores</div>
+    <div class="zscore-desc" id="zscore-header">Standard deviations above/below your daily mean — filters out volume noise</div>
+    <div class="zscore-bars" id="zscore-bars"></div>
+    <div class="zscore-sig" id="zscore-sig"></div>
   </div>
 
 </div>
@@ -2105,6 +2291,30 @@ onAuthStateChanged(auth, user => {
     };
   })();
 
+  function animateSlash(wrap, x1, y1, x2, y2, delay, onDone) {
+    if (!wrap) return;
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.classList.add('slash-svg');
+    svg.setAttribute('viewBox', '0 0 100 100');
+    svg.setAttribute('preserveAspectRatio', 'none');
+    const line = document.createElementNS(ns, 'line');
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+    line.style.strokeDasharray = len;
+    line.style.strokeDashoffset = len;
+    svg.appendChild(line);
+    wrap.appendChild(svg);
+    setTimeout(() => {
+      requestAnimationFrame(() => {
+        line.style.transition = 'stroke-dashoffset 0.17s cubic-bezier(0.16,1,0.3,1)';
+        line.style.strokeDashoffset = 0;
+        line.addEventListener('transitionend', () => { if (onDone) onDone(); }, { once: true });
+      });
+    }, delay);
+  }
+
   function toggleComplete(id) {
     const t = tasks.find(t => t.id === id);
     if (!t) return;
@@ -2195,32 +2405,8 @@ onAuthStateChanged(auth, user => {
         const item = cb.closest('.task-item');
         const wrap = item ? item.querySelector('.task-text-wrap') : null;
 
-        function animateSlash(x1, y1, x2, y2, delay, onDone) {
-          if (!wrap) return;
-          const ns = 'http://www.w3.org/2000/svg';
-          const svg = document.createElementNS(ns, 'svg');
-          svg.classList.add('slash-svg');
-          svg.setAttribute('viewBox', '0 0 100 100');
-          svg.setAttribute('preserveAspectRatio', 'none');
-          const line = document.createElementNS(ns, 'line');
-          const len = Math.hypot(x2 - x1, y2 - y1);
-          line.setAttribute('x1', x1); line.setAttribute('y1', y1);
-          line.setAttribute('x2', x2); line.setAttribute('y2', y2);
-          line.style.strokeDasharray = len;
-          line.style.strokeDashoffset = len;
-          svg.appendChild(line);
-          wrap.appendChild(svg);
-          setTimeout(() => {
-            requestAnimationFrame(() => {
-              line.style.transition = 'stroke-dashoffset 0.17s cubic-bezier(0.16,1,0.3,1)';
-              line.style.strokeDashoffset = 0;
-              line.addEventListener('transitionend', () => { if (onDone) onDone(); }, { once: true });
-            });
-          }, delay);
-        }
-
         // Slash 1: top-left → bottom-right
-        animateSlash(2, 15, 98, 85, 0, () => {
+        animateSlash(wrap, 2, 15, 98, 85, 0, () => {
           window._burstComplete(cb);
           cb.classList.add('popping');
           cb.addEventListener('animationend', () => cb.classList.remove('popping'), { once: true });
@@ -2231,7 +2417,7 @@ onAuthStateChanged(auth, user => {
         });
 
         // Slash 2: top-right → bottom-left, 210ms later
-        animateSlash(98, 15, 2, 85, 210, () => {
+        animateSlash(wrap, 98, 15, 2, 85, 210, () => {
           window._burstComplete(cb);
         });
 
@@ -2444,11 +2630,9 @@ onAuthStateChanged(auth, user => {
   function toggleTheme() {
     const current = document.documentElement.classList.contains('light') ? 'light' : 'dark';
     applyTheme(current === 'light' ? 'dark' : 'light');
-    // Re-render stat cards so colors update
     chartDataHash = null;
     if (document.getElementById('analytics-page').classList.contains('visible')) {
-      renderChart();
-      renderStatCards();
+      renderAnalytics();
     }
   }
 
@@ -3276,9 +3460,9 @@ onAuthStateChanged(auth, user => {
     return { streak, bestCount, bestLabel, dailyCounts };
   }
 
-  function renderTiles() {
+  function renderTiles(stats) {
     const total = completionLog.length;
-    const { streak, bestCount, bestLabel } = calcAnalyticsStats();
+    const { streak, bestCount, bestLabel } = stats;
 
     document.getElementById('tile-total-pts').textContent = total;
     document.getElementById('tile-total-sub').textContent =
@@ -3297,6 +3481,8 @@ onAuthStateChanged(auth, user => {
     const emptyEl = document.getElementById('chart-empty');
     const hasData = data.some(v => v > 0);
     const isLight = document.documentElement.classList.contains('light');
+    const isDow = currentPeriod === 'dow';
+    const peakIdx = isDow ? data.indexOf(Math.max(...data)) : -1;
 
     if (!hasData) {
       canvas.style.display = 'none';
@@ -3309,7 +3495,7 @@ onAuthStateChanged(auth, user => {
     emptyEl.style.display = 'none';
 
     // Only rebuild if data or chart type actually changed
-    const newHash = currentPeriod + ':' + currentChartType + ':' + (isLight?'L':'D') + ':' + (isDow?peakIdx:'') + ':' + data.join(',');
+    const newHash = currentPeriod + ':' + currentChartType + ':' + (isLight?'L':'D') + ':' + peakIdx + ':' + data.join(',');
     if (analyticsChart && newHash === chartDataHash) return;
     chartDataHash = newHash;
 
@@ -3338,9 +3524,6 @@ onAuthStateChanged(auth, user => {
     const textMain   = cssVars.getPropertyValue('--text').trim()       || (isLight ? '#18181b' : '#e4e4e7');
     const surfaceBg  = cssVars.getPropertyValue('--surface').trim()    || (isLight ? '#ffffff' : '#1a1a1e');
     const borderClr  = cssVars.getPropertyValue('--border').trim()     || (isLight ? '#d1d1d6' : '#2e2e34');
-
-    const isDow = currentPeriod === 'dow';
-    const peakIdx = isDow ? data.indexOf(Math.max(...data)) : -1;
 
     analyticsChart = new Chart(ctx, {
       type: isDow ? 'bar' : currentChartType,
@@ -3462,12 +3645,14 @@ onAuthStateChanged(auth, user => {
 
   let momentumChart = null;
 
-  function renderStatCards() {
-    const { dailyCounts } = calcAnalyticsStats();
+  function renderStatCards(stats) {
+    const { dailyCounts } = stats;
     const isLight = document.documentElement.classList.contains('light');
     const cssVars = getComputedStyle(document.documentElement);
-    const textColor = cssVars.getPropertyValue('--text-muted').trim();
-    const textMain  = cssVars.getPropertyValue('--text').trim();
+    const colorMuted  = cssVars.getPropertyValue('--text-muted').trim();
+    const colorDim    = cssVars.getPropertyValue('--text-dim').trim();
+    const colorWin    = cssVars.getPropertyValue('--win-color').trim();
+    const colorLoss   = cssVars.getPropertyValue('--loss-color').trim();
 
     // ── CONSISTENCY ──────────────────────────────────────────
     const cons = calcConsistency(dailyCounts);
@@ -3479,7 +3664,7 @@ onAuthStateChanged(auth, user => {
       document.getElementById('cv-score').textContent = cvPct + '%';
       // Lower CV = more consistent. Map 0-150% → bar width
       const barPct = Math.min(cv * 100 / 1.5, 100); // 150% CV = full bar
-      const barColor = cv < 0.4 ? '#7fb89a' : cv < 0.8 ? '#f59e0b' : '#c9949a';
+      const barColor = cv < 0.4 ? colorWin : cv < 0.8 ? '#f59e0b' : colorLoss;
       const bar = document.getElementById('cv-bar');
       bar.style.width = barPct + '%';
       bar.style.background = barColor;
@@ -3502,16 +3687,16 @@ onAuthStateChanged(auth, user => {
     const deltaPct  = Math.round(mom.delta * 100);
     const sigEl     = document.getElementById('mom-signal');
     if (mom.avg30 === 0) {
-      sigEl.textContent = '—'; sigEl.style.color = textColor;
+      sigEl.textContent = '—'; sigEl.style.color = colorMuted;
     } else if (mom.delta > 0.1) {
       sigEl.textContent = '▲ Accelerating ' + deltaSign + deltaPct + '%';
-      sigEl.style.color = '#7fb89a';
+      sigEl.style.color = colorWin;
     } else if (mom.delta < -0.1) {
       sigEl.textContent = '▼ Decelerating ' + deltaSign + deltaPct + '%';
-      sigEl.style.color = '#c9949a';
+      sigEl.style.color = colorLoss;
     } else {
       sigEl.textContent = '→ Steady ' + deltaSign + deltaPct + '%';
-      sigEl.style.color = textColor;
+      sigEl.style.color = colorMuted;
     }
     document.getElementById('mom-interpret').textContent =
       mom.avg30 > 0
@@ -3548,7 +3733,7 @@ onAuthStateChanged(auth, user => {
             {
               label: '7-day avg',
               data: rolling7,
-              borderColor: '#7aaabb',
+              borderColor: cssVars.getPropertyValue('--color-slate-text').trim() || '#7aaabb',
               backgroundColor: 'rgba(122,170,187,0.08)',
               borderWidth: 2, pointRadius: 0, tension: 0.4, fill: false,
             },
@@ -3571,22 +3756,22 @@ onAuthStateChanged(auth, user => {
     const maxZ = Math.max(...zScores.map(d => Math.abs(d.z)), 0.1);
     const container = document.getElementById('zscore-bars');
     container.innerHTML = '';
-    zScores.forEach(({ name, dowMean, z, n, significant }) => {
+    zScores.forEach(({ name, z, n, significant }) => {
       const pct = Math.abs(z) / maxZ * 100;
       const isPos = z >= 0;
       const barColor = significant
-        ? (isPos ? '#7fb89a' : '#c9949a')
+        ? (isPos ? colorWin : colorLoss)
         : (isLight ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.12)');
       const zStr = (z >= 0 ? '+' : '') + z.toFixed(2) + 'σ';
       const row = document.createElement('div');
-      row.style.cssText = 'display:grid; grid-template-columns:36px 1fr 52px 40px; align-items:center; gap:10px;';
+      row.className = 'zscore-row';
       row.innerHTML = `
-        <span style="font-size:10px; color:var(--text-muted); letter-spacing:0.06em;">${name}</span>
-        <div style="height:6px; background:var(--border); border-radius:3px; overflow:hidden;">
-          <div style="height:100%; width:${pct}%; background:${barColor}; border-radius:3px; transition:width 0.5s ease;"></div>
+        <span class="zscore-day">${name}</span>
+        <div class="zscore-track">
+          <div class="zscore-fill" style="width:${pct}%; background:${barColor};"></div>
         </div>
-        <span style="font-size:10px; font-weight:600; color:${significant ? barColor : 'var(--text-dim)'}; text-align:right;">${zStr}</span>
-        <span style="font-size:9px; color:var(--text-dim); text-align:right;">${n}d${significant ? ' ✦' : ''}</span>`;
+        <span class="zscore-val" style="color:${significant ? barColor : colorDim};">${zStr}</span>
+        <span class="zscore-n">${n}d${significant ? ' ✦' : ''}</span>`;
       container.appendChild(row);
     });
     const sigDays = zScores.filter(d => d.significant);
@@ -3603,9 +3788,10 @@ onAuthStateChanged(auth, user => {
   }
 
   function renderAnalytics() {
-    renderTiles();
+    const stats = calcAnalyticsStats();
+    renderTiles(stats);
     renderChart();
-    renderStatCards();
+    renderStatCards(stats);
   }
 
   // --- Mobile Tabs ---
