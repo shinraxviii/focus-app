@@ -1413,8 +1413,8 @@ onAuthStateChanged(auth, user => {
 <div id="sync-status">Saving...</div>
 
 <div class="nav-toggle">
-  <button class="nav-btn active" id="btn-digest" onclick="showPage('digest')">Digest</button>
-  <button class="nav-btn" id="btn-tasks" onclick="showPage('tasks')">Tasks</button>
+  <button class="nav-btn" id="btn-digest" onclick="showPage('digest')">Digest</button>
+  <button class="nav-btn active" id="btn-tasks" onclick="showPage('tasks')">Tasks</button>
   <button class="nav-btn" id="btn-analytics" onclick="showPage('analytics')">Analytics</button>
 </div>
 
@@ -1665,7 +1665,7 @@ onAuthStateChanged(auth, user => {
 
   // Called by Firebase module once user is authenticated
   window._onUserReady = async (user) => {
-    showPage('digest');
+    showPage('tasks');
     const name = user.displayName ? user.displayName.split(' ')[0] : user.email.split('@')[0];
     const hour = new Date().getHours();
     const timeOfDay = hour < 12 ? 'Morning' : hour < 17 ? 'Afternoon' : hour < 21 ? 'Evening' : 'Night';
@@ -2115,8 +2115,8 @@ onAuthStateChanged(auth, user => {
 
     try {
       const clean = await claudeSearch(
-        'Give me 5 top world news headlines AND 5 top tech/AI headlines from today. ' +
-        'JSON only: {"newsGeneral":[{"title","source","url"}],"newsTech":[{"title","source","url"}]}',
+        'Search for the 5 most important world news stories today, and the 5 most important tech or AI news stories today. ' +
+        'Return ONLY a JSON object like this example: {"newsGeneral":[{"title":"Story headline","source":"Source Name","url":"https://example.com"}],"newsTech":[{"title":"Tech headline","source":"Source Name","url":"https://example.com"}]}',
         600
       );
       const d = JSON.parse(clean);
@@ -2172,10 +2172,13 @@ onAuthStateChanged(auth, user => {
 
     try {
       const clean = await claudeSearch(
-        'Give me: (1) current MTG card prices from MTGGoldfish for: ' + mtgNames + '; ' +
-        '(2) current Sorcery Contested Realm card prices from TCGPlayer for: ' + sorcNames + '; ' +
-        '(3) Brandon Sanderson current writing progress from brandonsanderson.com. ' +
-        'Respond ONLY with this JSON: {"mtg":[{"name","set","usd","usd_foil"}],"sorcery":[{"name","label","price"}],"sanderson":[{"title","pct"}]}',
+        "Search for: (1) current MTG card prices on MTGGoldfish.com for these cards: " + mtgNames + "; " +
+        "(2) current Sorcery: Contested Realm card prices on TCGPlayer for: " + sorcNames + "; " +
+        "(3) Brandon Sanderson writing progress percentages from brandonsanderson.com. " +
+        "Return ONLY a JSON object like this: " +
+        '{"mtg":[{"name":"Card Name","set":"Set Name","usd":"100.00","usd_foil":"150.00"}],' +
+        '"sorcery":[{"name":"Card Name","label":"Foil","price":"85.00"}],' +
+        '"sanderson":[{"title":"Book Title","pct":45}]}',
         1200
       );
       const d = JSON.parse(clean);
@@ -2613,6 +2616,7 @@ onAuthStateChanged(auth, user => {
     const canvas = document.getElementById('analytics-chart');
     const emptyEl = document.getElementById('chart-empty');
     const hasData = data.some(v => v > 0);
+    const isLight = document.documentElement.classList.contains('light');
 
     if (!hasData) {
       canvas.style.display = 'none';
@@ -2632,7 +2636,6 @@ onAuthStateChanged(auth, user => {
     if (analyticsChart) { analyticsChart.destroy(); analyticsChart = null; }
 
     const ctx = canvas.getContext('2d');
-    const isLight = document.documentElement.classList.contains('light');
     const accent = '#7aaabb';
     const accentFill = 'rgba(122,170,187,0.12)';
     const gridColor = isLight ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.05)';
