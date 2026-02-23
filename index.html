@@ -2733,7 +2733,22 @@ onAuthStateChanged(auth, user => {
             + '<span class="stock-change ' + dir + '">' + sign + parseFloat(s.changePct).toFixed(2) + '%</span>'
             + '</div>';
         }).join('');
-        document.getElementById('stocks-updated').textContent = source + ' · ' + timeNow();
+
+        // Use the market time from the data if available, otherwise fall back to now
+        const marketTime = stocks.find(s => s.marketTime)?.marketTime;
+        let timeLabel;
+        if (marketTime) {
+          const d = new Date(marketTime * 1000); // Unix seconds → ms
+          timeLabel = d.toLocaleString('en-US', {
+            month: 'short', day: 'numeric',
+            hour: 'numeric', minute: '2-digit',
+            hour12: true, timeZoneName: 'short'
+          });
+        } else {
+          timeLabel = timeNow();
+        }
+        const prefix = source === 'via Claude' ? 'via Claude · ' : 'as of ';
+        document.getElementById('stocks-updated').textContent = prefix + timeLabel;
         cacheSet('stocks', stocksEl.innerHTML);
       }
 
@@ -2768,7 +2783,7 @@ onAuthStateChanged(auth, user => {
                 const r = await fetch(url, { signal: AbortSignal.timeout(4000) });
                 const data = await r.json();
                 const meta = data.chart.result[0].meta;
-                return { label: LABELS[t] || t, price: meta.regularMarketPrice, changePct: (meta.regularMarketPrice - meta.chartPreviousClose) / meta.chartPreviousClose * 100 };
+                return { label: LABELS[t] || t, price: meta.regularMarketPrice, changePct: (meta.regularMarketPrice - meta.chartPreviousClose) / meta.chartPreviousClose * 100, marketTime: meta.regularMarketTime || null };
               } catch(e) { return null; }
             })),
             new Promise((_, reject) => setTimeout(() => reject(new Error('direct timeout')), 7000))
