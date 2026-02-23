@@ -2536,7 +2536,8 @@ onAuthStateChanged(auth, user => {
   // e.g. 'https://your-project.vercel.app/api/claude'
   const PROXY_URL        = 'https://focus-proxy.vercel.app/api/claude';
   const STOCKS_PROXY_URL = 'https://focus-proxy.vercel.app/api/stocks';
-  const NEWS_PROXY_URL   = 'https://focus-proxy.vercel.app/api/news';
+  const NEWS_PROXY_URL     = 'https://focus-proxy.vercel.app/api/news';
+  const SORCERY_PROXY_URL  = 'https://focus-proxy.vercel.app/api/sorcery';
 
   // Option B: Direct API key (may fail due to CORS on some browsers)
   const ANTHROPIC_API_KEY = ''; // Not needed when using proxy
@@ -2906,17 +2907,17 @@ onAuthStateChanged(auth, user => {
       } catch(e) { _staleOrError(mtgEl, 'mtg', e.message || 'MTG load failed'); }
     }
 
-    // Sorcery prices — TCGPlayer has no public API; show known prices with direct links
+    // Sorcery prices — live from TCGCSV (mirrors TCGPlayer, free, no key, daily updates)
     if (!cachedSorc) {
-      const sorceryData = [
-        { name: 'Avatar of Air',     set: 'Alpha',  label: 'Foil',     price: null  },
-        { name: 'Mirror Realm',      set: 'Alpha',  label: 'Foil',     price: null  },
-        { name: 'Mirror Realm',      set: 'Alpha',  label: 'Non-foil', price: null  },
-        { name: 'Alpha Booster Box', set: 'Alpha',  label: 'Sealed',   price: null  },
-        { name: 'Gothic Booster Box',set: 'Gothic', label: 'Sealed',   price: null  },
-      ];
-      renderSorcery(sorcEl, sorceryData);
-      cacheSet('sorcery', sorcEl.innerHTML);
+      sorcEl.innerHTML = '<span class="digest-loading">Loading Sorcery prices...</span>';
+      try {
+        const r = await fetch(SORCERY_PROXY_URL, { signal: AbortSignal.timeout(8000) });
+        if (!r.ok) throw new Error('Sorcery proxy ' + r.status);
+        const data = await r.json();
+        if (!data.results?.length) throw new Error('No Sorcery prices returned');
+        renderSorcery(sorcEl, data.results);
+        cacheSet('sorcery', sorcEl.innerHTML);
+      } catch(e) { _staleOrError(sorcEl, 'sorcery', e.message || 'Sorcery load failed'); }
     }
 
     // Sanderson progress — static data, update manually when progress changes
@@ -2950,7 +2951,9 @@ onAuthStateChanged(auth, user => {
 
   function renderSorcery(list, cards) {
     list.innerHTML = cards.map(function(c) {
-      const tcgUrl = 'https://www.tcgplayer.com/search/sorcery-contested-realm/product?q=' + encodeURIComponent(c.name) + (c.label === 'Foil' ? '&Foil=Yes' : '');
+      const tcgUrl = c.tcgId
+        ? 'https://www.tcgplayer.com/product/' + c.tcgId
+        : 'https://www.tcgplayer.com/search/sorcery-contested-realm/product?q=' + encodeURIComponent(c.name);
       const priceStr = c.price ? '$' + parseFloat(c.price).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
       return '<div class="card-row">'
         + '<div>'
@@ -3315,7 +3318,7 @@ onAuthStateChanged(auth, user => {
     wrap.addEventListener('touchend',    e => onEnd(e.changedTouches[0].clientX), { passive: true });
     wrap.addEventListener('touchcancel', e => onEnd(e.changedTouches[0].clientX), { passive: true });
 
-    // Mouse (desktop drag) — skip if user is interacting with editable content
+    // Mouse (desktop drag) — skip if user is interacting with editable content or task items
     const EDITABLE = ['INPUT', 'TEXTAREA', 'SELECT'];
     let mouseDown = false;
     wrap.addEventListener('mousedown', e => {
@@ -3323,6 +3326,7 @@ onAuthStateChanged(auth, user => {
       if (EDITABLE.includes(e.target.tagName)) return;
       if (e.target.isContentEditable) return;
       if (e.target.closest('input, textarea, select, [contenteditable]')) return;
+      if (e.target.closest('.task-item')) return;  // let task drag handler own this
       mouseDown = true;
       onStart(e.clientX, e.clientY);
     });
@@ -3335,6 +3339,17 @@ onAuthStateChanged(auth, user => {
       if (!mouseDown) return;
       mouseDown = false;
       onEnd(e.clientX);
+    });
+    // Safety reset — if mouse leaves window while down, clean up state
+    window.addEventListener('mouseleave', () => {
+      if (mouseDown) {
+        mouseDown = false;
+        tracking = false;
+        dragActive = false;
+        // Snap back to current slide
+        const slider = document.getElementById('page-slider');
+        if (slider) { slider.classList.remove('no-transition'); moveTo(currentSlide, true); }
+      }
     });
   })();
 
