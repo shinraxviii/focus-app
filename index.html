@@ -3209,6 +3209,10 @@ onAuthStateChanged(auth, user => {
       if (idx === 1) applyMobileLayout();
       if (idx === 2) renderAnalytics();
     }
+
+    // Always re-apply mobile layout when landing on tasks slide,
+    // even if slide didn't change — ensures sections are visible after render
+    if (idx === 1 && isMobile()) applyMobileLayout();
   }
 
   function showPage(page) {
@@ -4057,6 +4061,7 @@ onAuthStateChanged(auth, user => {
   function render(sectionsToUpdate) {
     const secs = sectionsToUpdate || ['todo','notrightnow','completed'];
     secs.forEach(renderSection);
+    if (isMobile()) applyMobileLayout();
   }
 
   // Patch a single task item in-place without rebuilding the whole list
