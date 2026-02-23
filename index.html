@@ -1623,12 +1623,12 @@ onAuthStateChanged(auth, user => {
 <!-- APP WRAPPER -->
 <div id="app-wrapper">
 <header>
-  <div id="header-inner" style="display:flex; justify-content:space-between; align-items:center;">
+  <div id="header-inner" style="display:flex; justify-content:space-between; align-items:flex-start;">
     <div id="header-title">
       <h1 id="app-title">Focus</h1>
       <p id="greeting"></p>
     </div>
-    <div id="weather-widget" style="flex:1; display:flex; justify-content:center;"></div>
+    <div id="weather-widget" style="flex:1; display:flex; justify-content:center; padding-top:6px;"></div>
     <div id="header-right" style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
       <div id="current-date" style="font-family:'DM Serif Display',serif; line-height:1.2; text-align:right;"></div>
       <div style="display:flex; gap:8px; align-items:center;">
@@ -2906,46 +2906,29 @@ onAuthStateChanged(auth, user => {
       } catch(e) { _staleOrError(mtgEl, 'mtg', e.message || 'MTG load failed'); }
     }
 
-    // Sorcery prices — still via Claude (no public API), small delay after MTG parallel fetches
+    // Sorcery prices — TCGPlayer has no public API; show known prices with direct links
     if (!cachedSorc) {
-      await _delay(5000);
-      sorcEl.innerHTML = '<span class="digest-loading">Loading Sorcery prices...</span>';
-      try {
-        const names = SORCERY_CARD_LIST.map(c => c.name + ' ' + c.label).join(', ');
-        const clean = await claudeSearch(
-          'Look up current Sorcery Contested Realm card prices on TCGPlayer for: ' + names + '. ' +
-          'Return ONLY a JSON array: [{"name":"Avatar of Air","label":"Foil","price":"85.00"}]',
-          500
-        );
-        const cards = JSON.parse(clean);
-        renderSorcery(sorcEl, cards);
-        cacheSet('sorcery', sorcEl.innerHTML);
-      } catch(e) { _staleOrError(sorcEl, 'sorcery', e.message || 'Sorcery load failed'); }
+      const sorceryData = [
+        { name: 'Avatar of Air',     set: 'Alpha',  label: 'Foil',     price: null  },
+        { name: 'Mirror Realm',      set: 'Alpha',  label: 'Foil',     price: null  },
+        { name: 'Mirror Realm',      set: 'Alpha',  label: 'Non-foil', price: null  },
+        { name: 'Alpha Booster Box', set: 'Alpha',  label: 'Sealed',   price: null  },
+        { name: 'Gothic Booster Box',set: 'Gothic', label: 'Sealed',   price: null  },
+      ];
+      renderSorcery(sorcEl, sorceryData);
+      cacheSet('sorcery', sorcEl.innerHTML);
     }
 
-    // Sanderson progress — wait 15s after Sorcery Claude call
+    // Sanderson progress — static data, update manually when progress changes
+    // Source: brandonsanderson.com
     if (!cachedSand) {
-      await _delay(15000);
-      sandEl.innerHTML = '<span class="digest-loading">Loading Sanderson progress...</span>';
-      try {
-        const clean = await claudeSearch(
-          'Look up Brandon Sanderson current writing progress on brandonsanderson.com. ' +
-          'Return ONLY a JSON array: [{"title":"Book Name","pct":45}]',
-          400
-        );
-        const projects = JSON.parse(clean);
-        renderSanderson(sandEl, projects);
-        cacheSet('sanderson', sandEl.innerHTML);
-      } catch(e) {
-        console.error('[Digest:sanderson]', e && e.message || e);
-        // Fallback to last known values if API fails
-        renderSanderson(sandEl, [
-          { title: 'Mistborn Movie Script',         pct: 2   },
-          { title: 'Ghostbloods Book 1',            pct: 100 },
-          { title: 'Songrise 2.0 Review',           pct: 100 },
-          { title: 'Songrise 3.0',                  pct: 35  },
-        ]);
-      }
+      renderSanderson(sandEl, [
+        { title: 'Mistborn Movie Script',  pct: 2   },
+        { title: 'Ghostbloods Book 1',     pct: 100 },
+        { title: 'Songrise 2.0 Review',    pct: 100 },
+        { title: 'Songrise 3.0',           pct: 35  },
+      ]);
+      cacheSet('sanderson', sandEl.innerHTML);
     }
   }
 
@@ -2962,15 +2945,7 @@ onAuthStateChanged(auth, user => {
   ];
 
 
-  // ── SORCERY CARDS
   // ── SORCERY CARDS ──────────────────────────────────────────
-  const SORCERY_CARD_LIST = [
-    { name: 'Avatar of Air',     set: 'Alpha',  label: 'Foil'     },
-    { name: 'Mirror Realm',      set: 'Alpha',  label: 'Foil'     },
-    { name: 'Mirror Realm',      set: 'Alpha',  label: 'Non-foil' },
-    { name: 'Alpha Booster Box', set: 'Alpha',  label: 'Sealed'   },
-    { name: 'Gothic Booster Box',set: 'Gothic', label: 'Sealed'   }
-  ];
 
 
   function renderSorcery(list, cards) {
@@ -3328,8 +3303,9 @@ onAuthStateChanged(auth, user => {
 
     // Touch
     wrap.addEventListener('touchstart', e => {
-      // Don't swipe if user is touch-dragging a task
+      // Don't swipe if user is touch-dragging a task or editing text
       if (e.target.closest('.task-item')) return;
+      if (e.target.closest('input, textarea, select, [contenteditable]')) return;
       onStart(e.touches[0].clientX, e.touches[0].clientY);
     }, { passive: true });
     wrap.addEventListener('touchmove', e => {
@@ -3339,10 +3315,14 @@ onAuthStateChanged(auth, user => {
     wrap.addEventListener('touchend',    e => onEnd(e.changedTouches[0].clientX), { passive: true });
     wrap.addEventListener('touchcancel', e => onEnd(e.changedTouches[0].clientX), { passive: true });
 
-    // Mouse (desktop drag)
+    // Mouse (desktop drag) — skip if user is interacting with editable content
+    const EDITABLE = ['INPUT', 'TEXTAREA', 'SELECT'];
     let mouseDown = false;
     wrap.addEventListener('mousedown', e => {
       if (e.button !== 0) return;
+      if (EDITABLE.includes(e.target.tagName)) return;
+      if (e.target.isContentEditable) return;
+      if (e.target.closest('input, textarea, select, [contenteditable]')) return;
       mouseDown = true;
       onStart(e.clientX, e.clientY);
     });
@@ -3403,8 +3383,24 @@ onAuthStateChanged(auth, user => {
 
     document.addEventListener('touchmove', function(e) {
       const item = getTaskItem(e.target);
-      if (item) clearTimeout(item._dragTimer);
+      if (item) {
+        const dx = Math.abs(e.touches[0].clientX - startX);
+        const dy = Math.abs(e.touches[0].clientY - startY);
+        // Cancel drag timer if movement is horizontal — let swipe handle it
+        if (dx > 8 || dy > 8) clearTimeout(item._dragTimer);
+      }
       if (!draggingEl || !ghost) return;
+      // If dragging has started, abort if movement is primarily horizontal
+      const dx = Math.abs(e.touches[0].clientX - startX);
+      const dy = Math.abs(e.touches[0].clientY - startY);
+      if (dx > dy * 1.5 && dx > 20) {
+        // Horizontal — cancel the drag, let swipe take over
+        document.querySelectorAll('.touch-drop-line').forEach(el => el.remove());
+        ghost.remove(); ghost = null;
+        draggingEl.style.opacity = '';
+        draggingEl = null; dragTaskId = null; lastTarget = null;
+        return;
+      }
       e.preventDefault();
 
       const touch = e.touches[0];
