@@ -1743,20 +1743,6 @@ onAuthStateChanged(auth, user => {
 
     <!-- SLIDE 1: TASKS -->
     <div class="slide" id="main-page">
-<nav class="mobile-tabs" id="mobile-tabs">
-  <button class="mobile-tab active" data-section="todo" onclick="switchTab('todo')">
-    <span class="mobile-tab-count" id="tab-count-todo">0</span>
-    <span>To Do</span>
-  </button>
-  <button class="mobile-tab" data-section="notrightnow" onclick="switchTab('notrightnow')">
-    <span class="mobile-tab-count" id="tab-count-notrightnow">0</span>
-    <span>Not Now</span>
-  </button>
-  <button class="mobile-tab" data-section="completed" onclick="switchTab('completed')">
-    <span class="mobile-tab-count" id="tab-count-completed">0</span>
-    <span>Done</span>
-  </button>
-</nav>
 
 <div class="app-grid">
   <!-- TO DO -->
@@ -1905,6 +1891,21 @@ onAuthStateChanged(auth, user => {
   </div><!-- /page-slider -->
 </div><!-- /page-slider-wrap -->
 </div><!-- /app-wrapper -->
+
+<nav class="mobile-tabs" id="mobile-tabs" style="display:none;">
+  <button class="mobile-tab active" data-section="todo" onclick="switchTab('todo')">
+    <span class="mobile-tab-count" id="tab-count-todo">0</span>
+    <span>To Do</span>
+  </button>
+  <button class="mobile-tab" data-section="notrightnow" onclick="switchTab('notrightnow')">
+    <span class="mobile-tab-count" id="tab-count-notrightnow">0</span>
+    <span>Not Now</span>
+  </button>
+  <button class="mobile-tab" data-section="completed" onclick="switchTab('completed')">
+    <span class="mobile-tab-count" id="tab-count-completed">0</span>
+    <span>Done</span>
+  </button>
+</nav>
 
 <script>
   const COLORS = ['none','rose','amber','sage','slate','lavender','sand'];
