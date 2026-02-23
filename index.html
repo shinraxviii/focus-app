@@ -2623,12 +2623,13 @@ onAuthStateChanged(auth, user => {
   // ── DIGEST ───────────────────────────────────────────────────
 
   async function loadDigest() {
-    if (loadDigest._sessionLoaded) return; // already loaded this session
+    if (loadDigest._sessionLoaded) return;
     loadDigest._sessionLoaded = true;
-    loadSports();           // ESPN — no tokens, always fresh
-    await loadLiveData();   // Stocks (Yahoo) + News (Claude) — handles own cache
-    await loadDailyData();  // MTG + Sorcery + Sanderson — handles own 24hr cache
+    loadSports();
+    await loadLiveData();
+    await loadDailyData();
   }
+  window.loadDigest = loadDigest; // expose for console debugging
 
   // ── THEME ────────────────────────────────────────────────
   function applyTheme(mode) {
@@ -2916,7 +2917,8 @@ onAuthStateChanged(auth, user => {
         const data = await r.json();
         if (!data.results?.length) throw new Error('No Sorcery prices returned');
         renderSorcery(sorcEl, data.results);
-        cacheSet('sorcery', sorcEl.innerHTML);
+        if (sorcEl.innerHTML && !sorcEl.innerHTML.includes('digest-error'))
+          cacheSet('sorcery', sorcEl.innerHTML);
       } catch(e) { _staleOrError(sorcEl, 'sorcery', e.message || 'Sorcery load failed'); }
     }
 
@@ -2929,7 +2931,8 @@ onAuthStateChanged(auth, user => {
         { title: 'Songrise 2.0 Review',    pct: 100 },
         { title: 'Songrise 3.0',           pct: 35  },
       ]);
-      cacheSet('sanderson', sandEl.innerHTML);
+      if (sandEl.innerHTML && !sandEl.innerHTML.includes('digest-error'))
+        cacheSet('sanderson', sandEl.innerHTML);
     }
   }
 
