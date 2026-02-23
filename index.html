@@ -1964,6 +1964,7 @@ onAuthStateChanged(auth, user => {
     const greetEl = document.getElementById('greeting');
     if (greetEl) greetEl.textContent = 'Good ' + timeOfDay + ', ' + name.charAt(0).toUpperCase() + name.slice(1);
     await loadFromCloud();
+    loadDigest(); // preload digest data in background
   };
 
   async function handleLogin() {
