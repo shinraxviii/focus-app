@@ -1680,14 +1680,14 @@ onAuthStateChanged(auth, user => {
       </div>
     </div>
 
-    <!-- SORCERY CARDS -->
+    <!-- SORCERY CARDS — under construction -->
     <div class="digest-card">
       <div class="digest-card-header">
         <span class="digest-card-title">Sorcery: Contested Realm</span>
-        <span class="digest-card-updated">via TCGPlayer</span>
       </div>
-      <div class="card-list" id="sorcery-list">
-        <span class="digest-loading">Loading...</span>
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 16px;gap:8px;opacity:0.45;">
+        <div style="font-size:22px;">⚒</div>
+        <div style="font-size:10px;font-family:'DM Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);">Under Construction</div>
       </div>
     </div>
 
@@ -2538,7 +2538,6 @@ onAuthStateChanged(auth, user => {
   const PROXY_URL        = 'https://focus-proxy.vercel.app/api/claude';
   const STOCKS_PROXY_URL = 'https://focus-proxy.vercel.app/api/stocks';
   const NEWS_PROXY_URL     = 'https://focus-proxy.vercel.app/api/news';
-  const SORCERY_PROXY_URL  = 'https://focus-proxy.vercel.app/api/sorcery';
 
   // Option B: Direct API key (may fail due to CORS on some browsers)
   const ANTHROPIC_API_KEY = ''; // Not needed when using proxy
@@ -2849,17 +2848,14 @@ onAuthStateChanged(auth, user => {
   // ── DAILY DATA: 3 separate calls, sequential with delays ── 24hr cache ──
   async function loadDailyData() {
     const cachedMTG  = cacheGet('mtg',       24 * 60 * 60 * 1000);
-    const cachedSorc = cacheGet('sorcery',   24 * 60 * 60 * 1000);
     const cachedSand = cacheGet('sanderson', 24 * 60 * 60 * 1000);
 
     // Show whatever we have cached immediately
     const mtgEl  = document.getElementById('mtg-list');
-    const sorcEl = document.getElementById('sorcery-list');
     const sandEl = document.getElementById('sanderson-list');
     if (cachedMTG)  mtgEl.innerHTML  = cachedMTG.data;
-    if (cachedSorc) sorcEl.innerHTML = cachedSorc.data;
     if (cachedSand) sandEl.innerHTML = cachedSand.data;
-    if (cachedMTG && cachedSorc && cachedSand) return;
+    if (cachedMTG && cachedSand) return;
 
     // MTG prices via Scryfall (free, no key, no tokens)
     if (!cachedMTG) {
@@ -2909,32 +2905,15 @@ onAuthStateChanged(auth, user => {
       } catch(e) { _staleOrError(mtgEl, 'mtg', e.message || 'MTG load failed'); }
     }
 
-    // Sorcery prices — live from TCGCSV (mirrors TCGPlayer, free, no key, daily updates)
-    if (!cachedSorc) {
-      sorcEl.innerHTML = '<span class="digest-loading">Loading Sorcery prices...</span>';
-      try {
-        const r = await fetch(SORCERY_PROXY_URL, { signal: AbortSignal.timeout(8000) });
-        if (!r.ok) throw new Error('Sorcery proxy ' + r.status);
-        const data = await r.json();
-        if (!data.results?.length) throw new Error('No Sorcery prices returned');
-        renderSorcery(sorcEl, data.results);
-        if (sorcEl.innerHTML && !sorcEl.innerHTML.includes('digest-error'))
-          cacheSet('sorcery', sorcEl.innerHTML);
-      } catch(e) { _staleOrError(sorcEl, 'sorcery', e.message || 'Sorcery load failed'); }
-    }
+    // Sorcery tile: under construction
 
-    // Sanderson progress — static data, update manually when progress changes
-    // Source: brandonsanderson.com
-    if (!cachedSand) {
-      renderSanderson(sandEl, [
-        { title: 'Mistborn Movie Script',  pct: 2   },
-        { title: 'Ghostbloods Book 1',     pct: 100 },
-        { title: 'Songrise 2.0 Review',    pct: 100 },
-        { title: 'Songrise 3.0',           pct: 35  },
-      ]);
-      if (sandEl.innerHTML && !sandEl.innerHTML.includes('digest-error'))
-        cacheSet('sanderson', sandEl.innerHTML);
-    }
+    // Sanderson progress — always render from static data
+    renderSanderson(sandEl, [
+      { title: 'Mistborn Movie Script',  pct: 2   },
+      { title: 'Ghostbloods Book 1',     pct: 100 },
+      { title: 'Songrise 2.0 Review',    pct: 100 },
+      { title: 'Songrise 3.0',           pct: 35  },
+    ]);
   }
 
 
@@ -2948,29 +2927,6 @@ onAuthStateChanged(auth, user => {
     { name: "Mana Vault",                 set: "Fourth Edition",     setCode: '4ed' },
     { name: "Sephiroth, Fabled Soldier",  set: "Final Fantasy",      setCode: 'fft' }
   ];
-
-
-  // ── SORCERY CARDS ──────────────────────────────────────────
-
-
-  function renderSorcery(list, cards) {
-    list.innerHTML = cards.map(function(c) {
-      const tcgUrl = c.tcgId
-        ? 'https://www.tcgplayer.com/product/' + c.tcgId
-        : 'https://www.tcgplayer.com/search/sorcery-contested-realm/product?q=' + encodeURIComponent(c.name);
-      const priceStr = c.price ? '$' + parseFloat(c.price).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
-      return '<div class="card-row">'
-        + '<div>'
-        + '<div class="card-name">' + c.name + '</div>'
-        + '<div class="card-set">' + (c.set || '') + ' · ' + c.label + '</div>'
-        + '</div>'
-        + '<div style="text-align:right;">'
-        + '<div class="card-price">' + priceStr + '</div>'
-        + '<a href="' + tcgUrl + '" target="_blank" rel="noopener" style="font-size:9px;color:var(--text-dim);text-decoration:none;transition:color 0.1s;" onmouseover="this.style.color=\'var(--text)\'" onmouseout="this.style.color=\'var(--text-dim)\'">TCGPlayer ↗</a>'
-        + '</div>'
-        + '</div>';
-    }).join('');
-  }
 
 
   function renderSanderson(list, projects) {
