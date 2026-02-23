@@ -3190,16 +3190,24 @@ onAuthStateChanged(auth, user => {
   }
 
   function activateSlide(idx, triggerSideEffects) {
+    const prevSlide = currentSlide;
     currentSlide = idx;
     SLIDE_BTN_IDS.forEach((id, i) => {
       document.getElementById(id)?.classList.toggle('active', i === idx);
     });
     updateNavPill(idx);
+
+    // Always update mobile tabs visibility — not gated on triggerSideEffects
     const mobileTabs = document.getElementById('mobile-tabs');
+    if (mobileTabs) mobileTabs.style.display = (idx === 1) ? '' : 'none';
+
+    // Scroll to top when changing pages
+    if (idx !== prevSlide) window.scrollTo({ top: 0, behavior: 'instant' });
+
     if (triggerSideEffects) {
-      if (idx === 0) { if (mobileTabs) mobileTabs.style.display = 'none'; loadDigest(); }
-      if (idx === 1) { if (mobileTabs) mobileTabs.style.display = ''; applyMobileLayout(); }
-      if (idx === 2) { if (mobileTabs) mobileTabs.style.display = 'none'; renderAnalytics(); }
+      if (idx === 0) loadDigest();
+      if (idx === 1) applyMobileLayout();
+      if (idx === 2) renderAnalytics();
     }
   }
 
