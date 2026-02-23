@@ -108,8 +108,93 @@
     background: #4a8899;
   }
 
-  /* Toggle button */
-  .theme-toggle {
+  /* ── NAVY THEME ─────────────────────────────────────────── */
+  html.navy {
+    --bg:         #0a0f1e;
+    --surface:    #0f172a;
+    --surface2:   #162034;
+    --border:     #1e3050;
+    --text:       #c8d8f0;
+    --text-muted: #5a7a9a;
+    --text-dim:   #2a4060;
+    --win-color:  #4a9edd;
+    --loss-color: #e07a7a;
+    --live-color: #f59e0b;
+
+    --color-rose:    #3a1a2a;
+    --color-amber:   #3a2a10;
+    --color-sage:    #0e2e22;
+    --color-slate:   #0e2038;
+    --color-lavender:#1e1540;
+    --color-sand:    #2a2010;
+
+    --color-rose-text:    #e07a7a;
+    --color-amber-text:   #c9a96e;
+    --color-sage-text:    #4a9edd;
+    --color-slate-text:   #7ec8f0;
+    --color-lavender-text:#a896cc;
+    --color-sand-text:    #b8a880;
+  }
+
+  html.navy body { background: var(--bg); color: var(--text); }
+  html.navy header h1, html.navy header p,
+  html.navy #current-date, html.navy #greeting { color: #c8d8f0 !important; }
+  html.navy .mobile-tabs { background: #0a0f1e; border-top: 1px solid var(--border); }
+  html.navy #login-screen { background: var(--bg); }
+  html.navy .task-checkbox:checked {
+    background: var(--text-muted);
+    border-color: var(--text-muted);
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 10 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 4l3 3 5-6' stroke='%23ffffff' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-size: 65%; background-repeat: no-repeat; background-position: center;
+  }
+  html.navy .sanderson-bar { background: #2a5a8a; }
+
+  /* ── CAL THEME (UC Berkeley blue & gold) ─────────────────── */
+  html.cal {
+    --bg:         #001f3f;
+    --surface:    #002d5a;
+    --surface2:   #003870;
+    --border:     #004a8f;
+    --text:       #fcd116;
+    --text-muted: #c8970a;
+    --text-dim:   #7a5a00;
+    --win-color:  #fcd116;
+    --loss-color: #e07a7a;
+    --live-color: #fcd116;
+
+    --color-rose:    #3a1010;
+    --color-amber:   #3a2800;
+    --color-sage:    #002818;
+    --color-slate:   #002040;
+    --color-lavender:#180e38;
+    --color-sand:    #2a2000;
+
+    --color-rose-text:    #e09a7a;
+    --color-amber-text:   #fcd116;
+    --color-sage-text:    #7ec8a0;
+    --color-slate-text:   #7ab8f0;
+    --color-lavender-text:#b8a0e0;
+    --color-sand-text:    #d4b840;
+  }
+
+  html.cal body { background: var(--bg); color: var(--text); }
+  html.cal header h1, html.cal header p,
+  html.cal #current-date, html.cal #greeting { color: #fcd116 !important; }
+  html.cal .mobile-tabs { background: #001f3f; border-top: 1px solid var(--border); }
+  html.cal #login-screen { background: var(--bg); }
+  html.cal .task-checkbox:checked {
+    background: #fcd116;
+    border-color: #fcd116;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 10 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 4l3 3 5-6' stroke='%23001f3f' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-size: 65%; background-repeat: no-repeat; background-position: center;
+  }
+  html.cal .sanderson-bar { background: #fcd116; }
+  html.cal .sanderson-fill { background: #001f3f; }
+  html.cal .nav-pill { background: #fcd116 !important; }
+  html.cal .nav-btn.active { color: #001f3f !important; }
+  html.cal .mobile-tab.active { border-top-color: #fcd116; color: #fcd116; }
+
+
     background: none;
     border: 1px solid var(--border);
     border-radius: 20px;
@@ -865,7 +950,7 @@
 
   .digest-card-updated {
     font-size: 9px;
-    color: var(--text-dim);
+    color: var(--text-muted);
     letter-spacing: 0.06em;
   }
 
@@ -1632,9 +1717,9 @@ onAuthStateChanged(auth, user => {
     <div id="header-right" style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
       <div id="current-date" style="font-family:'DM Serif Display',serif; line-height:1.2; text-align:right;"></div>
       <div style="display:flex; gap:8px; align-items:center;">
-        <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()">
-          <span class="theme-toggle-icon" id="theme-icon">☀</span>
-          <span id="theme-label">Light</span>
+        <button class="theme-toggle" id="theme-toggle" onclick="cycleTheme()">
+          <span class="theme-toggle-icon" id="theme-icon">◑</span>
+          <span id="theme-label">Dark</span>
         </button>
         <button class="signout-btn" id="signout-btn" onclick="handleSignOut()">Sign out</button>
       </div>
@@ -2618,9 +2703,11 @@ onAuthStateChanged(auth, user => {
     if (hrs < 24) return hrs + 'h ago';
     return Math.round(hrs / 24) + 'd ago';
   }
-  function cacheSet(key, data) {
+  function cacheSet(key, data, label) {
     try {
-      localStorage.setItem('focus-digest-' + key, JSON.stringify({ ts: Date.now(), data }));
+      const entry = { ts: Date.now(), data };
+      if (label !== undefined) entry.label = label;
+      localStorage.setItem('focus-digest-' + key, JSON.stringify(entry));
     } catch(e) {}
   }
 
@@ -2636,27 +2723,39 @@ onAuthStateChanged(auth, user => {
   window.loadDigest = loadDigest; // expose for console debugging
 
   // ── THEME ────────────────────────────────────────────────
+  const THEMES = ['dark', 'navy', 'cal', 'light'];
+  const THEME_META = {
+    dark:  { icon: '◑', label: 'Dark',  metaColor: '#161618' },
+    navy:  { icon: '◈', label: 'Navy',  metaColor: '#0a0f1e' },
+    cal:   { icon: '◉', label: 'Cal',   metaColor: '#001f3f' },
+    light: { icon: '○', label: 'Light', metaColor: '#f4f4f5' },
+  };
+
   function applyTheme(mode) {
-    const isLight = mode === 'light';
-    document.documentElement.classList.toggle('light', isLight);
+    // Remove all theme classes, add the new one (except dark = no class needed)
+    document.documentElement.classList.remove('light', 'navy', 'cal');
+    if (mode !== 'dark') document.documentElement.classList.add(mode);
+
+    const meta = document.querySelector('meta[name="theme-color"]');
+    const t = THEME_META[mode] || THEME_META.dark;
+    if (meta) meta.content = t.metaColor;
     const icon  = document.getElementById('theme-icon');
     const label = document.getElementById('theme-label');
-    if (icon)  icon.textContent  = isLight ? '☾' : '☀';
-    if (label) label.textContent = isLight ? 'Dark' : 'Light';
-    // Update PWA status bar color
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.content = isLight ? '#f4f4f5' : '#161618';
+    if (icon)  icon.textContent  = t.icon;
+    if (label) label.textContent = t.label;
     localStorage.setItem('focus-theme', mode);
   }
 
-  function toggleTheme() {
-    const current = document.documentElement.classList.contains('light') ? 'light' : 'dark';
-    applyTheme(current === 'light' ? 'dark' : 'light');
+  function cycleTheme() {
+    const current = THEMES.find(t => document.documentElement.classList.contains(t)) || 'dark';
+    const next = THEMES[(THEMES.indexOf(current) + 1) % THEMES.length];
+    applyTheme(next);
     chartDataHash = null;
-    if (currentSlide === 2) {
-      renderAnalytics();
-    }
+    if (currentSlide === 2) renderAnalytics();
   }
+
+  // Keep old toggleTheme as alias for any remaining references
+  function toggleTheme() { cycleTheme(); }
 
   // Load saved theme on startup
   (function() {
@@ -2708,7 +2807,11 @@ onAuthStateChanged(auth, user => {
     const cachedStocks   = cacheGet('stocks',      60 * 60 * 1000);       // 1hr
     const cachedNewsGen  = cacheGet('news-general', 4 * 60 * 60 * 1000);  // 4hrs
     const cachedNewsTech = cacheGet('news-tech',    4 * 60 * 60 * 1000);  // 4hrs
-    if (cachedStocks) stocksEl.innerHTML = cachedStocks.data;
+    if (cachedStocks) {
+      stocksEl.innerHTML = cachedStocks.data;
+      const updatedEl = document.getElementById('stocks-updated');
+      if (updatedEl && cachedStocks.label) updatedEl.textContent = cachedStocks.label;
+    }
     if (cachedNewsGen) newsGenEl.innerHTML = cachedNewsGen.data;
     if (cachedNewsTech) newsTechEl.innerHTML = cachedNewsTech.data;
 
@@ -2742,14 +2845,15 @@ onAuthStateChanged(auth, user => {
           timeLabel = d.toLocaleString('en-US', {
             month: 'short', day: 'numeric',
             hour: 'numeric', minute: '2-digit',
-            hour12: true, timeZoneName: 'short'
+            hour12: true
           });
         } else {
           timeLabel = timeNow();
         }
         const prefix = source === 'via Claude' ? 'via Claude · ' : 'as of ';
-        document.getElementById('stocks-updated').textContent = prefix + timeLabel;
-        cacheSet('stocks', stocksEl.innerHTML);
+        const labelText = prefix + timeLabel;
+        document.getElementById('stocks-updated').textContent = labelText;
+        cacheSet('stocks', stocksEl.innerHTML, labelText);
       }
 
       let stocksLoaded = false;
