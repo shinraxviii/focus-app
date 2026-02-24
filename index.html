@@ -83,7 +83,7 @@
   html.light header p,
   html.light #current-date,
   html.light #greeting {
-    color: #18181b !important;
+    color: var(--text) !important;
   }
 
   html.light .task-checkbox:checked {
@@ -96,7 +96,7 @@
   }
 
   html.light .mobile-tabs {
-    background: #ffffff;
+    background: var(--surface);
     border-top: 1px solid var(--border);
   }
 
@@ -195,7 +195,7 @@
     font-size: 36px;
     font-weight: 400;
     letter-spacing: -0.5px;
-    color: #e4e4e7;
+    color: var(--text);
     margin-bottom: 4px;
   }
 
@@ -268,7 +268,7 @@
   }
 
   .add-row input[type="text"]:focus {
-    border-color: #4a4a56;
+    border-color: var(--text-dim);
   }
 
   .add-row input[type="date"] {
@@ -350,24 +350,24 @@
 
   /* Due date indicators — left accent bar */
   .task-item[data-due="today"] {
-    border-left: 3px solid #c9a96e;
+    border-left: 3px solid var(--color-amber);
     padding-left: 8px;
   }
   .task-item[data-due="overdue"] {
-    border-left: 3px solid #c9949a;
+    border-left: 3px solid var(--color-rose);
     padding-left: 8px;
   }
   .task-date.today {
-    color: #e8d5b0;
+    color: var(--color-amber-text);
     font-weight: 500;
-    background: rgba(201,169,110,0.28);
+    background: var(--color-amber);
     border-radius: 4px;
     padding: 2px 5px;
   }
   .task-date.overdue {
-    color: #e8b8bc;
+    color: var(--color-rose-text);
     font-weight: 500;
-    background: rgba(201,148,154,0.28);
+    background: var(--color-rose);
     border-radius: 4px;
     padding: 2px 5px;
   }
@@ -475,7 +475,7 @@
   .task-text-input {
     background: transparent;
     border: none;
-    border-bottom: 1px solid #4a4a56;
+    border-bottom: 1px solid var(--text-dim);
     color: var(--text);
     font-family: 'DM Mono', monospace;
     font-size: 12px;
@@ -544,7 +544,7 @@
     display: flex;
     gap: 6px;
     align-items: center;
-    background: #1a1a1e;
+    background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 8px 10px;
@@ -603,7 +603,7 @@
     opacity: 1;
   }
 
-  .task-delete:hover { background: rgba(122,74,80,0.2); border-color: rgba(122,74,80,0.3); color: #e8b8bc; }
+  .task-delete:hover { background: rgba(122,74,80,0.2); border-color: rgba(122,74,80,0.3); color: var(--color-rose-text); }
 
   /* Link button square */
   .task-link-btn {
@@ -690,7 +690,7 @@
   /* Link popover */
   .link-popover {
     position: fixed;
-    background: #1a1a1e;
+    background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 10px 12px;
@@ -717,7 +717,7 @@
     outline: none;
     min-width: 0;
   }
-  .link-popover input:focus { border-color: #4a4a56; }
+  .link-popover input:focus { border-color: var(--text-dim); }
   .link-popover input::placeholder { color: var(--text-dim); }
   .link-popover-save {
     background: var(--surface2);
@@ -743,7 +743,7 @@
     line-height: 1;
     transition: color 0.1s;
   }
-  .link-popover-clear:hover { color: #7a4a50; }
+  .link-popover-clear:hover { color: var(--color-rose-text); }
 
   /* ── MOBILE ────────────────────────────────────── */
   @media (max-width: 700px) {
@@ -822,7 +822,7 @@
       display: flex;
       position: fixed;
       bottom: 0; left: 0; right: 0;
-      background: #111113;
+      background: var(--bg);
       border-top: 1px solid var(--border);
       z-index: 200;
       padding-bottom: calc(env(safe-area-inset-bottom) + 4px);
@@ -847,7 +847,7 @@
     }
     .mobile-tab.active {
       color: var(--text);
-      border-top-color: #71717a;
+      border-top-color: var(--text-muted);
     }
     .mobile-tab-count {
       font-size: 14px;
@@ -948,7 +948,7 @@
   }
 
   .stock-change.up   { color: var(--win-color); }
-  .stock-change.down { color: #c9949a; }
+  .stock-change.down { color: var(--loss-color); }
   .stock-change.flat { color: var(--text-dim); }
 
   /* MTG / Sorcery cards */
@@ -1233,7 +1233,7 @@
   .login-title {
     font-family: 'DM Serif Display', serif;
     font-size: 28px;
-    color: #e4e4e7;
+    color: var(--text);
     font-weight: 400;
     letter-spacing: -0.5px;
     margin-bottom: 4px;
@@ -1272,7 +1272,7 @@
 
   .login-error {
     font-size: 11px;
-    color: #e8b8bc;
+    color: var(--color-rose-text);
     text-align: center;
     min-height: 16px;
     letter-spacing: 0.04em;
@@ -1291,7 +1291,7 @@
     cursor: pointer;
     transition: all 0.15s;
   }
-  .signout-btn:hover { color: var(--text); border-color: #4a4a56; }
+  .signout-btn:hover { color: var(--text); border-color: var(--text-dim); }
 
 
 
