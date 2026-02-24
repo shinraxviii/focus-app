@@ -149,70 +149,24 @@
   }
   html.navy .sanderson-bar { background: #2a5a8a; }
 
-  /* ── CAL THEME (UC Berkeley blue & gold) ─────────────────── */
-  html.cal {
-    --bg:         #001f3f;
-    --surface:    #002d5a;
-    --surface2:   #003870;
-    --border:     #004a8f;
-    --text:       #fcd116;
-    --text-muted: #c8970a;
-    --text-dim:   #7a5a00;
-    --win-color:  #fcd116;
-    --loss-color: #e07a7a;
-    --live-color: #fcd116;
-
-    --color-rose:    #3a1010;
-    --color-amber:   #3a2800;
-    --color-sage:    #002818;
-    --color-slate:   #002040;
-    --color-lavender:#180e38;
-    --color-sand:    #2a2000;
-
-    --color-rose-text:    #e09a7a;
-    --color-amber-text:   #fcd116;
-    --color-sage-text:    #7ec8a0;
-    --color-slate-text:   #7ab8f0;
-    --color-lavender-text:#b8a0e0;
-    --color-sand-text:    #d4b840;
-  }
-
-  html.cal body { background: var(--bg); color: var(--text); }
-  html.cal header h1, html.cal header p,
-  html.cal #current-date, html.cal #greeting { color: #fcd116 !important; }
-  html.cal .mobile-tabs { background: #001f3f; border-top: 1px solid var(--border); }
-  html.cal #login-screen { background: var(--bg); }
-  html.cal .task-checkbox:checked {
-    background: #fcd116;
-    border-color: #fcd116;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 10 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 4l3 3 5-6' stroke='%23001f3f' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-    background-size: 65%; background-repeat: no-repeat; background-position: center;
-  }
-  html.cal .sanderson-bar { background: #fcd116; }
-  html.cal .sanderson-fill { background: #001f3f; }
-  html.cal .nav-pill { background: #fcd116 !important; }
-  html.cal .nav-btn.active { color: #001f3f !important; }
-  html.cal .mobile-tab.active { border-top-color: #fcd116; color: #fcd116; }
-
-
-    background: none;
+  /* Toggle button — visually matches nav pill */
+  .theme-toggle {
+    background: var(--surface2);
     border: 1px solid var(--border);
-    border-radius: 20px;
-    color: var(--text-muted);
-    cursor: pointer;
+    border-radius: 6px;
+    color: var(--text);
     font-family: 'DM Mono', monospace;
     font-size: 10px;
-    letter-spacing: 0.08em;
-    padding: 4px 10px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    transition: color 0.15s, border-color 0.15s;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 7px 14px;
+    cursor: pointer;
+    transition: border-color 0.15s;
     white-space: nowrap;
   }
+  .theme-toggle:hover { border-color: var(--text-muted); }
 
-  .theme-toggle:hover { color: var(--text); border-color: var(--text-muted); }
-  .theme-toggle-icon { font-size: 12px; }
+
 
   body {
     background: var(--bg);
@@ -1307,8 +1261,8 @@
     position: absolute;
     top: 0; left: 0;
     height: 100%;
-    background: var(--border);
-    border: 1px solid #4a4a56;
+    background: var(--surface2);
+    border: 1px solid var(--border);
     border-radius: 6px;
     pointer-events: none;
     z-index: 0;
@@ -1718,7 +1672,6 @@ onAuthStateChanged(auth, user => {
       <div id="current-date" style="font-family:'DM Serif Display',serif; line-height:1.2; text-align:right;"></div>
       <div style="display:flex; gap:8px; align-items:center;">
         <button class="theme-toggle" id="theme-toggle" onclick="cycleTheme()">
-          <span class="theme-toggle-icon" id="theme-icon">◑</span>
           <span id="theme-label">Dark</span>
         </button>
         <button class="signout-btn" id="signout-btn" onclick="handleSignOut()">Sign out</button>
@@ -2723,26 +2676,24 @@ onAuthStateChanged(auth, user => {
   window.loadDigest = loadDigest; // expose for console debugging
 
   // ── THEME ────────────────────────────────────────────────
-  const THEMES = ['dark', 'navy', 'cal', 'light'];
+  const THEMES = ['dark', 'navy', 'light'];
   const THEME_META = {
     dark:  { icon: '◑', label: 'Dark',  metaColor: '#161618' },
     navy:  { icon: '◈', label: 'Navy',  metaColor: '#0a0f1e' },
-    cal:   { icon: '◉', label: 'Cal',   metaColor: '#001f3f' },
     light: { icon: '○', label: 'Light', metaColor: '#f4f4f5' },
   };
 
   function applyTheme(mode) {
-    // Remove all theme classes, add the new one (except dark = no class needed)
-    document.documentElement.classList.remove('light', 'navy', 'cal');
+    document.documentElement.classList.remove('light', 'navy');
     if (mode !== 'dark') document.documentElement.classList.add(mode);
 
     const meta = document.querySelector('meta[name="theme-color"]');
     const t = THEME_META[mode] || THEME_META.dark;
     if (meta) meta.content = t.metaColor;
-    const icon  = document.getElementById('theme-icon');
+
     const label = document.getElementById('theme-label');
-    if (icon)  icon.textContent  = t.icon;
     if (label) label.textContent = t.label;
+
     localStorage.setItem('focus-theme', mode);
   }
 
@@ -3015,7 +2966,7 @@ onAuthStateChanged(auth, user => {
           const foil  = c.usd_foil ? 'Foil $' + parseFloat(c.usd_foil).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '';
           return '<div class="card-row">'
             + '<div>'
-            + '<div class="card-name">' + displayName + '</div>'
+            + '<div class="card-name">' + (c.scryfallUrl ? '<a href="' + c.scryfallUrl + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;border-bottom:1px solid var(--border);">' + displayName + '</a>' : displayName) + '</div>'
             + '<div class="card-set">' + (c.set || '') + '</div>'
             + '</div>'
             + '<div style="text-align:right;">'
