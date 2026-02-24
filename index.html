@@ -2871,6 +2871,7 @@ onAuthStateChanged(auth, user => {
         cacheSet('stocks', stocksEl.innerHTML, labelText);
       }
 
+      const EXPECTED_TICKERS = 16; // update this if you add/remove tickers
       let stocksLoaded = false;
 
       // Tier 1: Vercel proxy (server-side Yahoo — no CORS, most reliable)
@@ -2881,7 +2882,7 @@ onAuthStateChanged(auth, user => {
         ]);
         if (r.ok) {
           const stocks = await r.json();
-          if (Array.isArray(stocks) && stocks.length) {
+          if (Array.isArray(stocks) && stocks.length >= EXPECTED_TICKERS) {
             renderStocks(stocks, 'as of');
             stocksLoaded = true;
           }
