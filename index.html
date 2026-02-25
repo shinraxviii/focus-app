@@ -5013,7 +5013,7 @@ onAuthStateChanged(auth, user => {
       const isPos = z >= 0;
       const barColor = significant
         ? (isPos ? colorWin : colorLoss)
-        : (isLight ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.18)');
+        : (isLight ? 'rgba(0,0,0,0.18)' : 'rgba(255,255,255,0.22)');
       const glowClass = significant ? (isPos ? ' glow-win' : ' glow-loss') : '';
       const dirClass = isPos ? 'pos' : 'neg';
       const zStr = (z >= 0 ? '+' : '') + z.toFixed(2) + 'σ' + (significant ? ' ✦' : '');
@@ -5025,7 +5025,7 @@ onAuthStateChanged(auth, user => {
           <div class="zscore-center"></div>
           <div class="zscore-fill ${dirClass}${glowClass}" style="width:${pct}%; background:${barColor};"></div>
         </div>
-        <span class="zscore-val" style="color:${significant ? barColor : colorDim};">${zStr}</span>`;
+        <span class="zscore-val" style="color:${isPos ? colorWin : colorLoss}; opacity:${significant ? 1 : 0.55};">${zStr}</span>`;
       container.appendChild(row);
     });
 
