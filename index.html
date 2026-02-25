@@ -3500,34 +3500,42 @@ onAuthStateChanged(auth, user => {
     if (cachedMTG && cachedFever && cachedSand) return;
 
     // MTG prices via Scryfall (free, no key, no tokens)
+    // Scryfall rate limit: ~10 req/sec — fetch sequentially with 100ms delay
     if (!cachedMTG) {
       mtgEl.innerHTML = '<span class="digest-loading">Loading MTG prices...</span>';
       try {
-        const results = await Promise.all(MTG_CARDS.map(async function(card) {
-          // Use set+collector number lookup when we have a set code — guarantees correct printing
-          // Falls back to fuzzy name search if no set code
+        const results = [];
+        for (const card of MTG_CARDS) {
           const base = 'https://api.scryfall.com/cards/named?fuzzy=' + encodeURIComponent(card.name);
           const url  = card.setCode ? base + '&set=' + card.setCode : base;
-          const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
-          if (!r.ok) {
-            // If set-scoped lookup fails, retry with name only
-            if (card.setCode) {
-              const r2 = await fetch(base, { signal: AbortSignal.timeout(6000) });
-              if (!r2.ok) throw new Error('Scryfall ' + r2.status + ' for ' + card.name);
-              const d2 = await r2.json();
-              return { name: d2.name, set: d2.set_name, usd: d2.prices?.usd || null, usd_foil: d2.prices?.usd_foil || null };
+          try {
+            const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
+            if (!r.ok) {
+              if (card.setCode) {
+                const r2 = await fetch(base, { signal: AbortSignal.timeout(6000) });
+                if (r2.ok) {
+                  const d2 = await r2.json();
+                  results.push({ name: d2.name, set: d2.set_name, usd: d2.prices?.usd || null, usd_foil: d2.prices?.usd_foil || null, scryfallUrl: d2.scryfall_uri });
+                } else {
+                  results.push({ name: card.name, set: card.set, usd: null, usd_foil: null, scryfallUrl: null });
+                }
+              } else {
+                results.push({ name: card.name, set: card.set, usd: null, usd_foil: null, scryfallUrl: null });
+              }
+            } else {
+              const d = await r.json();
+              results.push({
+                name: d.name, set: d.set_name,
+                usd: d.prices?.usd || null, usd_foil: d.prices?.usd_foil || null,
+                scryfallUrl: d.scryfall_uri
+              });
             }
-            throw new Error('Scryfall ' + r.status + ' for ' + card.name);
+          } catch(cardErr) {
+            results.push({ name: card.name, set: card.set, usd: null, usd_foil: null, scryfallUrl: null });
           }
-          const d = await r.json();
-          return {
-            name:      d.name,
-            set:       d.set_name,
-            usd:       d.prices?.usd       || null,
-            usd_foil:  d.prices?.usd_foil  || null,
-            scryfallUrl: d.scryfall_uri
-          };
-        }));
+          // Rate limit delay between requests
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
         mtgEl.innerHTML = results.map(function(c) {
           const displayName = c.name.includes(' // ') ? c.name.split(' // ')[0] : c.name;
           const price = c.usd      ? '$' + parseFloat(c.usd).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
