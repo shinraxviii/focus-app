@@ -755,12 +755,12 @@
   }
 
   .color-dot {
-    width: 12px;
-    height: 12px;
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
     cursor: pointer;
     transition: transform 0.1s;
-    border: 1.5px solid transparent;
+    border: 2px solid transparent;
     flex-shrink: 0;
   }
 
@@ -768,12 +768,12 @@
   .color-dot.active { border-color: rgba(255,255,255,0.5); }
 
   .color-dot[data-c="none"]     { background: var(--border); }
-  .color-dot[data-c="rose"]     { background: var(--color-rose); }
-  .color-dot[data-c="amber"]    { background: var(--color-amber); }
-  .color-dot[data-c="sage"]     { background: var(--color-sage); }
-  .color-dot[data-c="slate"]    { background: var(--color-slate); }
-  .color-dot[data-c="lavender"] { background: var(--color-lavender); }
-  .color-dot[data-c="sand"]     { background: var(--color-sand); }
+  .color-dot[data-c="rose"]     { background: #e6253a; }
+  .color-dot[data-c="amber"]    { background: #f59e0b; }
+  .color-dot[data-c="sage"]     { background: #10b981; }
+  .color-dot[data-c="slate"]    { background: #3b82f6; }
+  .color-dot[data-c="lavender"] { background: #8b5cf6; }
+  .color-dot[data-c="sand"]     { background: #d4a017; }
 
   .task-delete {
     background: var(--btn-bg);
@@ -3413,7 +3413,7 @@ onAuthStateChanged(auth, user => {
 
     // Load cached versions immediately (fresh or stale)
     const cachedStocks   = cacheGet('stocks',      60 * 60 * 1000);       // 1hr
-    const cachedReddit   = cacheGet('reddit',       4 * 60 * 60 * 1000);  // 4hrs
+    const cachedReddit   = cacheGet('reddit',      24 * 60 * 60 * 1000);  // 24hrs (daily snapshot)
     const cachedDeals    = cacheGet('deals',        4 * 60 * 60 * 1000);  // 4hrs
     if (cachedStocks) {
       stocksEl.innerHTML = cachedStocks.data;
