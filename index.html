@@ -3590,7 +3590,7 @@ onAuthStateChanged(auth, user => {
   async function loadDailyData() {
     const cachedMTG   = cacheGet('mtg',   24 * 60 * 60 * 1000);
     const cachedFever = cacheGet('fever', 7 * 24 * 60 * 60 * 1000);
-    const cachedSand  = cacheGet('sanderson', 7 * 24 * 60 * 60 * 1000);
+    const cachedSand  = cacheGet('sanderson', 24 * 60 * 60 * 1000);  // 24hrs (daily refresh)
 
     // Show whatever we have cached immediately
     const mtgEl   = document.getElementById('mtg-list');
@@ -3760,7 +3760,7 @@ onAuthStateChanged(auth, user => {
   // ── BRANDON SANDERSON PROGRESS ──────────────────────────────
   // Static fallback (updated Feb 2026 from brandonsanderson.com)
   const SANDERSON_FALLBACK = [
-    { title: 'Mistborn Movie Script',       pct: 2   },
+    { title: 'Mistborn Movie Script',       pct: 13  },
     { title: 'Ghostbloods Book 1 (1.0)',    pct: 100 },
     { title: "Brandon's Songrise 2.0 Review", pct: 100 },
     { title: 'Songrise 3.0',               pct: 35  },
