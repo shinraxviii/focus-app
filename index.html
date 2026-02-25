@@ -326,7 +326,7 @@
 
   .task-item {
     display: grid;
-    grid-template-columns: 20px 1fr auto auto auto auto auto;
+    grid-template-columns: 20px 1fr auto auto auto auto auto auto auto;
     gap: 8px;
     align-items: center;
     padding: 9px 10px;
@@ -485,6 +485,129 @@
     width: 100%;
     min-width: 60px;
   }
+
+  /* Task detail panel (notes + subtasks) */
+  .task-detail {
+    grid-column: 1 / -1;
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px 4px 4px 28px;
+    border-top: 1px solid var(--border);
+    margin-top: 4px;
+  }
+
+  .task-item.expanded .task-detail { display: flex; }
+
+  .task-item.expanded {
+    background: var(--surface2);
+    border-color: var(--border);
+  }
+
+  .task-notes {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    line-height: 1.5;
+    padding: 6px 8px;
+    outline: none;
+    resize: vertical;
+    min-height: 32px;
+    max-height: 120px;
+    transition: border-color 0.15s;
+  }
+  .task-notes:focus { border-color: var(--text-dim); }
+  .task-notes::placeholder { color: var(--text-muted); }
+
+  .subtask-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .subtask-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .subtask-cb {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    border: 1.5px solid var(--text-dim);
+    cursor: pointer;
+    accent-color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  .subtask-text {
+    font-size: 11px;
+    color: var(--text);
+    line-height: 1.4;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .subtask-text.done {
+    text-decoration: line-through;
+    color: var(--text-dim);
+  }
+
+  .subtask-delete {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 0 2px;
+    opacity: 0;
+    transition: opacity 0.1s;
+  }
+  .subtask-item:hover .subtask-delete { opacity: 1; }
+
+  .subtask-add {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+  }
+
+  .subtask-add-input {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    line-height: 1.4;
+    padding: 2px 0;
+    outline: none;
+    flex: 1;
+    min-width: 0;
+  }
+  .subtask-add-input::placeholder { color: var(--text-muted); }
+
+  .subtask-progress {
+    font-size: 9px;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+    margin-left: 4px;
+    white-space: nowrap;
+  }
+
+  /* Expand chevron indicator */
+  .task-expand-hint {
+    font-size: 8px;
+    color: var(--text-muted);
+    margin-left: 2px;
+    transition: transform 0.15s;
+    flex-shrink: 0;
+  }
+  .task-item.expanded .task-expand-hint { transform: rotate(90deg); }
 
   .task-date {
     font-size: 10px;
@@ -1164,6 +1287,73 @@
     color: var(--text-muted);
   }
 
+  /* Tech Deals */
+  .deals-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .deal-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    text-decoration: none;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+
+  .deal-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .deal-item:hover { opacity: 0.8; }
+
+  .deal-title {
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.4;
+  }
+
+  .deal-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 2px;
+  }
+
+  .deal-source {
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .deal-prices {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .deal-price {
+    font-size: 10px;
+    color: var(--color-sage-text);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+
+  .deal-original {
+    font-size: 9px;
+    color: var(--text-dim);
+    text-decoration: line-through;
+  }
+
+  .deal-savings {
+    font-size: 9px;
+    color: var(--color-amber-text);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+
   /* Digest loading */
   .digest-loading {
     font-size: 10px;
@@ -1827,13 +2017,13 @@ onAuthStateChanged(auth, user => {
       </div>
     </div>
 
-    <!-- TECH NEWS -->
+    <!-- TECH DEALS -->
     <div class="digest-card">
       <div class="digest-card-header">
-        <span class="digest-card-title">Tech Headlines</span>
-        <span class="digest-card-updated">Technology</span>
+        <span class="digest-card-title">Tech Deals</span>
+        <span class="digest-card-updated" id="deals-status">Deals</span>
       </div>
-      <div class="news-list" id="news-tech">
+      <div class="deals-list" id="deals-container">
         <span class="digest-loading">Loading...</span>
       </div>
     </div>
@@ -1916,10 +2106,10 @@ onAuthStateChanged(auth, user => {
   <div class="analytics-card">
     <div class="analytics-controls">
       <div class="control-group" id="period-controls">
-        <button class="ctrl-btn active" data-period="day" onclick="setPeriod('day')">Day</button>
+        <button class="ctrl-btn" data-period="day" onclick="setPeriod('day')">Day</button>
         <button class="ctrl-btn" data-period="week" onclick="setPeriod('week')">Week</button>
         <button class="ctrl-btn" data-period="month" onclick="setPeriod('month')">Month</button>
-        <button class="ctrl-btn" data-period="dow" onclick="setPeriod('dow')">By Day</button>
+        <button class="ctrl-btn active" data-period="dow" onclick="setPeriod('dow')">By Day</button>
       </div>
       <div class="control-group" id="chart-type-controls">
         <button class="ctrl-btn active" data-type="bar" onclick="setChartType('bar')">Bar</button>
@@ -2475,6 +2665,10 @@ onAuthStateChanged(auth, user => {
   }
 
   function buildItem(t) {
+    // Ensure subtasks array exists
+    if (!t.subtasks) t.subtasks = [];
+    if (!t.notes) t.notes = '';
+
     const item = document.createElement('div');
     item.className = 'task-item';
     item.dataset.id = t.id;
@@ -2486,7 +2680,7 @@ onAuthStateChanged(auth, user => {
     item.draggable = true;
 
     item.addEventListener('dragstart', e => {
-      if (document.activeElement && document.activeElement.classList.contains('task-text-input')) {
+      if (document.activeElement && (document.activeElement.classList.contains('task-text-input') || document.activeElement.classList.contains('task-notes') || document.activeElement.classList.contains('subtask-add-input'))) {
         e.preventDefault(); return;
       }
       dragId = t.id;
@@ -2551,13 +2745,13 @@ onAuthStateChanged(auth, user => {
     }
     txt.className = 'task-text' + (t.section === 'completed' ? ' done' : '');
     txt.textContent = t.text;
-    txt.title = t.section === 'completed' ? t.text : 'Double-click to edit';
+    txt.title = t.section === 'completed' ? t.text : 'Click to expand · Double-click to edit title';
     if (t.section !== 'completed') {
       txt.addEventListener('dblclick', e => { e.stopPropagation(); editTask(t.id, txt); });
-      txt.style.cursor = 'text';
+      txt.style.cursor = 'pointer';
     }
 
-    // Date — hidden for completed tasks (text is what matters there)
+    // Date — hidden for completed tasks
     const dt = document.createElement('span');
     const dueStatus = t.section !== 'completed' ? getDueStatus(t.date) : null;
     dt.className = 'task-date' + (dueStatus ? ' ' + dueStatus : '');
@@ -2565,6 +2759,20 @@ onAuthStateChanged(auth, user => {
       dt.textContent = formatDate(t.date);
       if (dueStatus === 'today') dt.textContent = 'Today';
     }
+
+    // Subtask progress indicator (shown inline next to date)
+    const stProgress = document.createElement('span');
+    stProgress.className = 'subtask-progress';
+    if (t.subtasks.length > 0) {
+      const doneCount = t.subtasks.filter(s => s.done).length;
+      stProgress.textContent = doneCount + '/' + t.subtasks.length;
+    }
+
+    // Expand chevron
+    const chevron = document.createElement('span');
+    chevron.className = 'task-expand-hint';
+    chevron.textContent = '\u25B6'; // right-pointing triangle
+    if (t.section === 'completed') chevron.style.display = 'none';
 
     // Color trigger dot
     const trigger = document.createElement('button');
@@ -2624,12 +2832,146 @@ onAuthStateChanged(auth, user => {
     }
     txtWrap.appendChild(txt);
 
+    // ── Detail panel (notes + subtasks) ──
+    const detail = document.createElement('div');
+    detail.className = 'task-detail';
+
+    if (t.section !== 'completed') {
+      // Notes textarea
+      const notes = document.createElement('textarea');
+      notes.className = 'task-notes';
+      notes.placeholder = 'Add notes...';
+      notes.value = t.notes || '';
+      notes.rows = 2;
+      notes.addEventListener('input', () => {
+        t.notes = notes.value;
+        clearTimeout(notes._saveTimer);
+        notes._saveTimer = setTimeout(() => save(), 500);
+      });
+      notes.addEventListener('click', e => e.stopPropagation());
+      notes.addEventListener('mousedown', e => e.stopPropagation());
+      detail.appendChild(notes);
+
+      // Subtasks
+      const stList = document.createElement('div');
+      stList.className = 'subtask-list';
+
+      function renderSubtasks() {
+        stList.innerHTML = '';
+        t.subtasks.forEach((st, idx) => {
+          const row = document.createElement('div');
+          row.className = 'subtask-item';
+
+          const stCb = document.createElement('input');
+          stCb.type = 'checkbox';
+          stCb.className = 'subtask-cb';
+          stCb.checked = st.done;
+          stCb.addEventListener('change', () => {
+            st.done = stCb.checked;
+            save();
+            renderSubtasks();
+            updateProgress();
+          });
+
+          const stTxt = document.createElement('span');
+          stTxt.className = 'subtask-text' + (st.done ? ' done' : '');
+          stTxt.textContent = st.text;
+          stTxt.addEventListener('dblclick', e => {
+            e.stopPropagation();
+            const inp = document.createElement('input');
+            inp.type = 'text';
+            inp.className = 'subtask-add-input';
+            inp.value = st.text;
+            inp.addEventListener('keydown', ev => {
+              if (ev.key === 'Enter') inp.blur();
+              if (ev.key === 'Escape') { inp.replaceWith(stTxt); }
+            });
+            inp.addEventListener('blur', () => {
+              const val = inp.value.trim();
+              if (val) { st.text = val; save(); }
+              renderSubtasks();
+            });
+            inp.addEventListener('click', ev => ev.stopPropagation());
+            stTxt.replaceWith(inp);
+            inp.focus();
+            inp.select();
+          });
+
+          const stDel = document.createElement('button');
+          stDel.className = 'subtask-delete';
+          stDel.innerHTML = '&times;';
+          stDel.addEventListener('click', e => {
+            e.stopPropagation();
+            t.subtasks.splice(idx, 1);
+            save();
+            renderSubtasks();
+            updateProgress();
+          });
+
+          row.appendChild(stCb);
+          row.appendChild(stTxt);
+          row.appendChild(stDel);
+          stList.appendChild(row);
+        });
+      }
+
+      renderSubtasks();
+      detail.appendChild(stList);
+
+      // Add subtask input
+      const addRow = document.createElement('div');
+      addRow.className = 'subtask-add';
+      const addInput = document.createElement('input');
+      addInput.type = 'text';
+      addInput.className = 'subtask-add-input';
+      addInput.placeholder = 'Add subtask...';
+      addInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          const val = addInput.value.trim();
+          if (!val) return;
+          t.subtasks.push({ id: genId(), text: val, done: false });
+          addInput.value = '';
+          save();
+          renderSubtasks();
+          updateProgress();
+        }
+      });
+      addInput.addEventListener('click', e => e.stopPropagation());
+      addInput.addEventListener('mousedown', e => e.stopPropagation());
+      addRow.appendChild(addInput);
+      detail.appendChild(addRow);
+
+      function updateProgress() {
+        if (t.subtasks.length > 0) {
+          const doneCount = t.subtasks.filter(s => s.done).length;
+          stProgress.textContent = doneCount + '/' + t.subtasks.length;
+        } else {
+          stProgress.textContent = '';
+        }
+      }
+    }
+
+    // Click to expand/collapse (only for non-completed tasks)
+    if (t.section !== 'completed') {
+      item.addEventListener('click', e => {
+        // Don't toggle if clicking on interactive elements
+        const target = e.target;
+        if (target.closest('.task-checkbox, .color-trigger, .task-link-btn, .task-delete, .task-notes, .subtask-cb, .subtask-add-input, .subtask-delete, .task-text-input')) return;
+        // Don't toggle on double-click (that's edit)
+        if (e.detail >= 2) return;
+        item.classList.toggle('expanded');
+      });
+    }
+
     item.appendChild(cb);
     item.appendChild(txtWrap);
+    item.appendChild(stProgress);
     item.appendChild(dt);
+    item.appendChild(chevron);
     item.appendChild(trigger);
     item.appendChild(linkBtn);
     item.appendChild(del);
+    item.appendChild(detail);
 
     return item;
   }
@@ -2644,6 +2986,7 @@ onAuthStateChanged(auth, user => {
   const NEWS_PROXY_URL     = 'https://focus-proxy.vercel.app/api/news';
   const FEVER_PROXY_URL    = 'https://focus-proxy.vercel.app/api/fever';
   const SANDERSON_PROXY_URL = 'https://focus-proxy.vercel.app/api/sanderson';
+  const DEALS_PROXY_URL    = 'https://focus-proxy.vercel.app/api/deals';
 
   // Option B: Direct API key (may fail due to CORS on some browsers)
   const ANTHROPIC_API_KEY = ''; // Not needed when using proxy
@@ -2798,7 +3141,8 @@ onAuthStateChanged(auth, user => {
     const map = {
       'stocks':       ['📉', "Markets went dark"],
       'news-general': ['📰', "The news took the day off"],
-      'news-tech':    ['🤖', "AI is having an existential crisis"],
+      'news-tech':    ['💸', "Deals are hiding today"],
+      'deals':        ['💸', "Deals are hiding today"],
       'mtg':          ['🧙', "The oracle is unavailable"],
       'fever':        ['🎭', "Events are taking a break"],
       'sanderson':    ['📖', "Brandon is too busy writing"],
@@ -2812,23 +3156,53 @@ onAuthStateChanged(auth, user => {
       + '</div>';
   }
 
+  // ── TECH DEALS ──
+  const DEALS_FALLBACK = [
+    { title: 'Steam Deck OLED 512GB', salePrice: '$399', normalPrice: '$549', savings: '27% off', source: 'CheapShark', url: 'https://www.cheapshark.com/' },
+    { title: 'Sony WH-1000XM5 Headphones', salePrice: '$278', normalPrice: '$399', savings: '30% off', source: 'Slickdeals', url: 'https://slickdeals.net/' },
+    { title: 'LG C4 65" OLED 4K TV', salePrice: '$1,296', normalPrice: '$1,999', savings: '35% off', source: 'Slickdeals', url: 'https://slickdeals.net/' },
+    { title: 'Xbox Game Pass Ultimate 3-Month', salePrice: '$39', normalPrice: '$51', savings: '24% off', source: 'CheapShark', url: 'https://www.cheapshark.com/' },
+    { title: 'Logitech G Pro X Superlight 2', salePrice: '$109', normalPrice: '$159', savings: '31% off', source: 'Slickdeals', url: 'https://slickdeals.net/' },
+    { title: 'Samsung 990 Pro 2TB NVMe SSD', salePrice: '$149', normalPrice: '$239', savings: '38% off', source: 'Slickdeals', url: 'https://slickdeals.net/' },
+  ];
+
+  function renderDeals(deals) {
+    return deals.slice(0, 6).map(function(d) {
+      return '<a class="deal-item" href="' + d.url + '" target="_blank" rel="noopener">'
+        + '<div class="deal-title">' + d.title + '</div>'
+        + '<div class="deal-meta">'
+        +   '<span class="deal-source">' + (d.source || '') + '</span>'
+        +   '<span class="deal-prices">'
+        +     (d.normalPrice ? '<span class="deal-original">' + d.normalPrice + '</span>' : '')
+        +     '<span class="deal-price">' + d.salePrice + '</span>'
+        +     (d.savings ? '<span class="deal-savings">' + d.savings + '</span>' : '')
+        +   '</span>'
+        + '</div>'
+        + '</a>';
+    }).join('');
+  }
+
 
   async function loadLiveData() {
     const stocksEl = document.getElementById('stocks-grid');
     const newsGenEl = document.getElementById('news-general');
-    const newsTechEl = document.getElementById('news-tech');
+    const dealsEl = document.getElementById('deals-container');
 
     // Load cached versions immediately (fresh or stale)
     const cachedStocks   = cacheGet('stocks',      60 * 60 * 1000);       // 1hr
     const cachedNewsGen  = cacheGet('news-general', 4 * 60 * 60 * 1000);  // 4hrs
-    const cachedNewsTech = cacheGet('news-tech',    4 * 60 * 60 * 1000);  // 4hrs
+    const cachedDeals    = cacheGet('deals',        4 * 60 * 60 * 1000);  // 4hrs
     if (cachedStocks) {
       stocksEl.innerHTML = cachedStocks.data;
       const updatedEl = document.getElementById('stocks-updated');
       if (updatedEl && cachedStocks.label) updatedEl.textContent = cachedStocks.label;
     }
     if (cachedNewsGen) newsGenEl.innerHTML = cachedNewsGen.data;
-    if (cachedNewsTech) newsTechEl.innerHTML = cachedNewsTech.data;
+    if (cachedDeals) {
+      dealsEl.innerHTML = cachedDeals.data;
+      const dealsStatusEl = document.getElementById('deals-status');
+      if (dealsStatusEl && cachedDeals.label) dealsStatusEl.textContent = cachedDeals.label;
+    }
 
     // Stocks: 3-tier fetch — proxy (most reliable) → direct Yahoo → Claude fallback
     if (!cachedStocks) {
@@ -2936,7 +3310,7 @@ onAuthStateChanged(auth, user => {
 
     // News via GNews API (free, structured JSON, no tokens)
     // Get your free key at https://gnews.io — free tier: 10 req/day, plenty with 4hr cache
-    if (cachedNewsGen && cachedNewsTech) return;
+    if (cachedNewsGen && cachedDeals) return;
 
     function renderNewsItems(items) {
       return items.map(function(item) {
@@ -2971,15 +3345,45 @@ onAuthStateChanged(auth, user => {
       }
     }
 
-    // Tech news
-    if (!cachedNewsTech) {
-      newsTechEl.innerHTML = '<span class="digest-loading">Loading tech news...</span>';
+    // Tech Deals (CheapShark + Slickdeals via proxy)
+    if (!cachedDeals) {
+      dealsEl.innerHTML = '<span class="digest-loading">Loading deals...</span>';
       try {
-        const items = await fetchGNews('technology');
-        newsTechEl.innerHTML = renderNewsItems(items);
-        cacheSet('news-tech', newsTechEl.innerHTML);
+        const r = await fetch(DEALS_PROXY_URL, { signal: AbortSignal.timeout(10000) });
+        if (!r.ok) throw new Error('Deals proxy ' + r.status);
+        const deals = await r.json();
+        if (!deals.length) throw new Error('No deals returned');
+        dealsEl.innerHTML = renderDeals(deals);
+        const statusLabel = 'Live · via CheapShark + Slickdeals';
+        document.getElementById('deals-status').textContent = statusLabel;
+        cacheSet('deals', dealsEl.innerHTML, statusLabel);
       } catch(e) {
-        _staleOrError(newsTechEl, 'news-tech', e.message || 'Tech news load failed');
+        console.error('[Digest:deals]', e.message);
+        // Fallback: try CheapShark directly (it's CORS-friendly)
+        try {
+          const r2 = await fetch('https://www.cheapshark.com/api/1.0/deals?pageSize=5&sortBy=Deal+Rating&upperPrice=50', { signal: AbortSignal.timeout(6000) });
+          if (!r2.ok) throw new Error('CheapShark direct ' + r2.status);
+          const raw = await r2.json();
+          const deals = raw.slice(0, 5).map(function(d) {
+            return {
+              title: d.title,
+              salePrice: '$' + parseFloat(d.salePrice).toFixed(2),
+              normalPrice: '$' + parseFloat(d.normalPrice).toFixed(2),
+              savings: Math.round(parseFloat(d.savings)) + '% off',
+              source: 'CheapShark',
+              url: 'https://www.cheapshark.com/redirect?dealID=' + d.dealID
+            };
+          });
+          dealsEl.innerHTML = renderDeals(deals);
+          const statusLabel = 'Live · via CheapShark';
+          document.getElementById('deals-status').textContent = statusLabel;
+          cacheSet('deals', dealsEl.innerHTML, statusLabel);
+        } catch(e2) {
+          dealsEl.innerHTML = renderDeals(DEALS_FALLBACK);
+          const statusLabel = 'Cached · Top Picks';
+          document.getElementById('deals-status').textContent = statusLabel;
+          cacheSet('deals', dealsEl.innerHTML, statusLabel);
+        }
       }
     }
   }
@@ -3346,7 +3750,7 @@ onAuthStateChanged(auth, user => {
 
   let completionLog = []; // [{id, timestamp, text}]
   let analyticsChart = null;
-  let currentPeriod = 'day';
+  let currentPeriod = 'dow';
   let currentChartType = 'bar';
   let chartDataHash = null; // dirty flag: only rebuild chart when data changes
 
@@ -4398,6 +4802,13 @@ onAuthStateChanged(auth, user => {
     input.addEventListener('keydown', e => {
       if (e.key === 'Enter') addTask(sec);
     });
+    // Auto-submit when date is picked and text field has content
+    const dateInput = row.querySelector('input[type="date"]');
+    if (dateInput) {
+      dateInput.addEventListener('change', () => {
+        if (input.value.trim()) addTask(sec);
+      });
+    }
   });
 
   // Random title
