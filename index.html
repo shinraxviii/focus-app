@@ -3358,6 +3358,9 @@ onAuthStateChanged(auth, user => {
     { title: 'What is the most underrated commander in current meta?', sub: 'r/mtg', score: 534, comments: 289, url: 'https://reddit.com/r/mtg' },
     { title: 'Sanderson confirms Stormlight 6 outline is done', sub: 'r/cosmere', score: 2100, comments: 445, url: 'https://reddit.com/r/cosmere' },
     { title: 'Best starter deck for new Sorcery players?', sub: 'r/SorceryTCG', score: 89, comments: 42, url: 'https://reddit.com/r/SorceryTCG' },
+    { title: 'Duskmourn draft guide: top commons and uncommons tier list', sub: 'r/mtg', score: 678, comments: 203, url: 'https://reddit.com/r/mtg' },
+    { title: 'Mistborn Era 3 speculation megathread', sub: 'r/cosmere', score: 956, comments: 387, url: 'https://reddit.com/r/cosmere' },
+    { title: 'Just discovered Sorcery TCG coming from MTG - first impressions', sub: 'r/SorceryTCG', score: 215, comments: 78, url: 'https://reddit.com/r/SorceryTCG' },
   ];
 
   function formatScore(n) {
@@ -5099,7 +5102,9 @@ onAuthStateChanged(auth, user => {
 
   const wEl = document.getElementById('weather-widget');
   wEl.innerHTML = '<span class="weather-loading">—</span>';
-  // Try live data; fall back to static immediately if blocked
+  // Show static data immediately so widget is never blank
+  renderWeather(STATIC_WEATHER, STATIC_WEATHER.city);
+  // Try geolocation for travel; silently fall back to LA coords if denied
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
       pos => fetchWeather(pos.coords.latitude, pos.coords.longitude),
@@ -5108,8 +5113,6 @@ onAuthStateChanged(auth, user => {
   } else {
     fetchWeather(34.1669, -118.5422);
   }
-  // Show static data immediately so widget is never blank
-  renderWeather(STATIC_WEATHER, STATIC_WEATHER.city);
 
   // Init weather, date, title — these run immediately regardless of auth
 
