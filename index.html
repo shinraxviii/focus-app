@@ -25,6 +25,9 @@
     --text: #d4d4d8;
     --text-muted: #71717a;
     --text-dim: #3f3f46;
+    --btn-bg: #2e2e34;
+    --btn-border: #3f3f46;
+    --btn-icon: #8e8e96;
 
     --color-none:    transparent;
     --color-rose:    #7a4a50;
@@ -58,6 +61,9 @@
     --text:     #18181b;
     --text-muted: #71717a;
     --text-dim:   #a1a1aa;
+    --btn-bg: #d4d4d8;
+    --btn-border: #b4b4bc;
+    --btn-icon: #52525b;
 
     --color-rose:    #f3d0d3;
     --color-amber:   #fde9c7;
@@ -121,6 +127,9 @@
     --text:       #c8d8f0;
     --text-muted: #5a7a9a;
     --text-dim:   #2a4060;
+    --btn-bg: #1e3050;
+    --btn-border: #2a4a6e;
+    --btn-icon: #6a9aba;
     --win-color:  #4a9edd;
     --loss-color: #e07a7a;
     --live-color: #f59e0b;
@@ -233,13 +242,13 @@
     font-size: 15px;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--text-muted);
+    color: var(--btn-icon);
     font-weight: 500;
   }
 
   .section-count {
     font-size: 10px;
-    color: var(--text-dim);
+    color: var(--text-muted);
     background: var(--border);
     padding: 2px 7px;
     border-radius: 20px;
@@ -326,7 +335,7 @@
 
   .task-item {
     display: grid;
-    grid-template-columns: 20px 1fr auto auto auto auto auto auto auto;
+    grid-template-columns: 20px auto 1fr auto auto auto auto;
     gap: 8px;
     align-items: center;
     padding: 9px 10px;
@@ -391,7 +400,7 @@
     width: 15px;
     height: 15px;
     border-radius: 3px;
-    border: 1.5px solid var(--text-dim);
+    border: 1.5px solid var(--btn-icon);
     cursor: pointer;
     appearance: none;
     -webkit-appearance: none;
@@ -400,7 +409,7 @@
     flex-shrink: 0;
   }
 
-  .task-checkbox:hover { border-color: var(--text-muted); }
+  .task-checkbox:hover { border-color: var(--text); }
 
   .task-checkbox:checked {
     background: var(--text-dim);
@@ -492,7 +501,7 @@
     display: none;
     flex-direction: column;
     gap: 8px;
-    padding: 8px 4px 4px 28px;
+    padding: 8px 4px 4px 46px;
     border-top: 1px solid var(--border);
     margin-top: 4px;
   }
@@ -522,12 +531,6 @@
   .task-notes:focus { border-color: var(--text-dim); }
   .task-notes::placeholder { color: var(--text-muted); }
 
-  .subtask-list {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
   .subtask-item {
     display: flex;
     align-items: center;
@@ -538,7 +541,7 @@
     width: 12px;
     height: 12px;
     border-radius: 2px;
-    border: 1.5px solid var(--text-dim);
+    border: 1.5px solid var(--btn-icon);
     cursor: pointer;
     accent-color: var(--text-muted);
     flex-shrink: 0;
@@ -591,6 +594,43 @@
   }
   .subtask-add-input::placeholder { color: var(--text-muted); }
 
+  .detail-link-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .detail-link-input {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    line-height: 1.4;
+    padding: 5px 8px;
+    outline: none;
+    flex: 1;
+    min-width: 0;
+    transition: border-color 0.15s;
+  }
+  .detail-link-input:focus { border-color: var(--text-dim); }
+  .detail-link-input::placeholder { color: var(--text-muted); }
+
+  .detail-link-go {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 11px;
+    padding: 4px 8px;
+    transition: all 0.1s;
+    white-space: nowrap;
+    font-family: 'DM Mono', monospace;
+  }
+  .detail-link-go:hover { background: var(--border); color: var(--text); }
+
   .subtask-progress {
     font-size: 9px;
     color: var(--text-muted);
@@ -599,19 +639,50 @@
     white-space: nowrap;
   }
 
-  /* Expand chevron indicator */
-  .task-expand-hint {
-    font-size: 8px;
-    color: var(--text-muted);
-    margin-left: 2px;
-    transition: transform 0.15s;
+  /* Expand chevron button */
+  .task-expand-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid var(--btn-border);
+    cursor: pointer;
+    background: var(--btn-bg);
+    padding: 0;
+    opacity: 0;
+    transition: all 0.1s;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    color: var(--btn-icon);
+    font-size: 8px;
   }
-  .task-item.expanded .task-expand-hint { transform: rotate(90deg); }
+  .task-item:hover .task-expand-btn { opacity: 1; }
+  .task-expand-btn:hover { background: var(--border); color: var(--text); }
+  .task-item.expanded .task-expand-btn {
+    opacity: 1;
+    transform: rotate(90deg);
+    color: var(--text);
+    background: rgba(61,80,96,0.25);
+    border-color: rgba(61,80,96,0.4);
+  }
+  /* Show chevron always if task has notes or subtasks */
+  .task-expand-btn.has-detail { opacity: 1; }
+
+  /* Subtask list always visible */
+  .task-subtasks-always {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px 4px 0 46px;
+  }
+  .task-subtasks-always:empty { display: none; }
 
   .task-date {
     font-size: 10px;
-    color: var(--text-muted);
+    color: var(--btn-icon);
     white-space: nowrap;
     font-family: 'DM Mono', monospace;
   }
@@ -623,9 +694,9 @@
     width: 28px;
     height: 28px;
     border-radius: 6px;
-    border: 1px solid transparent;
+    border: 1px solid var(--btn-border);
     cursor: pointer;
-    background: var(--surface2);
+    background: var(--btn-bg);
     padding: 0;
     opacity: 0;
     transition: all 0.1s;
@@ -640,12 +711,12 @@
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background: var(--border);
+    background: var(--btn-icon);
     transition: background 0.1s;
   }
 
   .task-item:hover .color-trigger { opacity: 1; }
-  .color-trigger:hover { background: var(--border); }
+  .color-trigger:hover { background: var(--border); color: var(--text); }
 
   .color-trigger[data-tint="rose"]     { background: rgba(122,74,80,0.2); border-color: rgba(122,74,80,0.35); opacity:1; }
   .color-trigger[data-tint="amber"]    { background: rgba(122,100,64,0.2); border-color: rgba(122,100,64,0.35); opacity:1; }
@@ -705,10 +776,10 @@
   .color-dot[data-c="sand"]     { background: var(--color-sand); }
 
   .task-delete {
-    background: var(--surface2);
-    border: 1px solid transparent;
+    background: var(--btn-bg);
+    border: 1px solid var(--btn-border);
     border-radius: 6px;
-    color: var(--text-dim);
+    color: var(--btn-icon);
     cursor: pointer;
     font-size: 15px;
     opacity: 0;
@@ -728,41 +799,26 @@
 
   .task-delete:hover { background: rgba(122,74,80,0.2); border-color: rgba(122,74,80,0.3); color: var(--color-rose-text); }
 
-  /* Link button square */
-  .task-link-btn {
-    background: var(--surface2);
-    border: 1px solid transparent;
-    border-radius: 6px;
-    cursor: pointer;
-    opacity: 0;
-    width: 28px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.1s;
-    flex-shrink: 0;
-    padding: 0;
-  }
-  .task-item:hover .task-link-btn { opacity: 1; }
-  .task-link-btn.has-link { opacity: 1; background: rgba(61,80,96,0.25); border-color: rgba(61,80,96,0.4); }
-  .task-link-btn:hover { background: rgba(61,80,96,0.3); border-color: rgba(61,80,96,0.5); }
-  .task-link-btn svg { display:block; pointer-events:none; }
-
   /* Completed section */
-  #completed .task-text { text-decoration: line-through; color: var(--text-dim); }
-  #completed .task-date { color: var(--text-dim); }
-  #completed .task-checkbox { border-color: var(--text-dim); background: var(--text-dim); 
+  #section-completed .task-text { text-decoration: line-through; color: var(--text-dim); }
+  #section-completed .task-date { color: var(--text-dim); }
+  #section-completed .task-checkbox { border-color: var(--text-dim); background: var(--text-dim); 
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 10 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 4l3 3 5-6' stroke='%23d4d4d8' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     background-size: 65%;
     background-repeat: no-repeat;
     background-position: center;
   }
+  #section-completed .color-trigger,
+  #section-completed .task-expand-btn,
+  #section-completed .subtask-progress { display: none; }
+  #section-completed .task-item {
+    grid-template-columns: 20px 1fr auto auto;
+  }
 
   .empty-state {
     text-align: center;
     padding: 24px 16px;
-    color: var(--text-dim);
+    color: var(--text-muted);
     font-size: 11px;
     letter-spacing: 0.05em;
   }
@@ -811,63 +867,6 @@
 
 
   /* Link popover */
-  .link-popover {
-    position: fixed;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 10px 12px;
-    z-index: 1001;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.12s;
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    min-width: 280px;
-  }
-  .link-popover.visible { opacity: 1; pointer-events: all; }
-  .link-popover input {
-    flex: 1;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 5px;
-    color: var(--text);
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    padding: 6px 9px;
-    outline: none;
-    min-width: 0;
-  }
-  .link-popover input:focus { border-color: var(--text-dim); }
-  .link-popover input::placeholder { color: var(--text-dim); }
-  .link-popover-save {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 5px;
-    color: var(--text-muted);
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    padding: 5px 9px;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.1s;
-    letter-spacing: 0.04em;
-  }
-  .link-popover-save:hover { background: var(--border); color: var(--text); }
-  .link-popover-clear {
-    background: none;
-    border: none;
-    color: var(--text-dim);
-    font-size: 16px;
-    cursor: pointer;
-    padding: 0 2px;
-    line-height: 1;
-    transition: color 0.1s;
-  }
-  .link-popover-clear:hover { color: var(--color-rose-text); }
-
   /* ── MOBILE ────────────────────────────────────── */
   @media (max-width: 700px) {
     body { padding: calc(env(safe-area-inset-top) + 16px) calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 100px) calc(env(safe-area-inset-left) + 16px); }
@@ -981,12 +980,12 @@
 
     /* Bigger tap targets on mobile */
     .task-item { padding: 10px 8px; gap: 6px; }
-    .task-delete, .task-link-btn, .color-trigger { width: 34px; height: 34px; }
+    .task-delete, .color-trigger, .task-expand-btn { width: 34px; height: 34px; }
     .add-row { padding: 10px 12px; gap: 6px; }
     .add-row input[type="date"] { width: 110px; font-size: 10px; }
 
     /* Link popover full-width on mobile */
-    .link-popover { left: 16px !important; right: 16px; min-width: unset; width: auto; }
+
     .color-popover { left: 16px !important; }
   }
 
@@ -1188,6 +1187,24 @@
     color: var(--text-muted);
     letter-spacing: 0.04em;
     text-transform: uppercase;
+  }
+
+  .reddit-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .reddit-sub {
+    font-size: 9px;
+    color: var(--btn-icon);
+    letter-spacing: 0.02em;
+  }
+
+  .reddit-score {
+    font-size: 9px;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
   }
 
   /* Fever Events */
@@ -1885,6 +1902,11 @@ onAuthStateChanged(auth, user => {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app-wrapper').style.display  = 'block';
     window._onUserReady(user);
+  } else if (new URLSearchParams(window.location.search).has('dev')) {
+    // Dev mode: bypass login, use localStorage only
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-wrapper').style.display  = 'block';
+    window._onUserReady(null);
   } else {
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('app-wrapper').style.display  = 'none';
@@ -2006,13 +2028,13 @@ onAuthStateChanged(auth, user => {
       </div>
     </div>
 
-    <!-- GENERAL NEWS -->
+    <!-- REDDIT FEED -->
     <div class="digest-card">
       <div class="digest-card-header">
-        <span class="digest-card-title">Top Headlines</span>
-        <span class="digest-card-updated">General</span>
+        <span class="digest-card-title">Reddit Feed</span>
+        <span class="digest-card-updated" id="reddit-status">Loading</span>
       </div>
-      <div class="news-list" id="news-general">
+      <div class="news-list" id="reddit-feed">
         <span class="digest-loading">Loading...</span>
       </div>
     </div>
@@ -2252,7 +2274,7 @@ onAuthStateChanged(auth, user => {
   // Called by Firebase module once user is authenticated
   window._onUserReady = async (user) => {
     showPage('tasks');
-    const name = user.displayName ? user.displayName.split(' ')[0] : user.email.split('@')[0];
+    const name = user ? (user.displayName ? user.displayName.split(' ')[0] : user.email.split('@')[0]) : 'Dev';
     const hour = new Date().getHours();
     const timeOfDay = hour < 12 ? 'Morning' : hour < 17 ? 'Afternoon' : hour < 21 ? 'Evening' : 'Night';
     const greetEl = document.getElementById('greeting');
@@ -2617,12 +2639,9 @@ onAuthStateChanged(auth, user => {
     const prevSection = t.section;
     if (t.section === 'completed') {
       t.section = 'todo';
-      if (t.color === 'sage') t.color = t._prevColor || 'none';
       unlogCompletion(id);
     } else {
-      t._prevColor = t.color;
       t.section = 'completed';
-      if (!t.color || t.color === 'none') t.color = 'sage';
       logCompletion(t);
     }
     save();
@@ -2768,11 +2787,18 @@ onAuthStateChanged(auth, user => {
       stProgress.textContent = doneCount + '/' + t.subtasks.length;
     }
 
-    // Expand chevron
-    const chevron = document.createElement('span');
-    chevron.className = 'task-expand-hint';
-    chevron.textContent = '\u25B6'; // right-pointing triangle
+    // Expand chevron button
+    const chevron = document.createElement('button');
+    chevron.className = 'task-expand-btn';
+    // Show always if task has content inside
+    if (t.notes || t.subtasks.length > 0 || t.link) chevron.classList.add('has-detail');
+    chevron.innerHTML = '\u25B6'; // right-pointing triangle
+    chevron.title = 'Expand task';
     if (t.section === 'completed') chevron.style.display = 'none';
+    chevron.addEventListener('click', e => {
+      e.stopPropagation();
+      item.classList.toggle('expanded');
+    });
 
     // Color trigger dot
     const trigger = document.createElement('button');
@@ -2783,27 +2809,6 @@ onAuthStateChanged(auth, user => {
       e.stopPropagation();
       openColorPopover(t.id, trigger);
     });
-
-    // Link button
-    const linkBtn = document.createElement('button');
-    linkBtn.className = 'task-link-btn' + (t.link ? ' has-link' : '');
-    linkBtn.title = t.link ? 'Edit link' : 'Add link';
-    linkBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" stroke="${t.link ? '#7aaabb' : '#52525b'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" stroke="${t.link ? '#7aaabb' : '#52525b'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>`;
-    if (t.link) {
-      linkBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        if (e.metaKey || e.ctrlKey) {
-          window.open(t.link, '_blank');
-        } else {
-          openLinkPopover(t.id, linkBtn);
-        }
-      });
-    } else {
-      linkBtn.addEventListener('click', e => { e.stopPropagation(); openLinkPopover(t.id, linkBtn); });
-    }
 
     // Delete
     const del = document.createElement('button');
@@ -2832,29 +2837,17 @@ onAuthStateChanged(auth, user => {
     }
     txtWrap.appendChild(txt);
 
-    // ── Detail panel (notes + subtasks) ──
+    // ── Always-visible subtask list ──
+    const stAlways = document.createElement('div');
+    stAlways.className = 'task-subtasks-always';
+
+    // ── Detail panel (notes + add subtask input — collapsible) ──
     const detail = document.createElement('div');
     detail.className = 'task-detail';
 
     if (t.section !== 'completed') {
-      // Notes textarea
-      const notes = document.createElement('textarea');
-      notes.className = 'task-notes';
-      notes.placeholder = 'Add notes...';
-      notes.value = t.notes || '';
-      notes.rows = 2;
-      notes.addEventListener('input', () => {
-        t.notes = notes.value;
-        clearTimeout(notes._saveTimer);
-        notes._saveTimer = setTimeout(() => save(), 500);
-      });
-      notes.addEventListener('click', e => e.stopPropagation());
-      notes.addEventListener('mousedown', e => e.stopPropagation());
-      detail.appendChild(notes);
-
-      // Subtasks
-      const stList = document.createElement('div');
-      stList.className = 'subtask-list';
+      // Subtask list (rendered into always-visible container)
+      const stList = stAlways; // subtasks go directly in the always-visible div
 
       function renderSubtasks() {
         stList.innerHTML = '';
@@ -2916,9 +2909,62 @@ onAuthStateChanged(auth, user => {
       }
 
       renderSubtasks();
-      detail.appendChild(stList);
 
-      // Add subtask input
+      // Notes textarea (inside collapsible detail)
+      const notes = document.createElement('textarea');
+      notes.className = 'task-notes';
+      notes.placeholder = 'Add notes...';
+      notes.value = t.notes || '';
+      notes.rows = 2;
+      notes.addEventListener('input', () => {
+        t.notes = notes.value;
+        clearTimeout(notes._saveTimer);
+        notes._saveTimer = setTimeout(() => save(), 500);
+      });
+      notes.addEventListener('click', e => e.stopPropagation());
+      notes.addEventListener('mousedown', e => e.stopPropagation());
+      detail.appendChild(notes);
+
+      // Link input row (inside collapsible detail)
+      const linkRow = document.createElement('div');
+      linkRow.className = 'detail-link-row';
+      const linkInput = document.createElement('input');
+      linkInput.type = 'text';
+      linkInput.className = 'detail-link-input';
+      linkInput.placeholder = 'Add link (URL)...';
+      linkInput.value = t.link || '';
+      linkInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); linkInput.blur(); }
+        if (e.key === 'Escape') { linkInput.value = t.link || ''; linkInput.blur(); }
+      });
+      linkInput.addEventListener('blur', () => {
+        const val = linkInput.value.trim();
+        if (val !== (t.link || '')) {
+          t.link = val;
+          save();
+          // Update chevron has-detail indicator
+          if (t.notes || t.subtasks.length > 0 || t.link) chevron.classList.add('has-detail');
+          else chevron.classList.remove('has-detail');
+          // Update task text to be a link or not
+          patchItem(t.id);
+        }
+      });
+      linkInput.addEventListener('click', e => e.stopPropagation());
+      linkInput.addEventListener('mousedown', e => e.stopPropagation());
+      linkRow.appendChild(linkInput);
+      if (t.link) {
+        const goBtn = document.createElement('button');
+        goBtn.className = 'detail-link-go';
+        goBtn.textContent = 'Open';
+        goBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          window.open(t.link, '_blank');
+        });
+        linkRow.appendChild(goBtn);
+      }
+      detail.appendChild(linkRow);
+
+      // Add subtask input (inside collapsible detail)
       const addRow = document.createElement('div');
       addRow.className = 'subtask-add';
       const addInput = document.createElement('input');
@@ -2934,6 +2980,8 @@ onAuthStateChanged(auth, user => {
           save();
           renderSubtasks();
           updateProgress();
+          // Update chevron
+          chevron.classList.add('has-detail');
         }
       });
       addInput.addEventListener('click', e => e.stopPropagation());
@@ -2951,26 +2999,17 @@ onAuthStateChanged(auth, user => {
       }
     }
 
-    // Click to expand/collapse (only for non-completed tasks)
-    if (t.section !== 'completed') {
-      item.addEventListener('click', e => {
-        // Don't toggle if clicking on interactive elements
-        const target = e.target;
-        if (target.closest('.task-checkbox, .color-trigger, .task-link-btn, .task-delete, .task-notes, .subtask-cb, .subtask-add-input, .subtask-delete, .task-text-input')) return;
-        // Don't toggle on double-click (that's edit)
-        if (e.detail >= 2) return;
-        item.classList.toggle('expanded');
-      });
-    }
+    // Chevron click toggles expand (only for non-completed tasks)
+    // Remove the old full-row click handler — now only the chevron toggles
 
     item.appendChild(cb);
+    item.appendChild(chevron);
     item.appendChild(txtWrap);
     item.appendChild(stProgress);
     item.appendChild(dt);
-    item.appendChild(chevron);
     item.appendChild(trigger);
-    item.appendChild(linkBtn);
     item.appendChild(del);
+    item.appendChild(stAlways);
     item.appendChild(detail);
 
     return item;
@@ -2983,10 +3022,10 @@ onAuthStateChanged(auth, user => {
   // e.g. 'https://your-project.vercel.app/api/claude'
   const PROXY_URL        = 'https://focus-proxy.vercel.app/api/claude';
   const STOCKS_PROXY_URL = 'https://focus-proxy.vercel.app/api/stocks';
-  const NEWS_PROXY_URL     = 'https://focus-proxy.vercel.app/api/news';
   const FEVER_PROXY_URL    = 'https://focus-proxy.vercel.app/api/fever';
   const SANDERSON_PROXY_URL = 'https://focus-proxy.vercel.app/api/sanderson';
   const DEALS_PROXY_URL    = 'https://focus-proxy.vercel.app/api/deals';
+  const REDDIT_PROXY_URL   = 'https://focus-proxy.vercel.app/api/reddit';
 
   // Option B: Direct API key (may fail due to CORS on some browsers)
   const ANTHROPIC_API_KEY = ''; // Not needed when using proxy
@@ -3140,8 +3179,7 @@ onAuthStateChanged(auth, user => {
   function _errorHTML(key) {
     const map = {
       'stocks':       ['📉', "Markets went dark"],
-      'news-general': ['📰', "The news took the day off"],
-      'news-tech':    ['💸', "Deals are hiding today"],
+      'reddit':       ['🔮', "Reddit is taking a break"],
       'deals':        ['💸', "Deals are hiding today"],
       'mtg':          ['🧙', "The oracle is unavailable"],
       'fever':        ['🎭', "Events are taking a break"],
@@ -3183,21 +3221,55 @@ onAuthStateChanged(auth, user => {
   }
 
 
+  // ── REDDIT FEED ──
+  const REDDIT_SUBS = ['mtg', 'cosmere', 'SorceryTCG'];
+
+  const REDDIT_FALLBACK = [
+    { title: 'New Secret Lair drop announced for Spring 2026', sub: 'r/mtg', score: 842, comments: 156, url: 'https://reddit.com/r/mtg' },
+    { title: 'Wind and Truth: Chapter 15 reaction thread (spoilers)', sub: 'r/cosmere', score: 1203, comments: 312, url: 'https://reddit.com/r/cosmere' },
+    { title: 'Atlas box opening - pulled a Legendary first pack', sub: 'r/SorceryTCG', score: 127, comments: 34, url: 'https://reddit.com/r/SorceryTCG' },
+    { title: 'What is the most underrated commander in current meta?', sub: 'r/mtg', score: 534, comments: 289, url: 'https://reddit.com/r/mtg' },
+    { title: 'Sanderson confirms Stormlight 6 outline is done', sub: 'r/cosmere', score: 2100, comments: 445, url: 'https://reddit.com/r/cosmere' },
+    { title: 'Best starter deck for new Sorcery players?', sub: 'r/SorceryTCG', score: 89, comments: 42, url: 'https://reddit.com/r/SorceryTCG' },
+  ];
+
+  function formatScore(n) {
+    if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+    return String(n);
+  }
+
+  function renderReddit(posts) {
+    return posts.slice(0, 8).map(function(p) {
+      return '<a class="news-item" href="' + p.url + '" target="_blank" rel="noopener">'
+        + '<div class="news-headline">' + p.title + '</div>'
+        + '<div class="reddit-meta">'
+        +   '<span class="reddit-sub">' + p.sub + '</span>'
+        +   '<span class="reddit-score">' + formatScore(p.score) + ' pts · ' + p.comments + ' comments</span>'
+        + '</div>'
+        + '</a>';
+    }).join('');
+  }
+
+
   async function loadLiveData() {
     const stocksEl = document.getElementById('stocks-grid');
-    const newsGenEl = document.getElementById('news-general');
+    const redditEl = document.getElementById('reddit-feed');
     const dealsEl = document.getElementById('deals-container');
 
     // Load cached versions immediately (fresh or stale)
     const cachedStocks   = cacheGet('stocks',      60 * 60 * 1000);       // 1hr
-    const cachedNewsGen  = cacheGet('news-general', 4 * 60 * 60 * 1000);  // 4hrs
+    const cachedReddit   = cacheGet('reddit',       4 * 60 * 60 * 1000);  // 4hrs
     const cachedDeals    = cacheGet('deals',        4 * 60 * 60 * 1000);  // 4hrs
     if (cachedStocks) {
       stocksEl.innerHTML = cachedStocks.data;
       const updatedEl = document.getElementById('stocks-updated');
       if (updatedEl && cachedStocks.label) updatedEl.textContent = cachedStocks.label;
     }
-    if (cachedNewsGen) newsGenEl.innerHTML = cachedNewsGen.data;
+    if (cachedReddit) {
+      redditEl.innerHTML = cachedReddit.data;
+      const redditStatusEl = document.getElementById('reddit-status');
+      if (redditStatusEl && cachedReddit.label) redditStatusEl.textContent = cachedReddit.label;
+    }
     if (cachedDeals) {
       dealsEl.innerHTML = cachedDeals.data;
       const dealsStatusEl = document.getElementById('deals-status');
@@ -3308,40 +3380,64 @@ onAuthStateChanged(auth, user => {
       }
     }
 
-    // News via GNews API (free, structured JSON, no tokens)
-    // Get your free key at https://gnews.io — free tier: 10 req/day, plenty with 4hr cache
-    if (cachedNewsGen && cachedDeals) return;
+    // Reddit Feed + Tech Deals
+    if (cachedReddit && cachedDeals) return;
 
-    function renderNewsItems(items) {
-      return items.map(function(item) {
-        return '<a class="news-item" href="' + item.url + '" target="_blank" rel="noopener">'
-          + '<div class="news-headline">' + item.title + '</div>'
-          + '<div class="news-meta">' + (item.source?.name || item.source || '') + '</div>'
-          + '</a>';
-      }).join('');
-    }
-
-    async function fetchGNews(category) {
-      const r = await fetch(NEWS_PROXY_URL + '?category=' + category, {
-        signal: AbortSignal.timeout(8000)
-      });
-      if (!r.ok) throw new Error('News proxy ' + r.status);
-      const d = await r.json();
-      if (!d.articles?.length) throw new Error('No articles returned');
-      return d.articles.map(function(a) {
-        return { title: a.title, url: a.url, source: a.source?.name || '' };
-      });
-    }
-
-    // General news
-    if (!cachedNewsGen) {
-      newsGenEl.innerHTML = '<span class="digest-loading">Loading headlines...</span>';
+    // Reddit Feed
+    if (!cachedReddit) {
+      redditEl.innerHTML = '<span class="digest-loading">Loading reddit...</span>';
       try {
-        const items = await fetchGNews('general');
-        newsGenEl.innerHTML = renderNewsItems(items);
-        cacheSet('news-general', newsGenEl.innerHTML);
+        const subs = REDDIT_SUBS.join(',');
+        const r = await fetch(REDDIT_PROXY_URL + '?subs=' + encodeURIComponent(subs), {
+          signal: AbortSignal.timeout(10000)
+        });
+        if (!r.ok) throw new Error('Reddit proxy ' + r.status);
+        const posts = await r.json();
+        if (!posts.length) throw new Error('No posts returned');
+        redditEl.innerHTML = renderReddit(posts);
+        const statusLabel = 'Live · ' + REDDIT_SUBS.map(s => 'r/' + s).join(', ');
+        document.getElementById('reddit-status').textContent = statusLabel;
+        cacheSet('reddit', redditEl.innerHTML, statusLabel);
       } catch(e) {
-        _staleOrError(newsGenEl, 'news-general', e.message || 'News load failed');
+        console.error('[Digest:reddit]', e.message);
+        // Fallback: try direct .json endpoints
+        try {
+          const allPosts = [];
+          for (const sub of REDDIT_SUBS) {
+            const r2 = await fetch('https://www.reddit.com/r/' + sub + '/hot.json?limit=4', {
+              headers: { 'User-Agent': 'FocusDashboard/1.0' },
+              signal: AbortSignal.timeout(6000)
+            });
+            if (r2.ok) {
+              const d = await r2.json();
+              (d.data?.children || []).forEach(function(c) {
+                const p = c.data;
+                if (p.stickied) return;
+                allPosts.push({
+                  title: p.title,
+                  sub: 'r/' + p.subreddit,
+                  score: p.score,
+                  comments: p.num_comments,
+                  url: 'https://reddit.com' + p.permalink
+                });
+              });
+            }
+          }
+          if (allPosts.length > 0) {
+            allPosts.sort((a, b) => b.score - a.score);
+            redditEl.innerHTML = renderReddit(allPosts);
+            const statusLabel = 'Live · ' + REDDIT_SUBS.map(s => 'r/' + s).join(', ');
+            document.getElementById('reddit-status').textContent = statusLabel;
+            cacheSet('reddit', redditEl.innerHTML, statusLabel);
+          } else {
+            throw new Error('Direct fetch returned no posts');
+          }
+        } catch(e2) {
+          redditEl.innerHTML = renderReddit(REDDIT_FALLBACK);
+          const statusLabel = 'Cached · ' + REDDIT_SUBS.map(s => 'r/' + s).join(', ');
+          document.getElementById('reddit-status').textContent = statusLabel;
+          cacheSet('reddit', redditEl.innerHTML, statusLabel);
+        }
       }
     }
 
@@ -4598,67 +4694,7 @@ onAuthStateChanged(auth, user => {
     activePopoverId = null;
   }
 
-  document.addEventListener('click', () => { closeColorPopover(); closeLinkPopover(); });
-
-  // --- Link Popover ---
-  const linkPopover = document.createElement('div');
-  linkPopover.className = 'link-popover';
-  document.body.appendChild(linkPopover);
-
-  let activeLinkId = null;
-
-  function openLinkPopover(taskId, triggerEl) {
-    if (activeLinkId === taskId) { closeLinkPopover(); return; }
-    activeLinkId = taskId;
-    const t = tasks.find(t => t.id === taskId);
-
-    linkPopover.innerHTML = '';
-    const input = document.createElement('input');
-    input.type = 'url';
-    input.placeholder = 'Paste a URL...';
-    input.value = t.link || '';
-    input.addEventListener('click', e => e.stopPropagation());
-    input.addEventListener('keydown', e => {
-      if (e.key === 'Enter') saveLink(taskId, input.value);
-      if (e.key === 'Escape') closeLinkPopover();
-    });
-
-    const save = document.createElement('button');
-    save.className = 'link-popover-save';
-    save.textContent = 'Save';
-    save.addEventListener('click', e => { e.stopPropagation(); saveLink(taskId, input.value); });
-
-    const clear = document.createElement('button');
-    clear.className = 'link-popover-clear';
-    clear.innerHTML = '&times;';
-    clear.title = 'Remove link';
-    clear.addEventListener('click', e => { e.stopPropagation(); saveLink(taskId, ''); });
-
-    linkPopover.appendChild(input);
-    linkPopover.appendChild(save);
-    if (t.link) linkPopover.appendChild(clear);
-
-    const rect = triggerEl.getBoundingClientRect();
-    linkPopover.style.left = Math.min(rect.left, window.innerWidth - 320) + 'px';
-    linkPopover.style.top = (rect.top - 52) + 'px';
-    linkPopover.classList.add('visible');
-    setTimeout(() => input.focus(), 50);
-  }
-
-  function saveLink(taskId, url) {
-    const t = tasks.find(t => t.id === taskId);
-    if (t) {
-      t.link = url.trim();
-      save();
-      patchItem(taskId);
-    }
-    closeLinkPopover();
-  }
-
-  function closeLinkPopover() {
-    linkPopover.classList.remove('visible');
-    activeLinkId = null;
-  }
+  document.addEventListener('click', () => { closeColorPopover(); });
 
   function renderSection(sec) {
     const list = document.getElementById('list-' + sec);
