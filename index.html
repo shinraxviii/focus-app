@@ -1165,11 +1165,17 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-bottom: 10px;
+    padding: 8px;
+    margin: 0 -8px;
     border-bottom: 1px solid var(--border);
+    border-radius: 6px;
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.12s;
   }
 
-  .card-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .card-row:last-child { border-bottom: none; }
+  .card-row:hover { background: var(--surface2); }
 
   .card-name {
     font-size: 12px;
@@ -1248,22 +1254,25 @@
     display: flex;
     flex-direction: column;
     gap: 3px;
-    padding-bottom: 12px;
+    padding: 8px;
+    margin: 0 -8px;
     border-bottom: 1px solid var(--border);
+    border-radius: 6px;
     cursor: pointer;
     text-decoration: none;
+    color: inherit;
+    transition: background 0.12s;
   }
 
-  .news-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .news-item:last-child { border-bottom: none; }
+
+  .news-item:hover { background: var(--surface2); }
 
   .news-headline {
     font-size: 12px;
     color: var(--text);
     line-height: 1.4;
-    transition: color 0.1s;
   }
-
-  .news-item:hover .news-headline { color: var(--text); }
 
   .news-meta {
     font-size: 9px;
@@ -1358,15 +1367,18 @@
     display: flex;
     flex-direction: column;
     gap: 3px;
-    padding-bottom: 10px;
+    padding: 8px;
+    margin: 0 -8px;
     border-bottom: 1px solid var(--border);
+    border-radius: 6px;
     text-decoration: none;
+    color: inherit;
     cursor: pointer;
-    transition: opacity 0.15s;
+    transition: background 0.12s;
   }
 
-  .fever-item:last-child { border-bottom: none; padding-bottom: 0; }
-  .fever-item:hover { opacity: 0.8; }
+  .fever-item:last-child { border-bottom: none; }
+  .fever-item:hover { background: var(--surface2); }
 
   .fever-name {
     font-size: 12px;
@@ -1457,15 +1469,18 @@
     display: flex;
     flex-direction: column;
     gap: 3px;
-    padding-bottom: 10px;
+    padding: 8px;
+    margin: 0 -8px;
     border-bottom: 1px solid var(--border);
+    border-radius: 6px;
     text-decoration: none;
+    color: inherit;
     cursor: pointer;
-    transition: opacity 0.15s;
+    transition: background 0.12s;
   }
 
-  .deal-item:last-child { border-bottom: none; padding-bottom: 0; }
-  .deal-item:hover { opacity: 0.8; }
+  .deal-item:last-child { border-bottom: none; }
+  .deal-item:hover { background: var(--surface2); }
 
   .deal-title {
     font-size: 12px;
@@ -2132,13 +2147,13 @@ onAuthStateChanged(auth, user => {
       </div>
     </div>
 
-    <!-- MTG CARDS -->
+    <!-- SPORTS -->
     <div class="digest-card">
       <div class="digest-card-header">
-        <span class="digest-card-title">Magic: The Gathering</span>
-        <span class="digest-card-updated">via Scryfall</span>
+        <span class="digest-card-title">Sports</span>
+        <span class="digest-card-updated" id="sports-updated"></span>
       </div>
-      <div class="card-list" id="mtg-list">
+      <div class="sport-list" id="sports-list">
         <span class="digest-loading">Loading...</span>
       </div>
     </div>
@@ -2169,13 +2184,13 @@ onAuthStateChanged(auth, user => {
       </div>
     </div>
 
-    <!-- SPORTS -->
+    <!-- MTG CARDS -->
     <div class="digest-card">
       <div class="digest-card-header">
-        <span class="digest-card-title">Sports</span>
-        <span class="digest-card-updated" id="sports-updated"></span>
+        <span class="digest-card-title">Magic: The Gathering</span>
+        <span class="digest-card-updated">via Scryfall</span>
       </div>
-      <div class="sport-list" id="sports-list">
+      <div class="card-list" id="mtg-list">
         <span class="digest-loading">Loading...</span>
       </div>
     </div>
@@ -3739,16 +3754,18 @@ onAuthStateChanged(auth, user => {
           const price = c.usd      ? '$' + parseFloat(c.usd).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
           const foil  = c.usd_foil ? 'Foil $' + parseFloat(c.usd_foil).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '';
           const safeUrl = c.scryfallUrl ? c.scryfallUrl.replace(/&/g, '&amp;').replace(/"/g, '&quot;') : '';
-          return '<div class="card-row">'
+          const tag = safeUrl ? 'a' : 'div';
+          const linkAttrs = safeUrl ? ' href="' + safeUrl + '" target="_blank" rel="noopener"' : '';
+          return '<' + tag + ' class="card-row"' + linkAttrs + '>'
             + '<div>'
-            + '<div class="card-name">' + (safeUrl ? '<a href="' + safeUrl + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;border-bottom:1px solid var(--border);">' + displayName + '</a>' : displayName) + '</div>'
+            + '<div class="card-name">' + displayName + '</div>'
             + '<div class="card-set">' + (c.set || '') + '</div>'
             + '</div>'
             + '<div style="text-align:right;">'
             + '<div class="card-price">' + price + '</div>'
             + '<div class="card-price-sub">' + foil + '</div>'
             + '</div>'
-            + '</div>';
+            + '</' + tag + '>';
         }).join('');
         cacheSet('mtg', mtgEl.innerHTML);
       } catch(e) {
