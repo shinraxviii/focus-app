@@ -179,9 +179,6 @@
     white-space: nowrap;
   }
   .theme-toggle:hover { border-color: var(--text-muted); }
-
-
-
   body {
     background: var(--bg);
     color: var(--text);
@@ -197,6 +194,38 @@
 
   header {
     margin-bottom: 48px;
+  }
+
+  #header-inner {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  #weather-widget {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    padding-top: 6px;
+  }
+
+  #header-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+  }
+
+  #current-date {
+    font-family: 'DM Serif Display', serif;
+    line-height: 1.2;
+    text-align: right;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
   }
 
   header h1 {
@@ -686,9 +715,6 @@
     white-space: nowrap;
     font-family: 'DM Mono', monospace;
   }
-
-
-
   /* Color trigger button */
   .color-trigger {
     width: 28px;
@@ -863,9 +889,6 @@
     pointer-events: none;
   }
   #sync-status.visible { opacity: 1; }
-
-
-
   /* Link popover */
   /* ── MOBILE ────────────────────────────────────── */
   @media (max-width: 700px) {
@@ -889,10 +912,8 @@
       z-index: 300;
     }
 
-    /* Hide sign-out on mobile (already handled above) */
+    /* Hide sign-out on mobile — using fixed position one */
     #header-right .signout-btn { display: none; }
-    /* Also hide theme toggle from header flow — it's now fixed */
-    #header-right #theme-toggle { /* stays visible, just fixed */ }
 
     /* Header inner: stack title on top, date+weather row on bottom */
     #header-inner {
@@ -918,7 +939,6 @@
       order: 1;
       width: 100%;
     }
-    #header-right .signout-btn { display: none; } /* hidden — using fixed one */
 
     /* Shrink date for mobile */
     #current-date { text-align: left !important; }
@@ -1003,6 +1023,28 @@
     align-items: stretch;
   }
 
+  /* Shared linkable-row pattern for digest card items */
+  .stock-row,
+  .card-row,
+  .sport-row,
+  .news-item,
+  .fever-item,
+  .deal-item {
+    text-decoration: none;
+    color: inherit;
+    border-radius: 6px;
+    transition: background 0.12s;
+  }
+
+  .stock-row:hover,
+  .card-row:hover,
+  .sport-row:hover,
+  .news-item:hover,
+  .fever-item:hover,
+  .deal-item:hover {
+    background: var(--surface2);
+  }
+
   .digest-card {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -1045,6 +1087,13 @@
     flex: 1;
   }
 
+  .stock-row {
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
   /* Vertical divider: right border on left-column items */
   .stock-row:nth-child(odd) {
     padding-right: 24px;
@@ -1054,24 +1103,9 @@
     padding-left: 24px;
   }
 
-  .stock-row {
-    display: flex;
-    align-items: center;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--border);
-    text-decoration: none;
-    color: inherit;
-    transition: background 0.12s;
-  }
-
-  .stock-row:hover {
-    background: var(--surface2);
-  }
-
-  /* Remove bottom border on last two items (bottom row of 2-col grid) */
-  .stock-row:nth-last-child(-n+2) { border-bottom: none; padding-bottom: 0; }
-  /* Remove top padding on first two items (top row of 2-col grid) */
+  /* Remove top padding on first row, bottom border on last row */
   .stock-row:nth-child(-n+2) { padding-top: 0; }
+  .stock-row:nth-last-child(-n+2) { border-bottom: none; padding-bottom: 0; }
 
   .stock-ticker-badge {
     font-size: 10px;
@@ -1168,14 +1202,9 @@
     padding: 8px;
     margin: 0 -8px;
     border-bottom: 1px solid var(--border);
-    border-radius: 6px;
-    text-decoration: none;
-    color: inherit;
-    transition: background 0.12s;
   }
 
   .card-row:last-child { border-bottom: none; }
-  .card-row:hover { background: var(--surface2); }
 
   .card-name {
     font-size: 12px;
@@ -1216,11 +1245,12 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-bottom: 10px;
+    padding: 8px;
+    margin: 0 -8px;
     border-bottom: 1px solid var(--border);
   }
 
-  .sport-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .sport-row:last-child { border-bottom: none; }
 
   .sport-team {
     font-size: 12px;
@@ -1272,13 +1302,6 @@
     font-size: 12px;
     color: var(--text);
     line-height: 1.4;
-  }
-
-  .news-meta {
-    font-size: 9px;
-    color: var(--text-muted);
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
   }
 
   .reddit-meta {
@@ -1537,6 +1560,84 @@
     padding: 8px 0;
   }
 
+  .digest-stale {
+    font-size: 9px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .digest-section-link {
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-decoration: none;
+    margin-top: 8px;
+    display: inline-block;
+    transition: color 0.1s;
+  }
+  .digest-section-link:hover { color: var(--text); }
+
+  .clear-completed-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    padding: 2px 0;
+    transition: color 0.15s;
+    display: none;
+  }
+  .clear-completed-btn:hover { color: var(--color-rose-text); }
+
+  /* Sports render classes */
+  .sport-result-group {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    justify-content: flex-end;
+  }
+
+  .sport-result {
+    font-family: 'DM Serif Display', serif;
+    font-size: 18px;
+  }
+
+  .sport-result--next {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+  }
+
+  .sport-score {
+    font-size: 13px;
+    color: var(--text);
+  }
+
+  .sport-live-clock {
+    color: var(--live-color);
+  }
+
+  .sport-row--live {
+    background: rgba(245,158,11,0.07);
+    padding: 4px 6px;
+    margin: -4px -6px;
+  }
+
+  .sport-row--next {
+    background: rgba(122,170,187,0.06);
+    padding: 4px 6px;
+    margin: -4px -6px;
+  }
+
+  .sport-right,
+  .card-right {
+    text-align: right;
+  }
+
   .digest-error {
     display: flex;
     flex-direction: column;
@@ -1662,9 +1763,6 @@
     transition: all 0.15s;
   }
   .signout-btn:hover { color: var(--text); border-color: var(--text-dim); }
-
-
-
   /* ── ANALYTICS ─────────────────────────────────── */
   .nav-toggle {
     display: flex;
@@ -2102,15 +2200,15 @@ onAuthStateChanged(auth, user => {
 <!-- APP WRAPPER -->
 <div id="app-wrapper">
 <header>
-  <div id="header-inner" style="display:flex; justify-content:space-between; align-items:flex-start;">
+  <div id="header-inner">
     <div id="header-title">
       <h1 id="app-title">Focus</h1>
       <p id="greeting"></p>
     </div>
-    <div id="weather-widget" style="flex:1; display:flex; justify-content:center; padding-top:6px;"></div>
-    <div id="header-right" style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
-      <div id="current-date" style="font-family:'DM Serif Display',serif; line-height:1.2; text-align:right;"></div>
-      <div style="display:flex; gap:8px; align-items:center;">
+    <div id="weather-widget"></div>
+    <div id="header-right">
+      <div id="current-date"></div>
+      <div class="header-actions">
         <button class="theme-toggle" id="theme-toggle" onclick="cycleTheme()">
           <span id="theme-label">Dark</span>
         </button>
@@ -2184,13 +2282,13 @@ onAuthStateChanged(auth, user => {
       </div>
     </div>
 
-    <!-- MTG CARDS -->
+    <!-- TECH DEALS -->
     <div class="digest-card">
       <div class="digest-card-header">
-        <span class="digest-card-title">Magic: The Gathering</span>
-        <span class="digest-card-updated">via Scryfall</span>
+        <span class="digest-card-title">Tech Deals</span>
+        <span class="digest-card-updated" id="deals-status">Deals</span>
       </div>
-      <div class="card-list" id="mtg-list">
+      <div class="deals-list" id="deals-container">
         <span class="digest-loading">Loading...</span>
       </div>
     </div>
@@ -2206,13 +2304,13 @@ onAuthStateChanged(auth, user => {
       </div>
     </div>
 
-    <!-- TECH DEALS -->
+    <!-- MTG CARDS -->
     <div class="digest-card">
       <div class="digest-card-header">
-        <span class="digest-card-title">Tech Deals</span>
-        <span class="digest-card-updated" id="deals-status">Deals</span>
+        <span class="digest-card-title">Magic: The Gathering</span>
+        <span class="digest-card-updated">via Scryfall</span>
       </div>
-      <div class="deals-list" id="deals-container">
+      <div class="card-list" id="mtg-list">
         <span class="digest-loading">Loading...</span>
       </div>
     </div>
@@ -2266,7 +2364,7 @@ onAuthStateChanged(auth, user => {
       <span class="section-title">Completed</span>
       <div style="display:flex; align-items:center; gap:8px;">
         <span class="section-count" id="count-completed">0</span>
-        <button onclick="clearCompleted()" id="clear-completed-btn" style="background:none; border:none; color:var(--text-dim); font-family:'DM Mono',monospace; font-size:9px; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer; padding:2px 0; transition:color 0.15s; display:none;" onmouseover="this.style.color='#7a4a50'" onmouseout="this.style.color='var(--text-dim)'">Clear all</button>
+        <button onclick="clearCompleted()" id="clear-completed-btn" class="clear-completed-btn">Clear all</button>
       </div>
     </div>
     <div class="task-list" id="list-completed"
@@ -3028,6 +3126,11 @@ onAuthStateChanged(auth, user => {
           stCb.checked = st.done;
           stCb.addEventListener('change', () => {
             st.done = stCb.checked;
+            if (st.done) {
+              logCompletion({ id: st.id, text: st.text });
+            } else {
+              unlogCompletion(st.id);
+            }
             save();
             renderSubtasks();
             updateProgress();
@@ -3181,9 +3284,6 @@ onAuthStateChanged(auth, user => {
 
     return item;
   }
-
-
-
   // ── CONFIG ──────────────────────────────────────────────────
   // Option A: Vercel proxy URL (recommended) - set this after deploying vercel-proxy
   // e.g. 'https://your-project.vercel.app/api/claude'
@@ -3344,7 +3444,7 @@ onAuthStateChanged(auth, user => {
     console.error('[Digest:' + key + ']', errMsg);
     const stale = cacheGetStale(key);
     el.innerHTML = stale
-      ? stale.data + '<div style="font-size:9px;color:var(--text-muted);margin-top:4px;">stale · ' + cacheAge(stale.ts) + '</div>'
+      ? stale.data + '<div class="digest-stale">stale · ' + cacheAge(stale.ts) + '</div>'
       : _errorHTML(key);
   }
 
@@ -3641,7 +3741,7 @@ onAuthStateChanged(auth, user => {
       if (!stocksLoaded) {
         const stale = cacheGetStale('stocks');
         stocksEl.innerHTML = stale
-          ? stale.data + '<div style="font-size:9px;color:var(--text-muted);margin-top:4px;">stale · ' + cacheAge(stale.ts) + '</div>'
+          ? stale.data + '<div class="digest-stale">stale · ' + cacheAge(stale.ts) + '</div>'
           : _errorHTML('stocks');
       }
     }
@@ -3761,7 +3861,7 @@ onAuthStateChanged(auth, user => {
             + '<div class="card-name">' + displayName + '</div>'
             + '<div class="card-set">' + (c.set || '') + '</div>'
             + '</div>'
-            + '<div style="text-align:right;">'
+            + '<div class="card-right">'
             + '<div class="card-price">' + price + '</div>'
             + '<div class="card-price-sub">' + foil + '</div>'
             + '</div>'
@@ -3867,7 +3967,7 @@ onAuthStateChanged(auth, user => {
         + '</div>'
         + '</a>';
     }).join('')
-    + '<a href="https://feverup.com/en/los-angeles" target="_blank" rel="noopener" style="font-size:9px; color:var(--text-dim); letter-spacing:0.06em; text-transform:uppercase; text-decoration:none; margin-top:8px; display:inline-block; transition:color 0.1s;" onmouseover="this.style.color=\'var(--text)\'" onmouseout="this.style.color=\'var(--text-dim)\'">See all on Fever ↗</a>';
+    + '<a href="https://feverup.com/en/los-angeles" target="_blank" rel="noopener" class="digest-section-link">See all on Fever ↗</a>';
   }
 
   // ── BRANDON SANDERSON PROGRESS ──────────────────────────────
@@ -3898,7 +3998,7 @@ onAuthStateChanged(auth, user => {
         + (p.pct < 100 ? '<div class="sanderson-bar-wrap"><div class="sanderson-bar" style="width:' + p.pct + '%"></div></div>' : '')
         + '</div>';
     }).join('')
-    + '<a href="https://www.brandonsanderson.com" target="_blank" rel="noopener" style="font-size:9px; color:var(--text-dim); letter-spacing:0.06em; text-transform:uppercase; text-decoration:none; margin-top:4px; display:inline-block; transition:color 0.1s;" onmouseover="this.style.color=\'var(--text)\'" onmouseout="this.style.color=\'var(--text-dim)\'">brandonsanderson.com ↗</a>';
+    + '<a href="https://www.brandonsanderson.com" target="_blank" rel="noopener" class="digest-section-link">brandonsanderson.com ↗</a>';
   }
 
   // ── SPORTS ─────────────────────────────────────────────────
@@ -3931,6 +4031,11 @@ onAuthStateChanged(auth, user => {
       const oppName    = other.team?.abbreviation || other.team?.shortDisplayName || '?';
       const isHome     = myTeam.homeAway === 'home';
       const isLive     = forceLive || (status && !status.completed && (status.state === 'in' || status.name === 'in'));
+      const espnSport  = t.league_path === 'mens-college-basketball' ? 'mens-college-basketball'
+                       : t.league_path === 'college-football' ? 'college-football'
+                       : t.sport === 'hockey' ? 'nhl' : t.sport === 'baseball' ? 'mlb'
+                       : t.sport === 'soccer' ? 'soccer' : 'nba';
+      const gameUrl = event.id ? 'https://www.espn.com/' + espnSport + '/game/_/gameId/' + event.id : '';
 
       return {
         score:     `${myScore}–${theirScore}`,
@@ -3938,13 +4043,14 @@ onAuthStateChanged(auth, user => {
         isLive,
         liveClock: isLive ? (status?.shortDetail || comp.status?.displayClock || 'LIVE') : '',
         result:    isLive ? 'LIVE' : (myTeam.winner === true ? 'W' : myTeam.winner === false ? 'L' : '—'),
-        gameDate:  !isLive ? new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''
+        gameDate:  !isLive ? new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '',
+        gameUrl
       };
     }
 
     try {
       const results = await Promise.all(SPORTS_TEAMS.map(async t => {
-        const empty = { name: t.name, league: t.league, result: '—', score: '', opponent: '', gameDate: '', record: '—', isLive: false, liveClock: '', isNext: false };
+        const empty = { name: t.name, league: t.league, result: '—', score: '', opponent: '', gameDate: '', record: '—', isLive: false, liveClock: '', isNext: false, gameUrl: '' };
         try {
           // Step 1: Check today's scoreboard for live/scheduled games — most reliable for live
           let liveGame = null;
@@ -4020,15 +4126,20 @@ onAuthStateChanged(auth, user => {
               const oppName = other.team?.abbreviation || other.team?.shortDisplayName || '?';
               const gameDate = new Date(next.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
               const gameTime = new Date(next.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+              const espnSport  = t.league_path === 'mens-college-basketball' ? 'mens-college-basketball'
+                             : t.league_path === 'college-football' ? 'college-football'
+                             : t.sport === 'hockey' ? 'nhl' : t.sport === 'baseball' ? 'mlb'
+                             : t.sport === 'soccer' ? 'soccer' : 'nba';
+              const nextGameUrl = next.id ? 'https://www.espn.com/' + espnSport + '/game/_/gameId/' + next.id : '';
               return { name: t.name, league: t.league, record,
                 result: 'NEXT', score: '', isLive: false, liveClock: '',
                 opponent: `${isHome ? 'vs' : '@'} ${oppName}`,
-                gameDate: `${gameDate} · ${gameTime}`, isNext: true };
+                gameDate: `${gameDate} · ${gameTime}`, isNext: true, gameUrl: nextGameUrl };
             }
           }
 
           const parsed = parseComp(t, last, false);
-          return { name: t.name, league: t.league, record, ...(parsed || { result: '—', score: '', opponent: '', gameDate: '', isLive: false, liveClock: '' }), isNext: false };
+          return { name: t.name, league: t.league, record, ...(parsed || { result: '—', score: '', opponent: '', gameDate: '', isLive: false, liveClock: '', gameUrl: '' }), isNext: false };
 
         } catch(e) { return empty; }
       }));
@@ -4042,28 +4153,25 @@ onAuthStateChanged(auth, user => {
           : isNext ? 'var(--color-slate-text)'
           : 'var(--text-muted)';
         const subLine = isLive
-          ? `${t.opponent} · <span style="color:var(--live-color);">${t.liveClock}</span>`
+          ? `${t.opponent} · <span class="sport-live-clock">${t.liveClock}</span>`
           : `${t.opponent}${t.gameDate ? ' · ' + t.gameDate : ''}`;
-        const rowStyle = isLive
-          ? ' style="background:rgba(245,158,11,0.07);border-radius:6px;padding:4px 6px;margin:-4px -6px;"'
-          : isNext
-          ? ' style="background:rgba(122,170,187,0.06);border-radius:6px;padding:4px 6px;margin:-4px -6px;"'
-          : '';
-        const resultSize = isNext ? '11px' : '18px';
-        const resultFont = isNext ? "'DM Mono',monospace" : "'DM Serif Display',serif";
-        return `<div class="sport-row"${rowStyle}>
+        const rowClass = isLive ? ' sport-row--live' : isNext ? ' sport-row--next' : '';
+        const resultClass = isNext ? 'sport-result--next' : 'sport-result';
+        const tag = t.gameUrl ? 'a' : 'div';
+        const linkAttrs = t.gameUrl ? ` href="${t.gameUrl}" target="_blank" rel="noopener"` : '';
+        return `<${tag} class="sport-row${rowClass}"${linkAttrs}>
           <div>
             <div class="sport-team">${t.name}</div>
             <div class="sport-league">${t.league} · ${t.record}</div>
           </div>
-          <div style="text-align:right;">
-            <div style="display:flex; align-items:baseline; gap:6px; justify-content:flex-end;">
-              <span style="font-family:${resultFont}; font-size:${resultSize}; color:${resultColor}; letter-spacing:${isNext?'0.06em':'0'};">${t.result}</span>
-              <span style="font-size:13px; color:var(--text);">${t.score}</span>
+          <div class="sport-right">
+            <div class="sport-result-group">
+              <span class="${resultClass}" style="color:${resultColor};">${t.result}</span>
+              <span class="sport-score">${t.score}</span>
             </div>
             <div class="sport-last">${subLine}</div>
           </div>
-        </div>`;
+        </${tag}>`;
       }).join('');
       document.getElementById('sports-updated').textContent = 'as of ' + timeNow();
     } catch(e) {
@@ -4887,9 +4995,6 @@ onAuthStateChanged(auth, user => {
   }
 
   window.addEventListener('resize', applyMobileLayout);
-
-
-
   // --- Color Popover ---
   const popover = document.createElement('div');
   popover.className = 'color-popover';
