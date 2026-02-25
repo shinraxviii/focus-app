@@ -3115,6 +3115,11 @@ onAuthStateChanged(auth, user => {
   async function loadDigest() {
     if (loadDigest._sessionLoaded) return;
     loadDigest._sessionLoaded = true;
+    // ?refresh in URL clears all digest caches
+    if (new URLSearchParams(window.location.search).has('refresh')) {
+      Object.keys(localStorage).filter(k => k.startsWith('focus-digest-')).forEach(k => localStorage.removeItem(k));
+      console.log('[Digest] All caches cleared via ?refresh');
+    }
     loadSports();
     await loadLiveData();
     await loadDailyData();
@@ -3540,9 +3545,10 @@ onAuthStateChanged(auth, user => {
           const displayName = c.name.includes(' // ') ? c.name.split(' // ')[0] : c.name;
           const price = c.usd      ? '$' + parseFloat(c.usd).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
           const foil  = c.usd_foil ? 'Foil $' + parseFloat(c.usd_foil).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '';
+          const safeUrl = c.scryfallUrl ? c.scryfallUrl.replace(/&/g, '&amp;').replace(/"/g, '&quot;') : '';
           return '<div class="card-row">'
             + '<div>'
-            + '<div class="card-name">' + (c.scryfallUrl ? '<a href="' + c.scryfallUrl + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;border-bottom:1px solid var(--border);">' + displayName + '</a>' : displayName) + '</div>'
+            + '<div class="card-name">' + (safeUrl ? '<a href="' + safeUrl + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;border-bottom:1px solid var(--border);">' + displayName + '</a>' : displayName) + '</div>'
             + '<div class="card-set">' + (c.set || '') + '</div>'
             + '</div>'
             + '<div style="text-align:right;">'
@@ -3552,7 +3558,10 @@ onAuthStateChanged(auth, user => {
             + '</div>';
         }).join('');
         cacheSet('mtg', mtgEl.innerHTML);
-      } catch(e) { _staleOrError(mtgEl, 'mtg', e.message || 'MTG load failed'); }
+      } catch(e) {
+        console.error('[Digest:mtg] Error:', e.message, e);
+        _staleOrError(mtgEl, 'mtg', e.message || 'MTG load failed');
+      }
     }
 
     // Fever LA Events — scrape top-10 page weekly, fall back to static data
