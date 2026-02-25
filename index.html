@@ -1207,6 +1207,58 @@
     letter-spacing: 0.02em;
   }
 
+  .reddit-subs-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    padding: 8px 14px 0 14px;
+  }
+
+  .reddit-sub-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    color: var(--btn-icon);
+    background: var(--btn-bg);
+    border: 1px solid var(--btn-border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    letter-spacing: 0.02em;
+  }
+
+  .reddit-sub-remove {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 11px;
+    padding: 0 1px;
+    line-height: 1;
+    transition: color 0.1s;
+  }
+  .reddit-sub-remove:hover { color: var(--color-rose-text); }
+
+  .reddit-add-row {
+    padding: 6px 14px 8px 14px;
+  }
+
+  .reddit-sub-input {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 3px 0;
+    outline: none;
+    width: 100%;
+    transition: border-color 0.15s;
+  }
+  .reddit-sub-input:focus { border-color: var(--btn-icon); }
+  .reddit-sub-input::placeholder { color: var(--text-muted); }
+
   /* Fever Events */
   .fever-list {
     display: flex;
@@ -2033,6 +2085,10 @@ onAuthStateChanged(auth, user => {
       <div class="digest-card-header">
         <span class="digest-card-title">Reddit Feed</span>
         <span class="digest-card-updated" id="reddit-status">Loading</span>
+      </div>
+      <div class="reddit-subs-row" id="reddit-subs-row"></div>
+      <div class="reddit-add-row">
+        <input type="text" id="reddit-sub-input" placeholder="Add subreddit..." class="reddit-sub-input">
       </div>
       <div class="news-list" id="reddit-feed">
         <span class="digest-loading">Loading...</span>
@@ -3227,7 +3283,60 @@ onAuthStateChanged(auth, user => {
 
 
   // ── REDDIT FEED ──
-  const REDDIT_SUBS = ['mtg', 'cosmere', 'SorceryTCG'];
+  const REDDIT_DEFAULTS = ['mtg', 'cosmere', 'SorceryTCG'];
+
+  function getRedditSubs() {
+    try {
+      const stored = localStorage.getItem('focus-digest-reddit-subs');
+      if (stored) { const arr = JSON.parse(stored); if (arr.length) return arr; }
+    } catch(e) {}
+    return REDDIT_DEFAULTS.slice();
+  }
+  function saveRedditSubs(subs) {
+    localStorage.setItem('focus-digest-reddit-subs', JSON.stringify(subs));
+  }
+
+  function renderRedditTags() {
+    const row = document.getElementById('reddit-subs-row');
+    const subs = getRedditSubs();
+    row.innerHTML = subs.map(function(s) {
+      return '<span class="reddit-sub-tag">r/' + s
+        + '<button class="reddit-sub-remove" data-sub="' + s + '" title="Remove">&times;</button>'
+        + '</span>';
+    }).join('');
+    row.querySelectorAll('.reddit-sub-remove').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var sub = this.getAttribute('data-sub');
+        var current = getRedditSubs().filter(function(x) { return x.toLowerCase() !== sub.toLowerCase(); });
+        if (current.length === 0) return; // keep at least one
+        saveRedditSubs(current);
+        renderRedditTags();
+        localStorage.removeItem('focus-digest-reddit'); // bust cache
+        fetchReddit();
+      });
+    });
+  }
+
+  (function initRedditInput() {
+    var input = document.getElementById('reddit-sub-input');
+    input.addEventListener('keydown', function(e) {
+      if (e.key !== 'Enter') return;
+      var raw = input.value.trim().replace(/^r\//, '').replace(/\s+/g, '');
+      if (!raw) return;
+      var current = getRedditSubs();
+      if (current.some(function(s) { return s.toLowerCase() === raw.toLowerCase(); })) {
+        input.value = '';
+        return; // already exists
+      }
+      current.push(raw);
+      saveRedditSubs(current);
+      input.value = '';
+      renderRedditTags();
+      localStorage.removeItem('focus-digest-reddit'); // bust cache
+      fetchReddit();
+    });
+    renderRedditTags();
+  })();
 
   const REDDIT_FALLBACK = [
     { title: 'New Secret Lair drop announced for Spring 2026', sub: 'r/mtg', score: 842, comments: 156, url: 'https://reddit.com/r/mtg' },
@@ -3253,6 +3362,63 @@ onAuthStateChanged(auth, user => {
         + '</div>'
         + '</a>';
     }).join('');
+  }
+
+  async function fetchReddit() {
+    const redditEl = document.getElementById('reddit-feed');
+    const subs = getRedditSubs();
+    redditEl.innerHTML = '<span class="digest-loading">Loading reddit...</span>';
+    try {
+      const r = await fetch(REDDIT_PROXY_URL + '?subs=' + encodeURIComponent(subs.join(',')), {
+        signal: AbortSignal.timeout(10000)
+      });
+      if (!r.ok) throw new Error('Reddit proxy ' + r.status);
+      const posts = await r.json();
+      if (!posts.length) throw new Error('No posts returned');
+      redditEl.innerHTML = renderReddit(posts);
+      const statusLabel = 'Live · ' + subs.map(function(s) { return 'r/' + s; }).join(', ');
+      document.getElementById('reddit-status').textContent = statusLabel;
+      cacheSet('reddit', redditEl.innerHTML, statusLabel);
+    } catch(e) {
+      console.error('[Digest:reddit]', e.message);
+      try {
+        const allPosts = [];
+        for (const sub of subs) {
+          const r2 = await fetch('https://www.reddit.com/r/' + sub + '/hot.json?limit=4', {
+            headers: { 'User-Agent': 'FocusDashboard/1.0' },
+            signal: AbortSignal.timeout(6000)
+          });
+          if (r2.ok) {
+            const d = await r2.json();
+            (d.data?.children || []).forEach(function(c) {
+              const p = c.data;
+              if (p.stickied) return;
+              allPosts.push({
+                title: p.title,
+                sub: 'r/' + p.subreddit,
+                score: p.score,
+                comments: p.num_comments,
+                url: 'https://reddit.com' + p.permalink
+              });
+            });
+          }
+        }
+        if (allPosts.length > 0) {
+          allPosts.sort(function(a, b) { return b.score - a.score; });
+          redditEl.innerHTML = renderReddit(allPosts);
+          const statusLabel = 'Live · ' + subs.map(function(s) { return 'r/' + s; }).join(', ');
+          document.getElementById('reddit-status').textContent = statusLabel;
+          cacheSet('reddit', redditEl.innerHTML, statusLabel);
+        } else {
+          throw new Error('Direct fetch returned no posts');
+        }
+      } catch(e2) {
+        redditEl.innerHTML = renderReddit(REDDIT_FALLBACK);
+        const statusLabel = 'Cached · ' + subs.map(function(s) { return 'r/' + s; }).join(', ');
+        document.getElementById('reddit-status').textContent = statusLabel;
+        cacheSet('reddit', redditEl.innerHTML, statusLabel);
+      }
+    }
   }
 
 
@@ -3390,60 +3556,7 @@ onAuthStateChanged(auth, user => {
 
     // Reddit Feed
     if (!cachedReddit) {
-      redditEl.innerHTML = '<span class="digest-loading">Loading reddit...</span>';
-      try {
-        const subs = REDDIT_SUBS.join(',');
-        const r = await fetch(REDDIT_PROXY_URL + '?subs=' + encodeURIComponent(subs), {
-          signal: AbortSignal.timeout(10000)
-        });
-        if (!r.ok) throw new Error('Reddit proxy ' + r.status);
-        const posts = await r.json();
-        if (!posts.length) throw new Error('No posts returned');
-        redditEl.innerHTML = renderReddit(posts);
-        const statusLabel = 'Live · ' + REDDIT_SUBS.map(s => 'r/' + s).join(', ');
-        document.getElementById('reddit-status').textContent = statusLabel;
-        cacheSet('reddit', redditEl.innerHTML, statusLabel);
-      } catch(e) {
-        console.error('[Digest:reddit]', e.message);
-        // Fallback: try direct .json endpoints
-        try {
-          const allPosts = [];
-          for (const sub of REDDIT_SUBS) {
-            const r2 = await fetch('https://www.reddit.com/r/' + sub + '/hot.json?limit=4', {
-              headers: { 'User-Agent': 'FocusDashboard/1.0' },
-              signal: AbortSignal.timeout(6000)
-            });
-            if (r2.ok) {
-              const d = await r2.json();
-              (d.data?.children || []).forEach(function(c) {
-                const p = c.data;
-                if (p.stickied) return;
-                allPosts.push({
-                  title: p.title,
-                  sub: 'r/' + p.subreddit,
-                  score: p.score,
-                  comments: p.num_comments,
-                  url: 'https://reddit.com' + p.permalink
-                });
-              });
-            }
-          }
-          if (allPosts.length > 0) {
-            allPosts.sort((a, b) => b.score - a.score);
-            redditEl.innerHTML = renderReddit(allPosts);
-            const statusLabel = 'Live · ' + REDDIT_SUBS.map(s => 'r/' + s).join(', ');
-            document.getElementById('reddit-status').textContent = statusLabel;
-            cacheSet('reddit', redditEl.innerHTML, statusLabel);
-          } else {
-            throw new Error('Direct fetch returned no posts');
-          }
-        } catch(e2) {
-          redditEl.innerHTML = renderReddit(REDDIT_FALLBACK);
-          const statusLabel = 'Cached · ' + REDDIT_SUBS.map(s => 'r/' + s).join(', ');
-          document.getElementById('reddit-status').textContent = statusLabel;
-          cacheSet('reddit', redditEl.innerHTML, statusLabel);
-        }
-      }
+      await fetchReddit();
     }
 
     // Tech Deals (CheapShark + Slickdeals via proxy)
