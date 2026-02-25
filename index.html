@@ -1040,41 +1040,118 @@
   /* Stocks */
   .stock-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 0;
     flex: 1;
   }
 
-  .stock-item {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
+  /* Vertical divider: right border on left-column items */
+  .stock-row:nth-child(odd) {
+    padding-right: 24px;
+    border-right: 1px solid var(--border);
+  }
+  .stock-row:nth-child(even) {
+    padding-left: 24px;
   }
 
-  .stock-ticker {
-    font-size: 13px;
+  .stock-row {
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.12s;
+  }
+
+  .stock-row:hover {
+    background: var(--surface2);
+  }
+
+  /* Remove bottom border on last two items (bottom row of 2-col grid) */
+  .stock-row:nth-last-child(-n+2) { border-bottom: none; padding-bottom: 0; }
+  /* Remove top padding on first two items (top row of 2-col grid) */
+  .stock-row:nth-child(-n+2) { padding-top: 0; }
+
+  .stock-ticker-badge {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    padding: 3px 8px;
+    border-radius: 4px;
+    min-width: 42px;
+    text-align: center;
+    flex-shrink: 0;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .stock-ticker-badge.up {
+    background: color-mix(in srgb, var(--win-color) 15%, transparent);
+    color: var(--win-color);
+    border: 1px solid color-mix(in srgb, var(--win-color) 25%, transparent);
+  }
+  .stock-ticker-badge.down {
+    background: color-mix(in srgb, var(--loss-color) 15%, transparent);
+    color: var(--loss-color);
+    border: 1px solid color-mix(in srgb, var(--loss-color) 25%, transparent);
+  }
+  .stock-ticker-badge.flat {
+    background: color-mix(in srgb, var(--text-dim) 30%, transparent);
     color: var(--text-muted);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    border: 1px solid color-mix(in srgb, var(--text-dim) 40%, transparent);
+  }
+
+  .stock-name {
+    font-size: 12px;
+    color: var(--text);
+    margin-left: 14px;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .stock-price {
     font-family: 'DM Serif Display', serif;
-    font-size: 20px;
+    font-size: 16px;
     color: var(--text);
-    line-height: 1;
-    letter-spacing: -0.5px;
+    letter-spacing: -0.3px;
+    min-width: 80px;
+    text-align: right;
   }
 
-  .stock-change {
+  .stock-change-val {
+    font-size: 11px;
+    min-width: 70px;
+    text-align: right;
+    font-family: 'DM Mono', monospace;
+  }
+  .stock-change-val.up   { color: var(--win-color); }
+  .stock-change-val.down { color: var(--loss-color); }
+  .stock-change-val.flat { color: var(--text-dim); }
+
+  .stock-pct-badge {
     font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 6px;
+    min-width: 65px;
+    text-align: center;
+    margin-left: 16px;
+    font-family: 'DM Mono', monospace;
   }
-
-  .stock-change.up   { color: var(--win-color); }
-  .stock-change.down { color: var(--loss-color); }
-  .stock-change.flat { color: var(--text-dim); }
+  .stock-pct-badge.up {
+    background: color-mix(in srgb, var(--win-color) 12%, transparent);
+    color: var(--win-color);
+  }
+  .stock-pct-badge.down {
+    background: color-mix(in srgb, var(--loss-color) 12%, transparent);
+    color: var(--loss-color);
+  }
+  .stock-pct-badge.flat {
+    background: color-mix(in srgb, var(--text-dim) 25%, transparent);
+    color: var(--text-muted);
+  }
 
   /* MTG / Sorcery cards */
   .card-list {
@@ -1471,7 +1548,13 @@
   @media (max-width: 700px) {
     .digest-grid { grid-template-columns: 1fr; }
     .digest-card.full-width { grid-column: 1; }
-    .stock-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .stock-grid { grid-template-columns: 1fr; gap: 0; }
+    .stock-row:nth-child(odd) { padding-right: 0; border-right: none; }
+    .stock-row:nth-child(even) { padding-left: 0; }
+    .stock-name { display: none; }
+    .stock-price { min-width: 60px; font-size: 14px; margin-left: 12px; }
+    .stock-change-val { min-width: 50px; font-size: 10px; }
+    .stock-pct-badge { min-width: 55px; font-size: 9px; padding: 3px 6px; margin-left: 10px; }
   }
 
 
@@ -3440,17 +3523,30 @@ onAuthStateChanged(auth, user => {
           const dir = s.changePct > 0 ? 'up' : s.changePct < 0 ? 'down' : 'flat';
           const sign = s.changePct > 0 ? '+' : '';
           const price = parseFloat(s.price);
+          const change = parseFloat(s.change || (price - price / (1 + s.changePct / 100)));
           const isCrypto = ['BTC','ETH','SOL'].includes(s.label);
           const priceStr = s.label === 'BTC' ? '$' + Math.round(price).toLocaleString()
             : s.label === 'ETH' ? '$' + price.toLocaleString('en-US', {maximumFractionDigits:0})
             : s.label === 'SOL' ? '$' + price.toFixed(2)
             : price >= 1000 ? '$' + price.toLocaleString('en-US', {maximumFractionDigits:0})
             : '$' + price.toFixed(2);
-          return '<div class="stock-item">'
-            + '<span class="stock-ticker">' + s.label + '</span>'
+          const changeSign = change >= 0 ? '+' : '';
+          const changeStr = Math.abs(change) >= 1000
+            ? changeSign + '$' + Math.round(change).toLocaleString()
+            : Math.abs(change) >= 100
+            ? changeSign + '$' + change.toFixed(0)
+            : changeSign + '$' + change.toFixed(2);
+          const arrow = s.changePct > 0 ? '&#8593; ' : s.changePct < 0 ? '&#8595; ' : '';
+          const name = s.name || s.label;
+          const yahooTicker = s.ticker || s.label;
+          const yahooUrl = 'https://finance.yahoo.com/quote/' + encodeURIComponent(yahooTicker);
+          return '<a class="stock-row" href="' + yahooUrl + '" target="_blank" rel="noopener">'
+            + '<span class="stock-ticker-badge ' + dir + '">' + s.label + '</span>'
+            + '<span class="stock-name">' + name + '</span>'
             + '<span class="stock-price">' + priceStr + '</span>'
-            + '<span class="stock-change ' + dir + '">' + sign + parseFloat(s.changePct).toFixed(2) + '%</span>'
-            + '</div>';
+            + '<span class="stock-change-val ' + dir + '">' + changeStr + '</span>'
+            + '<span class="stock-pct-badge ' + dir + '">' + arrow + Math.abs(s.changePct).toFixed(2) + '%</span>'
+            + '</a>';
         }).join('');
 
         // Use the market time from the data if available, otherwise fall back to now
