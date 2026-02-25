@@ -1000,6 +1000,7 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 16px;
+    align-items: stretch;
   }
 
   .digest-card {
@@ -1007,7 +1008,8 @@
     border: 1px solid var(--border);
     border-radius: 10px;
     padding: 20px 24px;
-    overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
 
   .digest-card.full-width {
@@ -1040,6 +1042,7 @@
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 10px;
+    flex: 1;
   }
 
   .stock-item {
@@ -1078,6 +1081,7 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    flex: 1;
   }
 
   .card-row {
@@ -1122,6 +1126,7 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    flex: 1;
   }
 
   .sport-row {
@@ -1159,6 +1164,7 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
+    flex: 1;
   }
 
   .news-item {
@@ -1241,22 +1247,26 @@
   .reddit-sub-remove:hover { color: var(--color-rose-text); }
 
   .reddit-add-row {
-    padding: 6px 14px 8px 14px;
+    padding: 4px 14px 10px 14px;
   }
 
   .reddit-sub-input {
-    background: transparent;
-    border: none;
-    border-bottom: 1px solid var(--border);
+    background: var(--btn-bg);
+    border: 1px solid var(--btn-border);
+    border-radius: 6px;
     color: var(--text);
     font-family: 'DM Mono', monospace;
     font-size: 11px;
-    padding: 3px 0;
+    padding: 7px 10px;
     outline: none;
     width: 100%;
-    transition: border-color 0.15s;
+    box-sizing: border-box;
+    transition: border-color 0.15s, box-shadow 0.15s;
   }
-  .reddit-sub-input:focus { border-color: var(--btn-icon); }
+  .reddit-sub-input:focus {
+    border-color: var(--btn-icon);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--btn-icon) 15%, transparent);
+  }
   .reddit-sub-input::placeholder { color: var(--text-muted); }
 
   /* Fever Events */
@@ -1264,6 +1274,7 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    flex: 1;
   }
 
   .fever-item {
@@ -1324,6 +1335,7 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
+    flex: 1;
   }
 
   .sanderson-item {
@@ -1361,6 +1373,7 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    flex: 1;
   }
 
   .deal-item {
@@ -2047,13 +2060,17 @@ onAuthStateChanged(auth, user => {
       </div>
     </div>
 
-    <!-- FEVER LA EVENTS -->
+    <!-- REDDIT FEED -->
     <div class="digest-card">
       <div class="digest-card-header">
-        <span class="digest-card-title">LA Events</span>
-        <span class="digest-card-updated" id="fever-updated">via Fever</span>
+        <span class="digest-card-title">Reddit Feed</span>
+        <span class="digest-card-updated" id="reddit-status">Loading</span>
       </div>
-      <div class="fever-list" id="fever-list">
+      <div class="reddit-subs-row" id="reddit-subs-row"></div>
+      <div class="reddit-add-row">
+        <input type="text" id="reddit-sub-input" placeholder="+ Add a subreddit (e.g. finalfantasy)" class="reddit-sub-input">
+      </div>
+      <div class="news-list" id="reddit-feed">
         <span class="digest-loading">Loading...</span>
       </div>
     </div>
@@ -2080,17 +2097,13 @@ onAuthStateChanged(auth, user => {
       </div>
     </div>
 
-    <!-- REDDIT FEED -->
+    <!-- FEVER LA EVENTS -->
     <div class="digest-card">
       <div class="digest-card-header">
-        <span class="digest-card-title">Reddit Feed</span>
-        <span class="digest-card-updated" id="reddit-status">Loading</span>
+        <span class="digest-card-title">LA Events</span>
+        <span class="digest-card-updated" id="fever-updated">via Fever</span>
       </div>
-      <div class="reddit-subs-row" id="reddit-subs-row"></div>
-      <div class="reddit-add-row">
-        <input type="text" id="reddit-sub-input" placeholder="Add subreddit..." class="reddit-sub-input">
-      </div>
-      <div class="news-list" id="reddit-feed">
+      <div class="fever-list" id="fever-list">
         <span class="digest-loading">Loading...</span>
       </div>
     </div>
