@@ -3366,7 +3366,7 @@ onAuthStateChanged(auth, user => {
   }
 
   function renderReddit(posts) {
-    return posts.slice(0, 8).map(function(p) {
+    return posts.slice(0, 9).map(function(p) {
       return '<a class="news-item" href="' + p.url + '" target="_blank" rel="noopener">'
         + '<div class="news-headline">' + p.title + '</div>'
         + '<div class="reddit-meta">'
@@ -3394,43 +3394,11 @@ onAuthStateChanged(auth, user => {
       cacheSet('reddit', redditEl.innerHTML, statusLabel);
     } catch(e) {
       console.error('[Digest:reddit]', e.message);
-      try {
-        const allPosts = [];
-        for (const sub of subs) {
-          const r2 = await fetch('https://www.reddit.com/r/' + sub + '/hot.json?limit=4', {
-            headers: { 'User-Agent': 'FocusDashboard/1.0' },
-            signal: AbortSignal.timeout(6000)
-          });
-          if (r2.ok) {
-            const d = await r2.json();
-            (d.data?.children || []).forEach(function(c) {
-              const p = c.data;
-              if (p.stickied) return;
-              allPosts.push({
-                title: p.title,
-                sub: 'r/' + p.subreddit,
-                score: p.score,
-                comments: p.num_comments,
-                url: 'https://reddit.com' + p.permalink
-              });
-            });
-          }
-        }
-        if (allPosts.length > 0) {
-          allPosts.sort(function(a, b) { return b.score - a.score; });
-          redditEl.innerHTML = renderReddit(allPosts);
-          const statusLabel = 'Live · ' + subs.map(function(s) { return 'r/' + s; }).join(', ');
-          document.getElementById('reddit-status').textContent = statusLabel;
-          cacheSet('reddit', redditEl.innerHTML, statusLabel);
-        } else {
-          throw new Error('Direct fetch returned no posts');
-        }
-      } catch(e2) {
-        redditEl.innerHTML = renderReddit(REDDIT_FALLBACK);
-        const statusLabel = 'Cached · ' + subs.map(function(s) { return 'r/' + s; }).join(', ');
-        document.getElementById('reddit-status').textContent = statusLabel;
-        cacheSet('reddit', redditEl.innerHTML, statusLabel);
-      }
+      // Proxy failed — fall back to static data
+      redditEl.innerHTML = renderReddit(REDDIT_FALLBACK);
+      const statusLabel = 'Cached · ' + subs.map(function(s) { return 'r/' + s; }).join(', ');
+      document.getElementById('reddit-status').textContent = statusLabel;
+      cacheSet('reddit', redditEl.innerHTML, statusLabel);
     }
   }
 
