@@ -1927,10 +1927,22 @@
     .analytics-controls { flex-direction: column; align-items: flex-start; gap: 10px; }
     .zscore-layout { flex-direction: column; }
     .zscore-polar-col { flex: 0 0 auto; align-self: center; }
+    .stat-card-row { grid-template-columns: 1fr; }
   }
 
   /* ── STAT CARDS ─────────────────────────────────────────── */
   .stat-card { margin-top: 16px; }
+
+  .stat-card-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 16px;
+  }
+
+  .stat-card-row > .stat-card {
+    margin-top: 0;
+  }
 
   .stat-card-label {
     font-size: 9px;
@@ -2082,7 +2094,7 @@
     align-items: center;
   }
 
-  .zscore-bars { display: flex; flex-direction: column; gap: 8px; }
+  .zscore-bars { display: flex; flex-direction: column; gap: 10px; }
 
   .zscore-sig {
     font-size: 10px;
@@ -2124,8 +2136,8 @@
 
   .zscore-fill {
     position: absolute;
-    top: 4px;
-    bottom: 4px;
+    top: 3px;
+    bottom: 3px;
     border-radius: 3px;
     transition: width 0.5s ease;
   }
@@ -2137,8 +2149,8 @@
   .zscore-fill.glow-loss { box-shadow: 0 0 8px color-mix(in srgb, var(--loss-color) 30%, transparent); }
 
   .zscore-val {
-    font-size: 10px;
-    font-weight: 600;
+    font-size: 11px;
+    font-weight: 700;
     text-align: right;
   }
 
@@ -2463,49 +2475,52 @@ onAuthStateChanged(auth, user => {
     <div id="dow-insight" style="display:none; margin-top:14px; font-size:11px; color:var(--text-muted); letter-spacing:0.06em;"></div>
   </div>
 
-  <!-- CONSISTENCY SCORE -->
-  <div class="analytics-card stat-card">
-    <div class="stat-card-header">
-      <div>
-        <div class="stat-card-label">Consistency Score</div>
-        <div class="stat-big" id="cv-score">—</div>
-        <div class="stat-sub" id="cv-label">coefficient of variation</div>
+  <!-- CONSISTENCY + MOMENTUM (side by side) -->
+  <div class="stat-card-row">
+    <!-- CONSISTENCY SCORE -->
+    <div class="analytics-card stat-card">
+      <div class="stat-card-header">
+        <div>
+          <div class="stat-card-label">Consistency Score</div>
+          <div class="stat-big" id="cv-score">—</div>
+          <div class="stat-sub" id="cv-label">coefficient of variation</div>
+        </div>
+        <div class="stat-aside">
+          <div class="stat-aside-label">Daily avg</div>
+          <div class="stat-aside-val" id="cv-mean">—</div>
+          <div class="stat-aside-label">Std dev</div>
+          <div class="stat-aside-val" id="cv-std">—</div>
+        </div>
       </div>
-      <div class="stat-aside">
-        <div class="stat-aside-label">Daily avg</div>
-        <div class="stat-aside-val" id="cv-mean">—</div>
-        <div class="stat-aside-label">Std dev</div>
-        <div class="stat-aside-val" id="cv-std">—</div>
+      <div class="stat-bar-track" id="cv-bar-wrap">
+        <div class="stat-bar-fill" id="cv-bar"></div>
       </div>
+      <div class="stat-interpret" id="cv-interpret"></div>
     </div>
-    <div class="stat-bar-track" id="cv-bar-wrap">
-      <div class="stat-bar-fill" id="cv-bar"></div>
-    </div>
-    <div class="stat-interpret" id="cv-interpret"></div>
-  </div>
 
-  <!-- MOMENTUM INDEX -->
-  <div class="analytics-card stat-card">
-    <div class="stat-card-label">Momentum Index</div>
-    <div class="mom-row">
-      <div>
-        <div class="mom-avg-label">7-day avg</div>
-        <div class="mom-avg-val" id="mom-7">—</div>
+    <!-- MOMENTUM INDEX -->
+    <div class="analytics-card stat-card">
+      <div class="stat-card-label">Momentum Index</div>
+      <div class="mom-row">
+        <div>
+          <div class="mom-avg-label">7-day avg</div>
+          <div class="mom-avg-val" id="mom-7">—</div>
+        </div>
+        <div class="mom-vs">vs</div>
+        <div>
+          <div class="mom-avg-label">30-day avg</div>
+          <div class="mom-avg-val" id="mom-30">—</div>
+        </div>
+        <div class="mom-signal-wrap">
+          <div class="mom-signal-label">Signal</div>
+          <div class="mom-signal-val" id="mom-signal">—</div>
+        </div>
       </div>
-      <div class="mom-vs">vs</div>
-      <div>
-        <div class="mom-avg-label">30-day avg</div>
-        <div class="mom-avg-val" id="mom-30">—</div>
+      <div class="mom-canvas-wrap">
+        <canvas id="momentum-chart"></canvas>
       </div>
-      <div class="mom-signal-wrap">
-        <div class="mom-signal-label">Signal</div>
-        <div class="mom-signal-val" id="mom-signal">—</div>
-      </div>
+      <div class="stat-interpret" id="mom-interpret"></div>
     </div>
-    <div class="mom-canvas-wrap">
-      <canvas id="momentum-chart"></canvas>
-    </div>
-    <div class="stat-interpret" id="mom-interpret"></div>
   </div>
 
   <!-- DOW Z-SCORES -->
@@ -4998,7 +5013,7 @@ onAuthStateChanged(auth, user => {
       const isPos = z >= 0;
       const barColor = significant
         ? (isPos ? colorWin : colorLoss)
-        : (isLight ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.12)');
+        : (isLight ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.18)');
       const glowClass = significant ? (isPos ? ' glow-win' : ' glow-loss') : '';
       const dirClass = isPos ? 'pos' : 'neg';
       const zStr = (z >= 0 ? '+' : '') + z.toFixed(2) + 'σ' + (significant ? ' ✦' : '');
