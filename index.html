@@ -1925,6 +1925,8 @@
     .analytics-tiles { grid-template-columns: 1fr; }
     .tile-value { font-size: 40px; }
     .analytics-controls { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .zscore-layout { flex-direction: column; }
+    .zscore-polar-col { flex: 0 0 auto; align-self: center; }
   }
 
   /* ── STAT CARDS ─────────────────────────────────────────── */
@@ -2062,7 +2064,25 @@
     line-height: 1.5;
   }
 
-  .zscore-bars { display: flex; flex-direction: column; gap: 10px; }
+  .zscore-layout {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+  }
+
+  .zscore-bars-col {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .zscore-polar-col {
+    flex: 0 0 220px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .zscore-bars { display: flex; flex-direction: column; gap: 8px; }
 
   .zscore-sig {
     font-size: 10px;
@@ -2073,9 +2093,10 @@
     padding-top: 12px;
   }
 
+  /* Diverging bar rows */
   .zscore-row {
     display: grid;
-    grid-template-columns: 36px 1fr 52px 40px;
+    grid-template-columns: 36px 1fr 52px;
     align-items: center;
     gap: 10px;
   }
@@ -2087,17 +2108,33 @@
   }
 
   .zscore-track {
-    height: 6px;
-    background: var(--border);
-    border-radius: 3px;
-    overflow: hidden;
+    position: relative;
+    height: 20px;
+    background: transparent;
+  }
+
+  .zscore-center {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--text-dim);
   }
 
   .zscore-fill {
-    height: 100%;
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
     border-radius: 3px;
     transition: width 0.5s ease;
   }
+
+  .zscore-fill.pos { left: 50%; }
+  .zscore-fill.neg { right: 50%; }
+
+  .zscore-fill.glow-win { box-shadow: 0 0 8px color-mix(in srgb, var(--win-color) 30%, transparent); }
+  .zscore-fill.glow-loss { box-shadow: 0 0 8px color-mix(in srgb, var(--loss-color) 30%, transparent); }
 
   .zscore-val {
     font-size: 10px;
@@ -2105,10 +2142,26 @@
     text-align: right;
   }
 
-  .zscore-n {
+  /* Polar chart */
+  .polar-legend {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 8px;
+  }
+
+  .polar-legend-item {
     font-size: 9px;
-    color: var(--text-dim);
-    text-align: right;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .polar-legend-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
   }
 
 </style>
@@ -2458,8 +2511,16 @@ onAuthStateChanged(auth, user => {
   <!-- DOW Z-SCORES -->
   <div class="analytics-card stat-card">
     <div class="stat-card-label">Day-of-Week Z-Scores</div>
-    <div class="zscore-desc" id="zscore-header">Standard deviations above/below your daily mean — filters out volume noise</div>
-    <div class="zscore-bars" id="zscore-bars"></div>
+    <div class="zscore-desc" id="zscore-header">How each day compares to your average — bars extend left/right from center, radar shows your weekly shape</div>
+    <div class="zscore-layout">
+      <div class="zscore-bars-col">
+        <div class="zscore-bars" id="zscore-bars"></div>
+      </div>
+      <div class="zscore-polar-col">
+        <svg id="zscore-polar" width="220" height="220" viewBox="0 0 220 220"></svg>
+        <div class="polar-legend" id="polar-legend"></div>
+      </div>
+    </div>
     <div class="zscore-sig" id="zscore-sig"></div>
   </div>
 
@@ -4928,26 +4989,97 @@ onAuthStateChanged(auth, user => {
     // ── DOW Z-SCORES ─────────────────────────────────────────
     const zScores = calcDowZScores(dailyCounts);
     const maxZ = Math.max(...zScores.map(d => Math.abs(d.z)), 0.1);
+
+    // ── Diverging bars ──
     const container = document.getElementById('zscore-bars');
     container.innerHTML = '';
     zScores.forEach(({ name, z, n, significant }) => {
-      const pct = Math.abs(z) / maxZ * 100;
+      const pct = (Math.abs(z) / maxZ * 50);
       const isPos = z >= 0;
       const barColor = significant
         ? (isPos ? colorWin : colorLoss)
         : (isLight ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.12)');
-      const zStr = (z >= 0 ? '+' : '') + z.toFixed(2) + 'σ';
+      const glowClass = significant ? (isPos ? ' glow-win' : ' glow-loss') : '';
+      const dirClass = isPos ? 'pos' : 'neg';
+      const zStr = (z >= 0 ? '+' : '') + z.toFixed(2) + 'σ' + (significant ? ' ✦' : '');
       const row = document.createElement('div');
       row.className = 'zscore-row';
       row.innerHTML = `
         <span class="zscore-day">${name}</span>
         <div class="zscore-track">
-          <div class="zscore-fill" style="width:${pct}%; background:${barColor};"></div>
+          <div class="zscore-center"></div>
+          <div class="zscore-fill ${dirClass}${glowClass}" style="width:${pct}%; background:${barColor};"></div>
         </div>
-        <span class="zscore-val" style="color:${significant ? barColor : colorDim};">${zStr}</span>
-        <span class="zscore-n">${n}d${significant ? ' ✦' : ''}</span>`;
+        <span class="zscore-val" style="color:${significant ? barColor : colorDim};">${zStr}</span>`;
       container.appendChild(row);
     });
+
+    // ── Polar / Radar chart ──
+    const svg = document.getElementById('zscore-polar');
+    const cx = 110, cy = 110, maxR = 90, zeroR = 45;
+    const borderColor = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
+    const dimColor = getComputedStyle(document.documentElement).getPropertyValue('--text-dim').trim();
+    const mutedColor = getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim();
+
+    // Build SVG content
+    let svgHTML = '';
+    // Grid circles
+    [90, 60, 30].forEach(r => {
+      svgHTML += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${borderColor}" stroke-width="0.5"/>`;
+    });
+    // Zero line (dashed)
+    svgHTML += `<circle cx="${cx}" cy="${cy}" r="${zeroR}" fill="none" stroke="${dimColor}" stroke-width="1" stroke-dasharray="3,3"/>`;
+
+    // Calculate points
+    const angleStep = (2 * Math.PI) / 7;
+    const angleOffset = -Math.PI / 2; // start from top
+    const points = zScores.map((d, i) => {
+      const angle = angleOffset + i * angleStep;
+      const r = Math.max(4, Math.min(maxR, zeroR + (d.z / maxZ) * (maxR - zeroR)));
+      return {
+        x: cx + r * Math.cos(angle),
+        y: cy + r * Math.sin(angle),
+        labelX: cx + (maxR + 16) * Math.cos(angle),
+        labelY: cy + (maxR + 16) * Math.sin(angle),
+        ...d
+      };
+    });
+
+    // Spokes
+    points.forEach(p => {
+      svgHTML += `<line x1="${cx}" y1="${cy}" x2="${p.labelX}" y2="${p.labelY}" stroke="${borderColor}" stroke-width="0.5"/>`;
+    });
+
+    // Data polygon
+    const polyPoints = points.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+    svgHTML += `<polygon points="${polyPoints}" fill="color-mix(in srgb, ${colorWin} 8%, transparent)" stroke="${colorWin}" stroke-width="1.5" stroke-linejoin="round"/>`;
+
+    // Data dots + labels
+    points.forEach(p => {
+      const dotColor = p.significant ? (p.z >= 0 ? colorWin : colorLoss) : dimColor;
+      const dotR = p.significant ? 5 : 3;
+      svgHTML += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${dotR}" fill="${dotColor}"/>`;
+      if (p.significant) {
+        svgHTML += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${dotR + 2}" fill="none" stroke="${dotColor}" stroke-width="1" opacity="0.4"/>`;
+      }
+      // Day label
+      const anchor = p.labelX < cx - 10 ? 'end' : p.labelX > cx + 10 ? 'start' : 'middle';
+      svgHTML += `<text x="${p.labelX.toFixed(1)}" y="${(p.labelY + 3).toFixed(1)}" text-anchor="${anchor}" fill="${mutedColor}" font-size="9" font-family="DM Mono, monospace">${p.name}</text>`;
+    });
+
+    // Center label
+    svgHTML += `<text x="${cx}" y="${cy + 3}" text-anchor="middle" fill="${dimColor}" font-size="8" font-family="DM Mono, monospace">avg</text>`;
+
+    svg.innerHTML = svgHTML;
+
+    // Polar legend
+    const legendEl = document.getElementById('polar-legend');
+    legendEl.innerHTML = `
+      <span class="polar-legend-item"><span class="polar-legend-dot" style="background:${colorWin};"></span> Above avg</span>
+      <span class="polar-legend-item"><span class="polar-legend-dot" style="background:${colorLoss};"></span> Below avg</span>
+      <span class="polar-legend-item"><span class="polar-legend-dot" style="background:${dimColor};"></span> Not sig.</span>`;
+
+    // Significance note
     const sigDays = zScores.filter(d => d.significant);
     const sigEl2 = document.getElementById('zscore-sig');
     if (sigDays.length > 0) {
