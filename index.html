@@ -284,23 +284,25 @@
   }
 
   .add-row {
-    display: grid;
-    grid-template-columns: 1fr auto auto auto;
+    display: flex;
+    align-items: center;
     gap: 8px;
     padding: 12px 16px;
     border-bottom: 1px solid var(--border);
     background: var(--bg);
-    align-items: center;
   }
 
   .add-row input[type="text"] {
+    flex: 1;
+    min-width: 0;
     background: var(--surface2);
     border: 1px solid var(--border);
     border-radius: 5px;
     color: var(--text);
     font-family: 'DM Mono', monospace;
     font-size: 12px;
-    padding: 7px 10px;
+    padding: 0 10px;
+    height: 32px;
     outline: none;
     transition: border-color 0.15s;
   }
@@ -316,7 +318,8 @@
     color: var(--text-muted);
     font-family: 'DM Mono', monospace;
     font-size: 11px;
-    padding: 7px 8px;
+    padding: 0 8px;
+    height: 32px;
     outline: none;
     cursor: pointer;
     width: 130px;
@@ -330,7 +333,12 @@
     color: var(--text-muted);
     cursor: pointer;
     font-size: 16px;
-    padding: 5px 10px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     transition: all 0.15s;
     line-height: 1;
   }
@@ -346,8 +354,9 @@
     border-radius: 5px;
     color: var(--text-muted);
     cursor: pointer;
-    font-size: 14px;
-    padding: 5px 8px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
     transition: all 0.15s;
     line-height: 1;
     display: flex;
