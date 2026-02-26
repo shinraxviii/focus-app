@@ -2247,6 +2247,15 @@ window._fbSaveLog = async (log) => {
   if (!currentUser) return;
   await setDoc(doc(db, 'users', currentUser.uid, 'data', 'log'), { log: JSON.stringify(log) });
 };
+window._fbSavePrefs = async (prefs) => {
+  if (!currentUser) return;
+  await setDoc(doc(db, 'users', currentUser.uid, 'data', 'prefs'), { prefs: JSON.stringify(prefs) });
+};
+window._fbLoadPrefs = async () => {
+  if (!currentUser) return null;
+  const snap = await getDoc(doc(db, 'users', currentUser.uid, 'data', 'prefs'));
+  return snap.exists() ? JSON.parse(snap.data().prefs) : null;
+};
 window._fbLoadTasks = async () => {
   if (!currentUser) return null;
   const snap = await getDoc(doc(db, 'users', currentUser.uid, 'data', 'tasks'));
@@ -2663,6 +2672,8 @@ onAuthStateChanged(auth, user => {
     const greetEl = document.getElementById('greeting');
     if (greetEl) greetEl.textContent = 'Good ' + timeOfDay + ', ' + name.charAt(0).toUpperCase() + name.slice(1);
     await loadFromCloud();
+    await loadPrefsFromCloud();
+    renderRedditTags(); // refresh tags after cloud prefs loaded
     loadDigest(); // preload digest data in background
   };
 
@@ -3690,6 +3701,24 @@ onAuthStateChanged(auth, user => {
   }
   function saveRedditSubs(subs) {
     localStorage.setItem('focus-digest-reddit-subs', JSON.stringify(subs));
+    // Sync to Firebase
+    savePrefsToCloud();
+  }
+
+  async function savePrefsToCloud() {
+    try {
+      const prefs = { redditSubs: getRedditSubs() };
+      await window._fbSavePrefs(prefs);
+    } catch(e) { /* silent fail, localStorage is the fallback */ }
+  }
+
+  async function loadPrefsFromCloud() {
+    try {
+      const prefs = await window._fbLoadPrefs();
+      if (prefs && prefs.redditSubs && prefs.redditSubs.length) {
+        localStorage.setItem('focus-digest-reddit-subs', JSON.stringify(prefs.redditSubs));
+      }
+    } catch(e) { /* silent fail */ }
   }
 
   function renderRedditTags() {
