@@ -1354,10 +1354,20 @@
     letter-spacing: 0.02em;
   }
 
-  .reddit-score {
+  .reddit-time {
     font-size: 9px;
     color: var(--text-muted);
     letter-spacing: 0.02em;
+  }
+
+  .reddit-new {
+    font-size: 8px;
+    color: #2ed573;
+    background: rgba(46,213,115,0.12);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
   }
 
   .reddit-subs-row {
@@ -3725,29 +3735,38 @@ onAuthStateChanged(auth, user => {
   })();
 
   const REDDIT_FALLBACK = [
-    { title: 'New Secret Lair drop announced for Spring 2026', sub: 'r/mtg', score: 842, comments: 156, url: 'https://reddit.com/r/mtg' },
-    { title: 'Wind and Truth: Chapter 15 reaction thread (spoilers)', sub: 'r/cosmere', score: 1203, comments: 312, url: 'https://reddit.com/r/cosmere' },
-    { title: 'Atlas box opening - pulled a Legendary first pack', sub: 'r/SorceryTCG', score: 127, comments: 34, url: 'https://reddit.com/r/SorceryTCG' },
-    { title: 'What is the most underrated commander in current meta?', sub: 'r/mtg', score: 534, comments: 289, url: 'https://reddit.com/r/mtg' },
-    { title: 'Sanderson confirms Stormlight 6 outline is done', sub: 'r/cosmere', score: 2100, comments: 445, url: 'https://reddit.com/r/cosmere' },
-    { title: 'Best starter deck for new Sorcery players?', sub: 'r/SorceryTCG', score: 89, comments: 42, url: 'https://reddit.com/r/SorceryTCG' },
-    { title: 'Duskmourn draft guide: top commons and uncommons tier list', sub: 'r/mtg', score: 678, comments: 203, url: 'https://reddit.com/r/mtg' },
-    { title: 'Mistborn Era 3 speculation megathread', sub: 'r/cosmere', score: 956, comments: 387, url: 'https://reddit.com/r/cosmere' },
-    { title: 'Just discovered Sorcery TCG coming from MTG - first impressions', sub: 'r/SorceryTCG', score: 215, comments: 78, url: 'https://reddit.com/r/SorceryTCG' },
+    { title: 'New Secret Lair drop announced for Spring 2026', sub: 'r/mtg', time: Date.now() - 3*3600000, url: 'https://reddit.com/r/mtg' },
+    { title: 'Wind and Truth: Chapter 15 reaction thread (spoilers)', sub: 'r/cosmere', time: Date.now() - 5*3600000, url: 'https://reddit.com/r/cosmere' },
+    { title: 'Atlas box opening - pulled a Legendary first pack', sub: 'r/SorceryTCG', time: Date.now() - 1*3600000, url: 'https://reddit.com/r/SorceryTCG' },
+    { title: 'What is the most underrated commander in current meta?', sub: 'r/mtg', time: Date.now() - 8*3600000, url: 'https://reddit.com/r/mtg' },
+    { title: 'Sanderson confirms Stormlight 6 outline is done', sub: 'r/cosmere', time: Date.now() - 12*3600000, url: 'https://reddit.com/r/cosmere' },
+    { title: 'Best starter deck for new Sorcery players?', sub: 'r/SorceryTCG', time: Date.now() - 2*3600000, url: 'https://reddit.com/r/SorceryTCG' },
+    { title: 'Duskmourn draft guide: top commons and uncommons tier list', sub: 'r/mtg', time: Date.now() - 6*3600000, url: 'https://reddit.com/r/mtg' },
+    { title: 'Mistborn Era 3 speculation megathread', sub: 'r/cosmere', time: Date.now() - 10*3600000, url: 'https://reddit.com/r/cosmere' },
+    { title: 'Just discovered Sorcery TCG coming from MTG - first impressions', sub: 'r/SorceryTCG', time: Date.now() - 4*3600000, url: 'https://reddit.com/r/SorceryTCG' },
   ];
 
-  function formatScore(n) {
-    if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
-    return String(n);
+  function timeAgo(ts) {
+    if (!ts) return '';
+    const diff = Date.now() - ts;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return mins + 'm ago';
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return hrs + 'h ago';
+    const days = Math.floor(hrs / 24);
+    return days + 'd ago';
   }
 
   function renderReddit(posts) {
     return posts.slice(0, 9).map(function(p) {
+      var ago = timeAgo(p.time);
+      var isNew = p.time && (Date.now() - p.time) < 2 * 3600000; // under 2 hours
       return '<a class="news-item" href="' + p.url + '" target="_blank" rel="noopener">'
         + '<div class="news-headline">' + p.title + '</div>'
         + '<div class="reddit-meta">'
         +   '<span class="reddit-sub">' + p.sub + '</span>'
-        +   '<span class="reddit-score">' + formatScore(p.score) + ' pts · ' + p.comments + ' comments</span>'
+        +   (ago ? '<span class="reddit-time">' + ago + '</span>' : '')
+        +   (isNew ? '<span class="reddit-new">NEW</span>' : '')
         + '</div>'
         + '</a>';
     }).join('');
@@ -3786,7 +3805,7 @@ onAuthStateChanged(auth, user => {
 
     // Load cached versions immediately (fresh or stale)
     const cachedStocks   = cacheGet('stocks',      60 * 60 * 1000);       // 1hr
-    const cachedReddit   = cacheGet('reddit',      24 * 60 * 60 * 1000);  // 24hrs (daily snapshot)
+    const cachedReddit   = cacheGet('reddit',      3 * 60 * 60 * 1000);   // 3hrs
     const cachedDeals    = cacheGet('deals',        4 * 60 * 60 * 1000);  // 4hrs
     if (cachedStocks) {
       stocksEl.innerHTML = cachedStocks.data;
