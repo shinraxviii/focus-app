@@ -30,23 +30,19 @@
     --btn-icon: #8e8e96;
 
     --color-none:    transparent;
-    --color-rose:    #7a4a50;
-    --color-amber:   #7a6440;
-    --color-sage:    #3d6652;
-    --color-slate:   #3d5060;
-    --color-lavender:#5a4d72;
-    --color-sand:    #6b5f4a;
+    --color-flame:   #ff4757;
+    --color-solar:   #ffa502;
+    --color-neon:    #2ed573;
+    --color-electric:#1e90ff;
+    --color-plasma:  #c56cf0;
+    --color-cyber:   #00d2d3;
 
     --win-color:  #7fb89a;
     --loss-color: #c9949a;
     --live-color: #f59e0b;
 
-    --color-rose-text:    #c9949a;
-    --color-amber-text:   #c9a96e;
-    --color-sage-text:    #7fb89a;
-    --color-slate-text:   #7aaabb;
-    --color-lavender-text:#a896cc;
-    --color-sand-text:    #b8a880;
+    --danger:      #ff4757;
+    --danger-text: #ff6b7a;
   }
 
   /* ── LIGHT MODE ─────────────────────────────────────────── */
@@ -65,19 +61,15 @@
     --btn-border: #b4b4bc;
     --btn-icon: #52525b;
 
-    --color-rose:    #f3d0d3;
-    --color-amber:   #fde9c7;
-    --color-sage:    #c7e8d8;
-    --color-slate:   #c7dce8;
-    --color-lavender:#ddd6f0;
-    --color-sand:    #e8dfc7;
+    --color-flame:   #ff4757;
+    --color-solar:   #ffa502;
+    --color-neon:    #2ed573;
+    --color-electric:#1e90ff;
+    --color-plasma:  #c56cf0;
+    --color-cyber:   #00d2d3;
 
-    --color-rose-text:    #9f3a44;
-    --color-amber-text:   #92620a;
-    --color-sage-text:    #1f7a50;
-    --color-slate-text:   #1a6080;
-    --color-lavender-text:#5a3d9a;
-    --color-sand-text:    #7a5c20;
+    --danger:      #e63946;
+    --danger-text: #c92a37;
   }
 
   html.light body {
@@ -134,19 +126,15 @@
     --loss-color: #e07a7a;
     --live-color: #f59e0b;
 
-    --color-rose:    #3a1a2a;
-    --color-amber:   #3a2a10;
-    --color-sage:    #0e2e22;
-    --color-slate:   #0e2038;
-    --color-lavender:#1e1540;
-    --color-sand:    #2a2010;
+    --color-flame:   #ff4757;
+    --color-solar:   #ffa502;
+    --color-neon:    #2ed573;
+    --color-electric:#1e90ff;
+    --color-plasma:  #c56cf0;
+    --color-cyber:   #00d2d3;
 
-    --color-rose-text:    #e07a7a;
-    --color-amber-text:   #c9a96e;
-    --color-sage-text:    #4a9edd;
-    --color-slate-text:   #7ec8f0;
-    --color-lavender-text:#a896cc;
-    --color-sand-text:    #b8a880;
+    --danger:      #ff4757;
+    --danger-text: #ff6b7a;
   }
 
   html.navy body { background: var(--bg); color: var(--text); }
@@ -440,42 +428,42 @@
 
   /* Due date indicators — left accent bar */
   .task-item[data-due="today"] {
-    border-left: 3px solid var(--color-amber);
+    border-left: 3px solid #ffa502;
     padding-left: 8px;
   }
   .task-item[data-due="overdue"] {
-    border-left: 3px solid var(--color-rose);
+    border-left: 3px solid var(--danger);
     padding-left: 8px;
   }
   .task-date.today {
-    color: var(--color-amber-text);
+    color: #ffa502;
     font-weight: 500;
-    background: var(--color-amber);
+    background: rgba(255,165,2,0.15);
     border-radius: 4px;
     padding: 2px 5px;
   }
   .task-date.overdue {
-    color: var(--color-rose-text);
+    color: var(--danger-text);
     font-weight: 500;
-    background: var(--color-rose);
+    background: var(--danger);
     border-radius: 4px;
     padding: 2px 5px;
   }
 
   /* Color tints */
-  .task-item[data-color="rose"]     { background: rgba(122,74,80,0.18); border-color: rgba(122,74,80,0.3); }
-  .task-item[data-color="amber"]    { background: rgba(122,100,64,0.18); border-color: rgba(122,100,64,0.3); }
-  .task-item[data-color="sage"]     { background: rgba(61,102,82,0.18); border-color: rgba(61,102,82,0.3); }
-  .task-item[data-color="slate"]    { background: rgba(61,80,96,0.18); border-color: rgba(61,80,96,0.3); }
-  .task-item[data-color="lavender"] { background: rgba(90,77,114,0.18); border-color: rgba(90,77,114,0.3); }
-  .task-item[data-color="sand"]     { background: rgba(107,95,74,0.18); border-color: rgba(107,95,74,0.3); }
+  .task-item[data-color="flame"]    { background: rgba(255,71,87,0.10); border-color: rgba(255,71,87,0.30); box-shadow: 0 0 8px rgba(255,71,87,0.08); }
+  .task-item[data-color="solar"]    { background: rgba(255,165,2,0.10); border-color: rgba(255,165,2,0.30); box-shadow: 0 0 8px rgba(255,165,2,0.08); }
+  .task-item[data-color="neon"]     { background: rgba(46,213,115,0.10); border-color: rgba(46,213,115,0.30); box-shadow: 0 0 8px rgba(46,213,115,0.08); }
+  .task-item[data-color="electric"] { background: rgba(30,144,255,0.10); border-color: rgba(30,144,255,0.30); box-shadow: 0 0 8px rgba(30,144,255,0.08); }
+  .task-item[data-color="plasma"]   { background: rgba(197,108,240,0.10); border-color: rgba(197,108,240,0.30); box-shadow: 0 0 8px rgba(197,108,240,0.08); }
+  .task-item[data-color="cyber"]    { background: rgba(0,210,211,0.10); border-color: rgba(0,210,211,0.30); box-shadow: 0 0 8px rgba(0,210,211,0.08); }
 
-  .task-item[data-color="rose"]:hover     { background: rgba(122,74,80,0.28); }
-  .task-item[data-color="amber"]:hover    { background: rgba(122,100,64,0.28); }
-  .task-item[data-color="sage"]:hover     { background: rgba(61,102,82,0.28); }
-  .task-item[data-color="slate"]:hover    { background: rgba(61,80,96,0.28); }
-  .task-item[data-color="lavender"]:hover { background: rgba(90,77,114,0.28); }
-  .task-item[data-color="sand"]:hover     { background: rgba(107,95,74,0.28); }
+  .task-item[data-color="flame"]:hover    { background: rgba(255,71,87,0.18); }
+  .task-item[data-color="solar"]:hover    { background: rgba(255,165,2,0.18); }
+  .task-item[data-color="neon"]:hover     { background: rgba(46,213,115,0.18); }
+  .task-item[data-color="electric"]:hover { background: rgba(30,144,255,0.18); }
+  .task-item[data-color="plasma"]:hover   { background: rgba(197,108,240,0.18); }
+  .task-item[data-color="cyber"]:hover    { background: rgba(0,210,211,0.18); }
 
   .task-checkbox {
     width: 15px;
@@ -796,19 +784,19 @@
   .task-item:hover .color-trigger { opacity: 1; }
   .color-trigger:hover { background: var(--border); color: var(--text); }
 
-  .color-trigger[data-tint="rose"]     { background: rgba(122,74,80,0.2); border-color: rgba(122,74,80,0.35); opacity:1; }
-  .color-trigger[data-tint="amber"]    { background: rgba(122,100,64,0.2); border-color: rgba(122,100,64,0.35); opacity:1; }
-  .color-trigger[data-tint="sage"]     { background: rgba(61,102,82,0.2); border-color: rgba(61,102,82,0.35); opacity:1; }
-  .color-trigger[data-tint="slate"]    { background: rgba(61,80,96,0.2); border-color: rgba(61,80,96,0.35); opacity:1; }
-  .color-trigger[data-tint="lavender"] { background: rgba(90,77,114,0.2); border-color: rgba(90,77,114,0.35); opacity:1; }
-  .color-trigger[data-tint="sand"]     { background: rgba(107,95,74,0.2); border-color: rgba(107,95,74,0.35); opacity:1; }
+  .color-trigger[data-tint="flame"]    { background: rgba(255,71,87,0.15); border-color: rgba(255,71,87,0.35); opacity:1; }
+  .color-trigger[data-tint="solar"]    { background: rgba(255,165,2,0.15); border-color: rgba(255,165,2,0.35); opacity:1; }
+  .color-trigger[data-tint="neon"]     { background: rgba(46,213,115,0.15); border-color: rgba(46,213,115,0.35); opacity:1; }
+  .color-trigger[data-tint="electric"] { background: rgba(30,144,255,0.15); border-color: rgba(30,144,255,0.35); opacity:1; }
+  .color-trigger[data-tint="plasma"]   { background: rgba(197,108,240,0.15); border-color: rgba(197,108,240,0.35); opacity:1; }
+  .color-trigger[data-tint="cyber"]    { background: rgba(0,210,211,0.15); border-color: rgba(0,210,211,0.35); opacity:1; }
 
-  .color-trigger[data-tint="rose"]::after     { background: var(--color-rose); }
-  .color-trigger[data-tint="amber"]::after    { background: var(--color-amber); }
-  .color-trigger[data-tint="sage"]::after     { background: var(--color-sage); }
-  .color-trigger[data-tint="slate"]::after    { background: var(--color-slate); }
-  .color-trigger[data-tint="lavender"]::after { background: var(--color-lavender); }
-  .color-trigger[data-tint="sand"]::after     { background: var(--color-sand); }
+  .color-trigger[data-tint="flame"]::after    { background: #ff4757; }
+  .color-trigger[data-tint="solar"]::after    { background: #ffa502; }
+  .color-trigger[data-tint="neon"]::after     { background: #2ed573; }
+  .color-trigger[data-tint="electric"]::after { background: #1e90ff; }
+  .color-trigger[data-tint="plasma"]::after   { background: #c56cf0; }
+  .color-trigger[data-tint="cyber"]::after    { background: #00d2d3; }
 
   /* Color popover */
   .color-popover {
@@ -846,12 +834,12 @@
   .color-dot.active { border-color: rgba(255,255,255,0.5); }
 
   .color-dot[data-c="none"]     { background: var(--border); }
-  .color-dot[data-c="rose"]     { background: #e6253a; }
-  .color-dot[data-c="amber"]    { background: #f59e0b; }
-  .color-dot[data-c="sage"]     { background: #10b981; }
-  .color-dot[data-c="slate"]    { background: #3b82f6; }
-  .color-dot[data-c="lavender"] { background: #8b5cf6; }
-  .color-dot[data-c="sand"]     { background: #d4a017; }
+  .color-dot[data-c="flame"]    { background: #ff4757; }
+  .color-dot[data-c="solar"]    { background: #ffa502; }
+  .color-dot[data-c="neon"]     { background: #2ed573; }
+  .color-dot[data-c="electric"] { background: #1e90ff; }
+  .color-dot[data-c="plasma"]   { background: #c56cf0; }
+  .color-dot[data-c="cyber"]    { background: #00d2d3; }
 
   .task-delete {
     background: var(--btn-bg);
@@ -875,7 +863,7 @@
     opacity: 1;
   }
 
-  .task-delete:hover { background: rgba(122,74,80,0.2); border-color: rgba(122,74,80,0.3); color: var(--color-rose-text); }
+  .task-delete:hover { background: rgba(255,71,87,0.15); border-color: rgba(255,71,87,0.25); color: var(--danger-text); }
 
   /* Completed section */
   #section-completed .task-text { text-decoration: line-through; color: var(--text-dim); }
@@ -1135,29 +1123,27 @@
   .stock-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 0 0;
+    gap: 2px 0;
     flex: 1;
   }
 
   .stock-row {
     display: flex;
     align-items: center;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--border);
+    padding: 8px 0;
   }
 
-  /* Vertical divider: right border on left-column items */
+  /* Desktop: vertical divider on left-column items */
   .stock-row:nth-child(odd) {
     padding-right: 24px;
-    border-right: 1px solid var(--border);
   }
   .stock-row:nth-child(even) {
     padding-left: 24px;
   }
 
-  /* Remove top padding on first row, bottom border on last row */
+  /* Remove extra padding on first/last rows */
   .stock-row:nth-child(-n+2) { padding-top: 0; }
-  .stock-row:nth-last-child(-n+2) { border-bottom: none; padding-bottom: 0; }
+  .stock-row:nth-last-child(-n+2) { padding-bottom: 0; }
 
   .stock-ticker-badge {
     font-size: 10px;
@@ -1405,7 +1391,7 @@
     line-height: 1;
     transition: color 0.1s;
   }
-  .reddit-sub-remove:hover { color: var(--color-rose-text); }
+  .reddit-sub-remove:hover { color: var(--danger-text); }
 
   .reddit-add-row {
     padding: 4px 14px 10px 14px;
@@ -1483,14 +1469,14 @@
 
   .fever-price {
     font-size: 9px;
-    color: var(--color-sage-text);
+    color: #2ed573;
     letter-spacing: 0.04em;
     font-weight: 500;
   }
 
   .fever-rating {
     font-size: 9px;
-    color: var(--color-amber-text);
+    color: #ffa502;
     letter-spacing: 0.02em;
   }
 
@@ -1522,7 +1508,7 @@
 
   .sanderson-bar {
     height: 100%;
-    background: var(--color-slate-text);
+    background: #1e90ff;
     border-radius: 2px;
     transition: width 0.4s ease;
   }
@@ -1585,7 +1571,7 @@
 
   .deal-price {
     font-size: 10px;
-    color: var(--color-sage-text);
+    color: #2ed573;
     font-weight: 500;
     letter-spacing: 0.02em;
   }
@@ -1598,7 +1584,7 @@
 
   .deal-savings {
     font-size: 9px;
-    color: var(--color-amber-text);
+    color: #ffa502;
     font-weight: 500;
     letter-spacing: 0.02em;
   }
@@ -1643,7 +1629,7 @@
     transition: color 0.15s;
     display: none;
   }
-  .clear-completed-btn:hover { color: var(--color-rose-text); }
+  .clear-completed-btn:hover { color: var(--danger-text); }
 
   /* Sports render classes */
   .sport-result-group {
@@ -1717,7 +1703,7 @@
     .digest-grid { grid-template-columns: 1fr; }
     .digest-card.full-width { grid-column: 1; }
     .stock-grid { grid-template-columns: 1fr; gap: 0; }
-    .stock-row:nth-child(odd) { padding-right: 0; border-right: none; }
+    .stock-row:nth-child(odd) { padding-right: 0; }
     .stock-row:nth-child(even) { padding-left: 0; }
     .stock-name { display: none; }
     .stock-price { min-width: 60px; font-size: 14px; margin-left: 12px; }
@@ -1795,7 +1781,7 @@
 
   .login-error {
     font-size: 11px;
-    color: var(--color-rose-text);
+    color: var(--danger-text);
     text-align: center;
     min-height: 16px;
     letter-spacing: 0.04em;
@@ -1983,17 +1969,6 @@
 
   /* ── STAT CARDS ─────────────────────────────────────────── */
   .stat-card { margin-top: 16px; }
-
-  .stat-card-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-top: 16px;
-  }
-
-  .stat-card-row > .stat-card {
-    margin-top: 0;
-  }
 
   .stat-card-label {
     font-size: 9px;
@@ -2528,52 +2503,49 @@ onAuthStateChanged(auth, user => {
     <div id="dow-insight" style="display:none; margin-top:14px; font-size:11px; color:var(--text-muted); letter-spacing:0.06em;"></div>
   </div>
 
-  <!-- CONSISTENCY + MOMENTUM (side by side) -->
-  <div class="stat-card-row">
-    <!-- CONSISTENCY SCORE -->
-    <div class="analytics-card stat-card">
-      <div class="stat-card-header">
-        <div>
-          <div class="stat-card-label">Consistency Score</div>
-          <div class="stat-big" id="cv-score">—</div>
-          <div class="stat-sub" id="cv-label">coefficient of variation</div>
-        </div>
-        <div class="stat-aside">
-          <div class="stat-aside-label">Daily avg</div>
-          <div class="stat-aside-val" id="cv-mean">—</div>
-          <div class="stat-aside-label">Std dev</div>
-          <div class="stat-aside-val" id="cv-std">—</div>
-        </div>
+  <!-- CONSISTENCY SCORE -->
+  <div class="analytics-card stat-card">
+    <div class="stat-card-header">
+      <div>
+        <div class="stat-card-label">Consistency Score</div>
+        <div class="stat-big" id="cv-score">—</div>
+        <div class="stat-sub" id="cv-label">coefficient of variation</div>
       </div>
-      <div class="stat-bar-track" id="cv-bar-wrap">
-        <div class="stat-bar-fill" id="cv-bar"></div>
+      <div class="stat-aside">
+        <div class="stat-aside-label">Daily avg</div>
+        <div class="stat-aside-val" id="cv-mean">—</div>
+        <div class="stat-aside-label">Std dev</div>
+        <div class="stat-aside-val" id="cv-std">—</div>
       </div>
-      <div class="stat-interpret" id="cv-interpret"></div>
     </div>
+    <div class="stat-bar-track" id="cv-bar-wrap">
+      <div class="stat-bar-fill" id="cv-bar"></div>
+    </div>
+    <div class="stat-interpret" id="cv-interpret"></div>
+  </div>
 
-    <!-- MOMENTUM INDEX -->
-    <div class="analytics-card stat-card">
-      <div class="stat-card-label">Momentum Index</div>
-      <div class="mom-row">
-        <div>
-          <div class="mom-avg-label">7-day avg</div>
-          <div class="mom-avg-val" id="mom-7">—</div>
-        </div>
-        <div class="mom-vs">vs</div>
-        <div>
-          <div class="mom-avg-label">30-day avg</div>
-          <div class="mom-avg-val" id="mom-30">—</div>
-        </div>
-        <div class="mom-signal-wrap">
-          <div class="mom-signal-label">Signal</div>
-          <div class="mom-signal-val" id="mom-signal">—</div>
-        </div>
+  <!-- MOMENTUM INDEX -->
+  <div class="analytics-card stat-card">
+    <div class="stat-card-label">Momentum Index</div>
+    <div class="mom-row">
+      <div>
+        <div class="mom-avg-label">7-day avg</div>
+        <div class="mom-avg-val" id="mom-7">—</div>
       </div>
-      <div class="mom-canvas-wrap">
-        <canvas id="momentum-chart"></canvas>
+      <div class="mom-vs">vs</div>
+      <div>
+        <div class="mom-avg-label">30-day avg</div>
+        <div class="mom-avg-val" id="mom-30">—</div>
       </div>
-      <div class="stat-interpret" id="mom-interpret"></div>
+      <div class="mom-signal-wrap">
+        <div class="mom-signal-label">Signal</div>
+        <div class="mom-signal-val" id="mom-signal">—</div>
+      </div>
     </div>
+    <div class="mom-canvas-wrap">
+      <canvas id="momentum-chart"></canvas>
+    </div>
+    <div class="stat-interpret" id="mom-interpret"></div>
   </div>
 
   <!-- DOW Z-SCORES -->
@@ -2614,7 +2586,7 @@ onAuthStateChanged(auth, user => {
 </nav>
 
 <script>
-  const COLORS = ['none','rose','amber','sage','slate','lavender','sand'];
+  const COLORS = ['none','flame','solar','neon','electric','plasma','cyber'];
 
   let tasks = [];
   let dragId = null;
@@ -2656,6 +2628,11 @@ onAuthStateChanged(auth, user => {
       tasks = local ? JSON.parse(local) : [];
     }
     await loadLog();
+    // Migrate old color names to new palette
+    const colorMap = { rose: 'flame', amber: 'solar', sage: 'neon', slate: 'electric', lavender: 'plasma', sand: 'cyber' };
+    let migrated = false;
+    tasks.forEach(t => { if (colorMap[t.color]) { t.color = colorMap[t.color]; migrated = true; } });
+    if (migrated) save();
     render();
     applyMobileLayout();
   }
@@ -4346,7 +4323,7 @@ onAuthStateChanged(auth, user => {
         const resultColor = isLive ? 'var(--live-color)'
           : t.result === 'W' ? 'var(--win-color)'
           : t.result === 'L' ? 'var(--loss-color)'
-          : isNext ? 'var(--color-slate-text)'
+          : isNext ? '#1e90ff'
           : 'var(--text-muted)';
         const subLine = isLive
           ? `${t.opponent} · <span class="sport-live-clock">${t.liveClock}</span>`
@@ -5103,7 +5080,7 @@ onAuthStateChanged(auth, user => {
             {
               label: '7-day avg',
               data: rolling7,
-              borderColor: cssVars.getPropertyValue('--color-slate-text').trim() || '#7aaabb',
+              borderColor: '#1e90ff',
               backgroundColor: 'rgba(122,170,187,0.08)',
               borderWidth: 2, pointRadius: 0, tension: 0.4, fill: false,
             },
