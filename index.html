@@ -1056,6 +1056,39 @@
   /* ── DIGEST ─────────────────────────────────────── */
   #analytics-page, #digest-page, #main-page { display: block; }
 
+  .digest-sub-tabs {
+    display: flex;
+    gap: 0;
+    padding: 0 16px;
+    margin: 0 0 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .digest-sub-tab {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text-dim);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+    bottom: -1px;
+  }
+
+  .digest-sub-tab:hover {
+    color: var(--text-muted);
+  }
+
+  .digest-sub-tab.active {
+    color: var(--text);
+    border-bottom-color: var(--text);
+  }
+
   .digest-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1225,6 +1258,58 @@
   .stock-pct-badge.flat {
     background: color-mix(in srgb, var(--text-dim) 25%, transparent);
     color: var(--text-muted);
+  }
+
+  /* Earnings section */
+  .stock-ticker-badge.neutral {
+    background: color-mix(in srgb, var(--text-dim) 15%, transparent);
+    color: var(--text-muted);
+    border: 1px solid color-mix(in srgb, var(--text-dim) 25%, transparent);
+  }
+
+  .earnings-date {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text);
+    min-width: 55px;
+    text-align: right;
+    margin-left: 12px;
+  }
+
+  .earnings-last {
+    font-size: 10px;
+    color: var(--text-dim);
+    min-width: 55px;
+    text-align: right;
+    margin-left: 12px;
+  }
+
+  .earnings-beat { color: var(--win-color); }
+  .earnings-miss { color: var(--loss-color); }
+
+  .earnings-countdown {
+    font-size: 10px;
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: 4px;
+    min-width: 65px;
+    text-align: center;
+    margin-left: 12px;
+    background: color-mix(in srgb, var(--text-dim) 15%, transparent);
+    color: var(--text-muted);
+    border: 1px solid color-mix(in srgb, var(--text-dim) 25%, transparent);
+  }
+
+  .earnings-countdown.soon {
+    background: rgba(255,165,2,0.15);
+    color: #ffa502;
+    border: 1px solid rgba(255,165,2,0.25);
+  }
+
+  .earnings-countdown.today {
+    background: rgba(255,71,87,0.15);
+    color: #ff4757;
+    border: 1px solid rgba(255,71,87,0.25);
   }
 
   /* MTG / Sorcery cards */
@@ -1719,6 +1804,9 @@
     .stock-price { min-width: 60px; font-size: 14px; margin-left: 12px; }
     .stock-change-val { min-width: 50px; font-size: 10px; }
     .stock-pct-badge { min-width: 55px; font-size: 9px; padding: 3px 6px; margin-left: 10px; }
+    .earnings-date { font-size: 11px; min-width: 50px; margin-left: 10px; }
+    .earnings-last { display: none; }
+    .earnings-countdown { min-width: 55px; font-size: 9px; padding: 3px 6px; margin-left: 10px; }
   }
 
 
@@ -2345,7 +2433,14 @@ onAuthStateChanged(auth, user => {
     <!-- SLIDE 0: DIGEST -->
     <div class="slide" id="digest-page">
 
-  <div class="digest-grid">
+  <!-- Sub-tabs -->
+  <div class="digest-sub-tabs" id="digest-sub-tabs">
+    <button class="digest-sub-tab active" data-subtab="frontpage">Front Page</button>
+    <button class="digest-sub-tab" data-subtab="hobbies">Hobbies</button>
+  </div>
+
+  <!-- FRONT PAGE -->
+  <div class="digest-grid digest-subtab-content" id="subtab-frontpage">
     <!-- STOCKS -->
     <div class="digest-card full-width">
       <div class="digest-card-header">
@@ -2355,17 +2450,7 @@ onAuthStateChanged(auth, user => {
       <div class="stock-grid" id="stocks-grid">
         <span class="digest-loading">Loading...</span>
       </div>
-    </div>
-
-    <!-- BRANDON SANDERSON -->
-    <div class="digest-card">
-      <div class="digest-card-header">
-        <span class="digest-card-title">Brandon Sanderson</span>
-        <span class="digest-card-updated" id="sanderson-updated">Writing Progress</span>
-      </div>
-      <div class="sanderson-list" id="sanderson-list">
-        <span class="digest-loading">Loading...</span>
-      </div>
+      <div id="earnings-section" style="background: var(--surface2); border-radius: 8px; padding: 4px 12px 8px; margin-top: 8px;"></div>
     </div>
 
     <!-- SPORTS -->
@@ -2379,6 +2464,20 @@ onAuthStateChanged(auth, user => {
       </div>
     </div>
 
+    <!-- FEVER LA EVENTS -->
+    <div class="digest-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title">LA Events</span>
+        <span class="digest-card-updated" id="fever-updated">via Fever</span>
+      </div>
+      <div class="fever-list" id="fever-list">
+        <span class="digest-loading">Loading...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- HOBBIES -->
+  <div class="digest-grid digest-subtab-content" id="subtab-hobbies" style="display:none;">
     <!-- REDDIT FEED -->
     <div class="digest-card">
       <div class="digest-card-header">
@@ -2394,28 +2493,6 @@ onAuthStateChanged(auth, user => {
       </div>
     </div>
 
-    <!-- TECH DEALS -->
-    <div class="digest-card">
-      <div class="digest-card-header">
-        <span class="digest-card-title">Tech Deals</span>
-        <span class="digest-card-updated" id="deals-status">Deals</span>
-      </div>
-      <div class="deals-list" id="deals-container">
-        <span class="digest-loading">Loading...</span>
-      </div>
-    </div>
-
-    <!-- FEVER LA EVENTS -->
-    <div class="digest-card">
-      <div class="digest-card-header">
-        <span class="digest-card-title">LA Events</span>
-        <span class="digest-card-updated" id="fever-updated">via Fever</span>
-      </div>
-      <div class="fever-list" id="fever-list">
-        <span class="digest-loading">Loading...</span>
-      </div>
-    </div>
-
     <!-- MTG CARDS -->
     <div class="digest-card">
       <div class="digest-card-header">
@@ -2427,7 +2504,29 @@ onAuthStateChanged(auth, user => {
       </div>
     </div>
 
+    <!-- TECH DEALS -->
+    <div class="digest-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title">Tech Deals</span>
+        <span class="digest-card-updated" id="deals-status">Deals</span>
+      </div>
+      <div class="deals-list" id="deals-container">
+        <span class="digest-loading">Loading...</span>
+      </div>
+    </div>
+
+    <!-- BRANDON SANDERSON -->
+    <div class="digest-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title">Brandon Sanderson</span>
+        <span class="digest-card-updated" id="sanderson-updated">Writing Progress</span>
+      </div>
+      <div class="sanderson-list" id="sanderson-list">
+        <span class="digest-loading">Loading...</span>
+      </div>
+    </div>
   </div>
+
     </div>
 
     <!-- SLIDE 1: TASKS -->
@@ -3852,7 +3951,63 @@ onAuthStateChanged(auth, user => {
       if (dealsStatusEl && cachedDeals.label) dealsStatusEl.textContent = cachedDeals.label;
     }
 
-    // Stocks: 3-tier fetch — proxy (most reliable) → direct Yahoo → Claude fallback
+    // ── EARNINGS CALENDAR ──────────────────────────────
+    const EARNINGS_DATA = [
+      { label: 'META', name: 'Meta Platforms',  date: '2026-04-29', lastEps: '$8.88',  beat: true, beatPct: '+8.4%' },
+      { label: 'AAPL', name: 'Apple',           date: '2026-04-30', lastEps: '$2.84',  beat: true, beatPct: '+6.8%' },
+      { label: 'APP',  name: 'AppLovin',        date: '2026-05-06', lastEps: '$3.24',  beat: true, beatPct: '+10.6%' },
+      { label: 'U',    name: 'Unity Software',  date: '2026-05-12', lastEps: '$0.24',  beat: true, beatPct: '+14.3%' },
+      { label: 'NVDA', name: 'NVIDIA',          date: '2026-05-27', lastEps: '$1.62',  beat: true, beatPct: '+8.0%' },
+    ];
+
+    (function renderEarnings() {
+      const el = document.getElementById('earnings-section');
+      if (!el) return;
+      const now = new Date();
+      now.setHours(0,0,0,0);
+
+      function makeRow(e) {
+        const earningsDate = new Date(e.date + 'T00:00:00');
+        const diffMs = earningsDate - now;
+        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+        var countdownText, countdownClass;
+        if (diffDays <= 0) {
+          countdownText = 'Today';
+          countdownClass = 'today';
+        } else if (diffDays <= 7) {
+          countdownText = diffDays + (diffDays === 1 ? ' day' : ' days');
+          countdownClass = 'soon';
+        } else {
+          countdownText = diffDays + ' days';
+          countdownClass = '';
+        }
+
+        const dateLabel = earningsDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const beatClass = e.beat ? 'earnings-beat' : 'earnings-miss';
+        const beatLabel = e.beat ? 'Beat' : 'Miss';
+        const yahooUrl = 'https://finance.yahoo.com/quote/' + encodeURIComponent(e.label);
+
+        return '<a class="stock-row" href="' + yahooUrl + '" target="_blank" rel="noopener">'
+          + '<span class="stock-ticker-badge neutral">' + e.label + '</span>'
+          + '<span class="stock-name">' + e.name + '</span>'
+          + '<span class="earnings-date">' + dateLabel + '</span>'
+          + '<span class="earnings-last">' + e.lastEps + ' <span class="' + beatClass + '">' + beatLabel + '</span></span>'
+          + '<span class="earnings-countdown' + (countdownClass ? ' ' + countdownClass : '') + '">' + countdownText + '</span>'
+          + '</a>';
+      }
+
+      var mid = Math.ceil(EARNINGS_DATA.length / 2);
+      var leftRows = EARNINGS_DATA.slice(0, mid).map(makeRow).join('');
+      var rightRows = EARNINGS_DATA.slice(mid).map(makeRow).join('');
+
+      el.innerHTML = '<div class="stock-grid">'
+        + '<div class="stock-grid-col"><div class="stock-group-label">Upcoming Earnings</div>' + leftRows + '</div>'
+        + '<div class="stock-grid-col"><div class="stock-group-label">&nbsp;</div>' + rightRows + '</div>'
+        + '</div>';
+    })();
+
+    // Stocks: 3-tier fetch
     if (!cachedStocks) {
       stocksEl.innerHTML = '<span class="digest-loading">Loading...</span>';
 
@@ -4264,11 +4419,11 @@ onAuthStateChanged(auth, user => {
 
   // ── SPORTS ─────────────────────────────────────────────────
   const SPORTS_TEAMS = [
+    { name: 'Cal Basketball',league: 'NCAAB',  sport: 'basketball', league_path: 'mens-college-basketball', espnId: '25',   abbrev: 'CAL' },
+    { name: 'Cal Football', league: 'NCAAF',   sport: 'football',   league_path: 'college-football',       espnId: '25',    abbrev: 'CAL' },
     { name: 'LA Lakers',    league: 'NBA',     sport: 'basketball', league_path: 'nba',                    espnId: '13',    abbrev: 'LAL' },
     { name: 'LA Dodgers',   league: 'MLB',     sport: 'baseball',   league_path: 'mlb',                    espnId: 'lad',   abbrev: 'LAD' },
     { name: 'LA Kings',     league: 'NHL',     sport: 'hockey',     league_path: 'nhl',                    espnId: '8',     abbrev: 'LAK' },
-    { name: 'Cal Basketball',league: 'NCAAB',  sport: 'basketball', league_path: 'mens-college-basketball', espnId: '25',   abbrev: 'CAL' },
-    { name: 'Cal Football', league: 'NCAAF',   sport: 'football',   league_path: 'college-football',       espnId: '25',    abbrev: 'CAL' },
     { name: 'Venezia FC',   league: 'Serie B', sport: 'soccer',     league_path: 'ita.2',                  espnId: '17530', abbrev: 'VEN' },
   ];
 
@@ -5515,6 +5670,32 @@ onAuthStateChanged(auth, user => {
       });
     }
   });
+
+  // ── DIGEST SUB-TABS ────────────────────────────────────────
+  (function initDigestSubTabs() {
+    const tabs = document.querySelectorAll('.digest-sub-tab');
+    const panels = document.querySelectorAll('.digest-subtab-content');
+
+    // Restore last active sub-tab
+    const saved = 'frontpage';
+    switchSubTab(saved);
+
+    tabs.forEach(function(tab) {
+      tab.addEventListener('click', function() {
+        switchSubTab(tab.dataset.subtab);
+      });
+    });
+
+    function switchSubTab(id) {
+      tabs.forEach(function(t) {
+        t.classList.toggle('active', t.dataset.subtab === id);
+      });
+      panels.forEach(function(p) {
+        p.style.display = p.id === 'subtab-' + id ? '' : 'none';
+      });
+      localStorage.setItem('focus-digest-subtab', id);
+    }
+  })();
 
   // Random title
   const titles = ['Focus and Deliver', 'Get It Done', 'Cross Them Off', 'Knock It Down', 'No Better Time Than Now', 'No Procrastination', 'Fear is the Mind Killer', 'Journey Before Destination', 'Outwork the Competition', "I'll Sleep When I Die", 'How Do You Eat an Elephant?', 'Chopping Trees'];
