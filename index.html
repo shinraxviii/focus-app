@@ -1186,7 +1186,8 @@
     letter-spacing: 0.04em;
     padding: 3px 8px;
     border-radius: 4px;
-    min-width: 42px;
+    width: 75px;
+    min-width: 75px;
     text-align: center;
     flex-shrink: 0;
     font-family: 'DM Mono', monospace;
@@ -1223,12 +1224,14 @@
     font-size: 16px;
     color: var(--text);
     letter-spacing: -0.3px;
+    width: 80px;
     min-width: 80px;
     text-align: right;
   }
 
   .stock-change-val {
     font-size: 11px;
+    width: 70px;
     min-width: 70px;
     text-align: right;
     font-family: 'DM Mono', monospace;
@@ -1406,20 +1409,15 @@
   }
 
   .news-item {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    padding: 8px;
-    margin: 0 -8px;
-    border-bottom: 1px solid var(--border);
+    display: block;
+    padding: 8px 6px 8px 14px;
     border-radius: 6px;
     cursor: pointer;
     text-decoration: none;
     color: inherit;
     transition: background 0.12s;
+    border-left: 2px solid var(--reddit-accent, transparent);
   }
-
-  .news-item:last-child { border-bottom: none; }
 
   .news-item:hover { background: var(--surface2); }
 
@@ -1431,14 +1429,9 @@
 
   .reddit-meta {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-  }
-
-  .reddit-sub {
-    font-size: 9px;
-    color: var(--btn-icon);
-    letter-spacing: 0.02em;
+    gap: 6px;
+    margin-top: 2px;
   }
 
   .reddit-time {
@@ -1455,6 +1448,30 @@
     border-radius: 3px;
     font-weight: 500;
     letter-spacing: 0.05em;
+  }
+
+  .reddit-group-header {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    padding: 10px 0 6px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .reddit-group:first-child .reddit-group-header {
+    border-top: none;
+    padding-top: 0;
+  }
+
+  .reddit-group-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
   }
 
   .reddit-subs-row {
@@ -1801,8 +1818,9 @@
     .digest-card.full-width { grid-column: 1; }
     .stock-grid { grid-template-columns: 1fr; gap: 0; }
     .stock-name { display: none; }
-    .stock-price { min-width: 60px; font-size: 14px; margin-left: 12px; }
-    .stock-change-val { min-width: 50px; font-size: 10px; }
+    .stock-ticker-badge { width: 70px; min-width: 70px; font-size: 10px; }
+    .stock-price { width: 70px; min-width: 70px; font-size: 14px; margin-left: 12px; }
+    .stock-change-val { width: 60px; min-width: 60px; font-size: 10px; }
     .stock-pct-badge { min-width: 55px; font-size: 9px; padding: 3px 6px; margin-left: 10px; }
     .earnings-date { font-size: 11px; min-width: 50px; margin-left: 10px; }
     .earnings-last { display: none; }
@@ -3885,18 +3903,71 @@ onAuthStateChanged(auth, user => {
     return days + 'd ago';
   }
 
+  // Accent colors for subreddit groups (auto-assigned)
+  const REDDIT_ACCENT_COLORS = ['#c56cf0', '#1e90ff', '#ffa502', '#2ed573', '#ff4757', '#00d2d3', '#ff6b81', '#a29bfe'];
+
+  function getSubColor(sub, subs) {
+    var cleanSub = sub.replace(/^r\//, '').toLowerCase();
+    var idx = 0;
+    for (var i = 0; i < subs.length; i++) {
+      if (subs[i].toLowerCase() === cleanSub) { idx = i; break; }
+    }
+    return REDDIT_ACCENT_COLORS[idx % REDDIT_ACCENT_COLORS.length];
+  }
+
   function renderReddit(posts) {
-    return posts.slice(0, 9).map(function(p) {
-      var ago = timeAgo(p.time);
-      var isNew = p.time && (Date.now() - p.time) < 2 * 3600000; // under 2 hours
-      return '<a class="news-item" href="' + p.url + '" target="_blank" rel="noopener">'
-        + '<div class="news-headline">' + p.title + '</div>'
-        + '<div class="reddit-meta">'
-        +   '<span class="reddit-sub">' + p.sub + '</span>'
-        +   (ago ? '<span class="reddit-time">' + ago + '</span>' : '')
-        +   (isNew ? '<span class="reddit-new">NEW</span>' : '')
-        + '</div>'
-        + '</a>';
+    var subs = getRedditSubs();
+
+    // Group posts by subreddit
+    var groups = {};
+    var groupOrder = [];
+    posts.slice(0, 12).forEach(function(p) {
+      var sub = p.sub;
+      if (!groups[sub]) {
+        groups[sub] = [];
+        groupOrder.push(sub);
+      }
+      groups[sub].push(p);
+    });
+
+    // Sort groups to match user's sub order
+    groupOrder.sort(function(a, b) {
+      var ai = subs.indexOf(a.replace('r/', ''));
+      var bi = subs.indexOf(b.replace('r/', ''));
+      if (ai === -1) ai = 999;
+      if (bi === -1) bi = 999;
+      return ai - bi;
+    });
+
+    return groupOrder.map(function(sub) {
+      var color = getSubColor(sub, subs);
+      var borderColor = color.replace(')', ',0.3)').replace('rgb', 'rgba').replace('#', '');
+      // Convert hex to rgba for border
+      var r = parseInt(color.slice(1,3), 16);
+      var g = parseInt(color.slice(3,5), 16);
+      var b = parseInt(color.slice(5,7), 16);
+      var borderRgba = 'rgba(' + r + ',' + g + ',' + b + ',0.3)';
+
+      var html = '<div class="reddit-group">';
+      html += '<div class="reddit-group-header">'
+        + '<span class="reddit-group-dot" style="background:' + color + ';"></span>'
+        + sub
+        + '</div>';
+
+      groups[sub].forEach(function(p) {
+        var ago = timeAgo(p.time);
+        var isNew = p.time && (Date.now() - p.time) < 2 * 3600000;
+        html += '<a class="news-item" href="' + p.url + '" target="_blank" rel="noopener" style="--reddit-accent:' + borderRgba + ';">'
+          + '<div class="news-headline">' + p.title + '</div>'
+          + '<div class="reddit-meta">'
+          +   (ago ? '<span class="reddit-time">' + ago + '</span>' : '')
+          +   (isNew ? '<span class="reddit-new">NEW</span>' : '')
+          + '</div>'
+          + '</a>';
+      });
+
+      html += '</div>';
+      return html;
     }).join('');
   }
 
@@ -5694,6 +5765,103 @@ onAuthStateChanged(auth, user => {
         p.style.display = p.id === 'subtab-' + id ? '' : 'none';
       });
       localStorage.setItem('focus-digest-subtab', id);
+    }
+  })();
+
+  // ── KEYBOARD SHORTCUTS ─────────────────────────────────────
+  (function initKeyboardShortcuts() {
+    document.addEventListener('keydown', function(e) {
+      // Skip if user is typing in an input/textarea
+      var tag = e.target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable) return;
+
+      // Skip if modifier keys (Ctrl, Cmd, Alt) are held
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      switch(e.key) {
+        // Tab navigation: 1=Digest, 2=Tasks, 3=Analytics
+        case '1':
+          e.preventDefault();
+          showPage('digest');
+          break;
+        case '2':
+          e.preventDefault();
+          showPage('tasks');
+          break;
+        case '3':
+          e.preventDefault();
+          showPage('analytics');
+          break;
+
+        // N = New task (focus the To Do input)
+        case 'n':
+        case 'N':
+          e.preventDefault();
+          showPage('tasks');
+          var inp = document.getElementById('input-todo');
+          if (inp) { inp.focus(); inp.scrollIntoView({ block: 'nearest' }); }
+          break;
+
+        // / = Search / focus task input
+        case '/':
+          e.preventDefault();
+          showPage('tasks');
+          var searchInp = document.getElementById('input-todo');
+          if (searchInp) { searchInp.focus(); searchInp.scrollIntoView({ block: 'nearest' }); }
+          break;
+
+        // ? = Show shortcuts help
+        case '?':
+          e.preventDefault();
+          toggleShortcutsHelp();
+          break;
+
+        // Escape = close shortcuts help or blur focused input
+        case 'Escape':
+          var helpEl = document.getElementById('shortcuts-help');
+          if (helpEl && helpEl.style.display !== 'none') {
+            helpEl.style.display = 'none';
+          } else if (document.activeElement) {
+            document.activeElement.blur();
+          }
+          break;
+      }
+    });
+
+    // Shortcuts help overlay
+    function toggleShortcutsHelp() {
+      var el = document.getElementById('shortcuts-help');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'shortcuts-help';
+        el.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:9999;';
+        el.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px 32px;max-width:360px;width:90%;font-family:DM Mono,monospace;">'
+          + '<div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:16px;text-transform:uppercase;letter-spacing:1.5px;">Keyboard Shortcuts</div>'
+          + '<div style="display:flex;flex-direction:column;gap:10px;">'
+          + shortcutRow('1', 'Digest')
+          + shortcutRow('2', 'Tasks')
+          + shortcutRow('3', 'Analytics')
+          + shortcutRow('N', 'New task')
+          + shortcutRow('/', 'Focus task input')
+          + shortcutRow('?', 'Show this help')
+          + shortcutRow('Esc', 'Close / unfocus')
+          + '</div>'
+          + '<div style="font-size:9px;color:var(--text-dim);margin-top:16px;text-align:center;">Press ? to toggle</div>'
+          + '</div>';
+        el.addEventListener('click', function(evt) {
+          if (evt.target === el) el.style.display = 'none';
+        });
+        document.body.appendChild(el);
+      } else {
+        el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+      }
+    }
+
+    function shortcutRow(key, desc) {
+      return '<div style="display:flex;align-items:center;justify-content:space-between;">'
+        + '<span style="font-size:11px;color:var(--text-muted);">' + desc + '</span>'
+        + '<kbd style="font-size:10px;font-family:DM Mono,monospace;background:var(--surface2);color:var(--text);padding:3px 8px;border-radius:4px;border:1px solid var(--border);min-width:28px;text-align:center;">' + key + '</kbd>'
+        + '</div>';
     }
   })();
 
