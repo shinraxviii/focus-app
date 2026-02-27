@@ -4130,14 +4130,14 @@ onAuthStateChanged(auth, user => {
       redditEl.innerHTML = renderReddit(posts);
       const statusLabel = 'Live · ' + subs.map(function(s) { return 'r/' + s; }).join(', ');
       document.getElementById('reddit-status').textContent = statusLabel;
-      cacheSet('reddit', redditEl.innerHTML, statusLabel);
+      cacheSet('reddit2', redditEl.innerHTML, statusLabel);
     } catch(e) {
       console.error('[Digest:reddit]', e.message);
       // Proxy failed — fall back to static data
       redditEl.innerHTML = renderReddit(REDDIT_FALLBACK);
       const statusLabel = 'Cached · ' + subs.map(function(s) { return 'r/' + s; }).join(', ');
       document.getElementById('reddit-status').textContent = statusLabel;
-      cacheSet('reddit', redditEl.innerHTML, statusLabel);
+      cacheSet('reddit2', redditEl.innerHTML, statusLabel);
     }
   }
 
@@ -4149,7 +4149,7 @@ onAuthStateChanged(auth, user => {
 
     // Load cached versions immediately (fresh or stale)
     const cachedStocks   = cacheGet('stocks',      60 * 60 * 1000);       // 1hr
-    const cachedReddit   = cacheGet('reddit',      3 * 60 * 60 * 1000);   // 3hrs
+    const cachedReddit   = cacheGet('reddit2',      3 * 60 * 60 * 1000);   // 3hrs
     const cachedDeals    = cacheGet('deals',        4 * 60 * 60 * 1000);  // 4hrs
     if (cachedStocks) {
       stocksEl.innerHTML = cachedStocks.data;
@@ -4434,7 +4434,7 @@ onAuthStateChanged(auth, user => {
     const cachedMTG   = cacheGet('mtg',   24 * 60 * 60 * 1000);
     const cachedFever = cacheGet('fever5', 7 * 24 * 60 * 60 * 1000);
     const cachedSand  = cacheGet('sanderson', 24 * 60 * 60 * 1000);
-    const cachedOC    = cacheGet('opencritic', 24 * 60 * 60 * 1000);
+    const cachedOC    = cacheGet('opencritic2', 24 * 60 * 60 * 1000);
 
     // Show whatever we have cached immediately
     const mtgEl   = document.getElementById('mtg-list');
@@ -4446,6 +4446,28 @@ onAuthStateChanged(auth, user => {
     if (cachedSand)  sandEl.innerHTML   = cachedSand.data;
     if (cachedOC)    ocEl.innerHTML     = cachedOC.data;
     if (cachedMTG && cachedFever && cachedSand && cachedOC) return;
+
+    // OpenCritic Game Reviews — daily refresh via proxy (run in parallel)
+    if (!cachedOC) {
+      ocEl.innerHTML = '<span class="digest-loading">Loading game reviews...</span>';
+      const ocStatus = document.getElementById('opencritic-updated');
+      (async function() {
+        try {
+          const r = await fetch(OPENCRITIC_PROXY_URL, { signal: AbortSignal.timeout(8000) });
+          if (r.ok) {
+            const games = await r.json();
+            ocEl.innerHTML = renderOpenCritic(games);
+            if (ocStatus) ocStatus.textContent = 'Live · via OpenCritic';
+            cacheSet('opencritic2', ocEl.innerHTML);
+          } else { throw new Error('proxy ' + r.status); }
+        } catch(e) {
+          console.error('[Digest:opencritic] Error:', e.message);
+          ocEl.innerHTML = renderOpenCritic(OPENCRITIC_FALLBACK);
+          if (ocStatus) ocStatus.textContent = 'Cached · via OpenCritic';
+          cacheSet('opencritic2', ocEl.innerHTML);
+        }
+      })();
+    }
 
     // MTG prices via Scryfall (free, no key, no tokens)
     // Scryfall rate limit: ~10 req/sec — fetch sequentially with 100ms delay
@@ -4537,26 +4559,6 @@ onAuthStateChanged(auth, user => {
         renderSanderson(sandEl, SANDERSON_FALLBACK);
         cacheSet('sanderson', sandEl.innerHTML);
         if (sandStatus) sandStatus.textContent = 'Cached · Writing Progress';
-      }
-    }
-
-    // OpenCritic Game Reviews — daily refresh via proxy
-    if (!cachedOC) {
-      ocEl.innerHTML = '<span class="digest-loading">Loading game reviews...</span>';
-      const ocStatus = document.getElementById('opencritic-updated');
-      try {
-        const r = await fetch(OPENCRITIC_PROXY_URL, { signal: AbortSignal.timeout(8000) });
-        if (r.ok) {
-          const games = await r.json();
-          ocEl.innerHTML = renderOpenCritic(games);
-          if (ocStatus) ocStatus.textContent = 'Live · via OpenCritic';
-          cacheSet('opencritic', ocEl.innerHTML);
-        } else { throw new Error('proxy ' + r.status); }
-      } catch(e) {
-        console.error('[Digest:opencritic] Error:', e.message);
-        ocEl.innerHTML = renderOpenCritic(OPENCRITIC_FALLBACK);
-        if (ocStatus) ocStatus.textContent = 'Cached · via OpenCritic';
-        cacheSet('opencritic', ocEl.innerHTML);
       }
     }
   }
