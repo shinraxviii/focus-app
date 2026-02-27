@@ -2641,23 +2641,23 @@ onAuthStateChanged(auth, user => {
       </div>
     </div>
 
-    <!-- STACKED: Tech Deals + Brandon Sanderson -->
+    <!-- STACKED: Brandon Sanderson + Tech Deals -->
     <div class="digest-stack">
-      <div class="digest-card">
-        <div class="digest-card-header">
-          <span class="digest-card-title">Tech Deals</span>
-          <span class="digest-card-updated" id="deals-status">Deals</span>
-        </div>
-        <div class="deals-list" id="deals-container">
-          <span class="digest-loading">Loading...</span>
-        </div>
-      </div>
       <div class="digest-card">
         <div class="digest-card-header">
           <span class="digest-card-title">Brandon Sanderson</span>
           <span class="digest-card-updated" id="sanderson-updated">Writing Progress</span>
         </div>
         <div class="sanderson-list" id="sanderson-list">
+          <span class="digest-loading">Loading...</span>
+        </div>
+      </div>
+      <div class="digest-card">
+        <div class="digest-card-header">
+          <span class="digest-card-title">Tech Deals</span>
+          <span class="digest-card-updated" id="deals-status">Deals</span>
+        </div>
+        <div class="deals-list" id="deals-container">
           <span class="digest-loading">Loading...</span>
         </div>
       </div>
@@ -4432,7 +4432,7 @@ onAuthStateChanged(auth, user => {
   // ── DAILY DATA: MTG + Fever Events ── 24hr cache ──
   async function loadDailyData() {
     const cachedMTG   = cacheGet('mtg',   24 * 60 * 60 * 1000);
-    const cachedFever = cacheGet('fever', 7 * 24 * 60 * 60 * 1000);
+    const cachedFever = cacheGet('fever5', 7 * 24 * 60 * 60 * 1000);
     const cachedSand  = cacheGet('sanderson', 24 * 60 * 60 * 1000);
     const cachedOC    = cacheGet('opencritic', 24 * 60 * 60 * 1000);
 
@@ -4515,12 +4515,12 @@ onAuthStateChanged(auth, user => {
       const feverStatus = document.getElementById('fever-updated');
       try {
         await loadFeverEvents(feverEl);
-        cacheSet('fever', feverEl.innerHTML);
+        cacheSet('fever5', feverEl.innerHTML);
         if (feverStatus) feverStatus.textContent = 'Live · via Fever';
       } catch(e) {
         // Fallback to static curated list
         renderFeverEvents(feverEl, FEVER_FALLBACK);
-        cacheSet('fever', feverEl.innerHTML);
+        cacheSet('fever5', feverEl.innerHTML);
         if (feverStatus) feverStatus.textContent = 'Cached · via Fever';
       }
     }
@@ -4586,11 +4586,16 @@ onAuthStateChanged(auth, user => {
     { title: 'Super Bomberman Collection', score: 87, userScore: null, genre: 'Action',    platforms: ['PC'],                    date: 'Feb 5',  url: 'https://opencritic.com/game/super-bomberman-collection' },
     { title: 'Cult of the Lamb: Woolhaven',score: 86, userScore: 8.7, genre: 'Sim',        platforms: ['PS5','XSX','SW2','PC'],  date: 'Jan 22', url: 'https://opencritic.com/game/cult-of-the-lamb-woolhaven' },
     { title: 'Cairn',                      score: 86, userScore: 8.2, genre: 'Survival',   platforms: ['PS5','PC'],              date: 'Jan 29', url: 'https://opencritic.com/game/17832/cairn' },
+    { title: 'Lovish',                     score: 86, userScore: null, genre: 'Puzzle',    platforms: ['PS5','XSX','SW2','PC'],  date: 'Feb 5',  url: 'https://opencritic.com/game/lovish' },
     { title: 'Nioh 3',                     score: 85, userScore: 7.5, genre: 'Soulslike',  platforms: ['PS5','PC'],              date: 'Feb 6',  url: 'https://opencritic.com/game/17950/nioh-3' },
+    { title: 'Skate Story',               score: 84, userScore: 8.0, genre: 'Action',     platforms: ['PC','PS5','XSX'],        date: 'Dec 8',  url: 'https://opencritic.com/game/skate-story' },
+    { title: 'PARANORMASIGHT: Mermaid',    score: 83, userScore: null, genre: 'Visual Novel', platforms: ['SW','PC'],            date: 'Feb 19', url: 'https://opencritic.com/game/paranormasight-mermaids-curse' },
+    { title: 'Trails Beyond the Horizon',  score: 83, userScore: 7.8, genre: 'JRPG',      platforms: ['PS5','PC','SW2'],        date: 'Jan 15', url: 'https://opencritic.com/game/trails-beyond-horizon' },
+    { title: 'High On Life 2',             score: 74, userScore: 5.8, genre: 'FPS',        platforms: ['PS5','XSX','PC'],        date: 'Feb 13', url: 'https://opencritic.com/game/high-on-life-2' },
   ];
 
   function renderOpenCritic(games) {
-    return games.slice(0, 7).map(function(g, i) {
+    return games.slice(0, 12).map(function(g, i) {
       var scoreClass = 'tbd';
       if (g.score >= 75) scoreClass = 'green';
       else if (g.score >= 50) scoreClass = 'yellow';
@@ -4648,7 +4653,7 @@ onAuthStateChanged(auth, user => {
   }
 
   function renderFeverEvents(container, events) {
-    container.innerHTML = events.map(function(ev) {
+    container.innerHTML = events.slice(0, 5).map(function(ev) {
       var ratingHTML = ev.rating ? '<span class="fever-rating">' + ev.rating + ' ★</span>' : '';
       var venueHTML  = ev.venue  ? '<div class="fever-venue">' + ev.venue + '</div>' : '';
       var dateHTML   = ev.date   ? ev.date : 'Upcoming';
