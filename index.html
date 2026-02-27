@@ -866,20 +866,37 @@
   .task-delete:hover { background: rgba(255,71,87,0.15); border-color: rgba(255,71,87,0.25); color: var(--danger-text); }
 
   /* Completed section */
-  #section-completed .task-text { text-decoration: line-through; color: var(--text-dim); }
-  #section-completed .task-date { color: var(--text-dim); }
-  #section-completed .task-checkbox { border-color: var(--text-dim); background: var(--text-dim); 
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 10 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 4l3 3 5-6' stroke='%23d4d4d8' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  #section-completed .task-text { text-decoration: none; color: var(--text-dim); font-size: 11px; }
+  #section-completed .task-date { color: var(--text-dim); font-size: 9px; }
+  #section-completed .task-checkbox { 
+    border-color: var(--win-color); 
+    background: var(--win-color); 
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 10 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 4l3 3 5-6' stroke='%23ffffff' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     background-size: 65%;
     background-repeat: no-repeat;
     background-position: center;
+    width: 16px;
+    height: 16px;
   }
   #section-completed .color-trigger,
   #section-completed .task-expand-btn,
   #section-completed .subtask-progress { display: none; }
   #section-completed .task-item {
-    grid-template-columns: 20px 1fr auto auto;
+    grid-template-columns: 16px 1fr auto auto;
+    padding: 5px 10px;
+    margin-bottom: 1px;
+    border-left: 2px solid color-mix(in srgb, var(--win-color) 30%, transparent);
+    border-radius: 0 6px 6px 0;
+    min-height: auto;
+    cursor: default;
   }
+  #section-completed .task-item:hover {
+    background: color-mix(in srgb, var(--win-color) 5%, transparent);
+  }
+  #section-completed .task-text-wrap { display: contents; }
+  #section-completed .slash-svg { display: none; }
+  #section-completed .subtask-list-inline { display: none; }
+  #section-completed .task-detail { display: none; }
 
   .empty-state {
     text-align: center;
@@ -1331,20 +1348,17 @@
   .card-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    flex: 1;
   }
 
   .card-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px;
-    margin: 0 -8px;
-    border-bottom: 1px solid var(--border);
+    padding: 10px 6px;
+    min-height: 58px;
   }
 
-  .card-row:last-child { border-bottom: none; }
+  .card-row + .card-row { border-top: 1px solid var(--border); }
 
   .card-name {
     font-size: 12px;
@@ -1379,6 +1393,7 @@
     align-items: center;
     gap: 12px;
     padding: 10px 6px;
+    min-height: 58px;
     border-radius: 6px;
     text-decoration: none;
     color: inherit;
@@ -2963,6 +2978,21 @@ onAuthStateChanged(auth, user => {
     return Math.random().toString(36).slice(2,9);
   }
 
+  function completedAgo(ts) {
+    if (!ts) return '';
+    var diff = Date.now() - ts;
+    var mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return mins + 'm ago';
+    var hrs = Math.floor(mins / 60);
+    if (hrs < 24) return hrs + 'h ago';
+    var days = Math.floor(hrs / 24);
+    if (days === 1) return 'Yesterday';
+    if (days < 7) return days + 'd ago';
+    var weeks = Math.floor(days / 7);
+    return weeks + 'w ago';
+  }
+
   function formatDate(d) {
     if (!d) return '';
     const [y,m,day] = d.split('-');
@@ -3361,9 +3391,11 @@ onAuthStateChanged(auth, user => {
     const prevSection = t.section;
     if (t.section === 'completed') {
       t.section = 'todo';
+      delete t.completedAt;
       unlogCompletion(id);
     } else {
       t.section = 'completed';
+      t.completedAt = Date.now();
       logCompletion(t);
     }
     save();
@@ -3492,11 +3524,13 @@ onAuthStateChanged(auth, user => {
       txt.style.cursor = 'pointer';
     }
 
-    // Date — hidden for completed tasks
+    // Date — show completion time for completed tasks
     const dt = document.createElement('span');
     const dueStatus = t.section !== 'completed' ? getDueStatus(t.date) : null;
     dt.className = 'task-date' + (dueStatus ? ' ' + dueStatus : '');
-    if (t.section !== 'completed') {
+    if (t.section === 'completed' && t.completedAt) {
+      dt.textContent = completedAgo(t.completedAt);
+    } else if (t.section !== 'completed') {
       dt.textContent = formatDate(t.date);
       if (dueStatus === 'today') dt.textContent = 'Today';
     }
