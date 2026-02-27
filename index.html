@@ -1096,13 +1096,24 @@
     align-items: stretch;
   }
 
+  .digest-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .digest-stack .digest-card {
+    flex: 1;
+  }
+
   /* Shared linkable-row pattern for digest card items */
   .stock-row,
   .card-row,
   .sport-row,
   .news-item,
   .fever-item,
-  .deal-item {
+  .deal-item,
+  .game-row {
     text-decoration: none;
     color: inherit;
     border-radius: 6px;
@@ -1114,7 +1125,8 @@
   .sport-row:hover,
   .news-item:hover,
   .fever-item:hover,
-  .deal-item:hover {
+  .deal-item:hover,
+  .game-row:hover {
     background: var(--surface2);
   }
 
@@ -1359,6 +1371,121 @@
     color: var(--text-muted);
     text-align: right;
     margin-top: 1px;
+  }
+
+  /* OpenCritic Game Reviews */
+  .game-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 6px;
+    border-radius: 6px;
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+
+  .game-row + .game-row { border-top: 1px solid var(--border); }
+
+  .game-rank {
+    font-family: 'DM Serif Display', serif;
+    font-size: 14px;
+    color: var(--border);
+    width: 18px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .game-score {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    font-weight: 500;
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .game-score.green  { background: var(--win-color); color: #fff; }
+  .game-score.yellow { background: #d48806; color: #fff; }
+  .game-score.red    { background: var(--loss-color); color: #fff; }
+  .game-score.tbd    { background: var(--surface2); color: var(--text-dim); border: 1px solid var(--border); font-size: 9px; }
+
+  .game-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .game-title-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .game-title {
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .game-genre {
+    font-size: 8px;
+    color: var(--text-muted);
+    background: var(--surface2);
+    padding: 2px 7px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .game-details {
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-top: 3px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .game-platform {
+    font-size: 8px;
+    color: var(--text-muted);
+    background: var(--surface2);
+    padding: 2px 6px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+  }
+
+  .game-user-score {
+    flex-shrink: 0;
+    text-align: right;
+    min-width: 35px;
+  }
+
+  .game-user-val {
+    font-weight: 500;
+    font-size: 13px;
+  }
+
+  .game-user-val.high { color: var(--win-color); }
+  .game-user-val.mid  { color: #ffa502; }
+  .game-user-val.low  { color: var(--loss-color); }
+  .game-user-val.none { color: var(--border); }
+
+  .game-user-label {
+    font-size: 8px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
 
   /* Sports */
@@ -1825,6 +1952,8 @@
     .earnings-date { font-size: 11px; min-width: 50px; margin-left: 10px; }
     .earnings-last { display: none; }
     .earnings-countdown { min-width: 55px; font-size: 9px; padding: 3px 6px; margin-left: 10px; }
+    .game-genre { display: none; }
+    .game-user-label { display: none; }
   }
 
 
@@ -2455,6 +2584,7 @@ onAuthStateChanged(auth, user => {
   <div class="digest-sub-tabs" id="digest-sub-tabs">
     <button class="digest-sub-tab active" data-subtab="frontpage">Front Page</button>
     <button class="digest-sub-tab" data-subtab="hobbies">Hobbies</button>
+    <button class="digest-sub-tab" data-subtab="gaming">Gaming</button>
   </div>
 
   <!-- FRONT PAGE -->
@@ -2511,6 +2641,42 @@ onAuthStateChanged(auth, user => {
       </div>
     </div>
 
+    <!-- STACKED: Tech Deals + Brandon Sanderson -->
+    <div class="digest-stack">
+      <div class="digest-card">
+        <div class="digest-card-header">
+          <span class="digest-card-title">Tech Deals</span>
+          <span class="digest-card-updated" id="deals-status">Deals</span>
+        </div>
+        <div class="deals-list" id="deals-container">
+          <span class="digest-loading">Loading...</span>
+        </div>
+      </div>
+      <div class="digest-card">
+        <div class="digest-card-header">
+          <span class="digest-card-title">Brandon Sanderson</span>
+          <span class="digest-card-updated" id="sanderson-updated">Writing Progress</span>
+        </div>
+        <div class="sanderson-list" id="sanderson-list">
+          <span class="digest-loading">Loading...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAMING -->
+  <div class="digest-grid digest-subtab-content" id="subtab-gaming" style="display:none;">
+    <!-- OPENCRITIC GAME REVIEWS -->
+    <div class="digest-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title">Game Reviews</span>
+        <span class="digest-card-updated" id="opencritic-updated">via OpenCritic</span>
+      </div>
+      <div id="opencritic-list">
+        <span class="digest-loading">Loading...</span>
+      </div>
+    </div>
+
     <!-- MTG CARDS -->
     <div class="digest-card">
       <div class="digest-card-header">
@@ -2518,28 +2684,6 @@ onAuthStateChanged(auth, user => {
         <span class="digest-card-updated">via Scryfall</span>
       </div>
       <div class="card-list" id="mtg-list">
-        <span class="digest-loading">Loading...</span>
-      </div>
-    </div>
-
-    <!-- TECH DEALS -->
-    <div class="digest-card">
-      <div class="digest-card-header">
-        <span class="digest-card-title">Tech Deals</span>
-        <span class="digest-card-updated" id="deals-status">Deals</span>
-      </div>
-      <div class="deals-list" id="deals-container">
-        <span class="digest-loading">Loading...</span>
-      </div>
-    </div>
-
-    <!-- BRANDON SANDERSON -->
-    <div class="digest-card">
-      <div class="digest-card-header">
-        <span class="digest-card-title">Brandon Sanderson</span>
-        <span class="digest-card-updated" id="sanderson-updated">Writing Progress</span>
-      </div>
-      <div class="sanderson-list" id="sanderson-list">
         <span class="digest-loading">Loading...</span>
       </div>
     </div>
@@ -3606,6 +3750,7 @@ onAuthStateChanged(auth, user => {
   const SANDERSON_PROXY_URL = 'https://focus-proxy.vercel.app/api/sanderson';
   const DEALS_PROXY_URL    = 'https://focus-proxy.vercel.app/api/deals';
   const REDDIT_PROXY_URL   = 'https://focus-proxy.vercel.app/api/reddit';
+  const OPENCRITIC_PROXY_URL = 'https://focus-proxy.vercel.app/api/opencritic';
 
   // Option B: Direct API key (may fail due to CORS on some browsers)
   const ANTHROPIC_API_KEY = ''; // Not needed when using proxy
@@ -4288,16 +4433,19 @@ onAuthStateChanged(auth, user => {
   async function loadDailyData() {
     const cachedMTG   = cacheGet('mtg',   24 * 60 * 60 * 1000);
     const cachedFever = cacheGet('fever', 7 * 24 * 60 * 60 * 1000);
-    const cachedSand  = cacheGet('sanderson', 24 * 60 * 60 * 1000);  // 24hrs (daily refresh)
+    const cachedSand  = cacheGet('sanderson', 24 * 60 * 60 * 1000);
+    const cachedOC    = cacheGet('opencritic', 24 * 60 * 60 * 1000);
 
     // Show whatever we have cached immediately
     const mtgEl   = document.getElementById('mtg-list');
     const feverEl = document.getElementById('fever-list');
     const sandEl  = document.getElementById('sanderson-list');
+    const ocEl    = document.getElementById('opencritic-list');
     if (cachedMTG)   mtgEl.innerHTML   = cachedMTG.data;
     if (cachedFever) feverEl.innerHTML  = cachedFever.data;
     if (cachedSand)  sandEl.innerHTML   = cachedSand.data;
-    if (cachedMTG && cachedFever && cachedSand) return;
+    if (cachedOC)    ocEl.innerHTML     = cachedOC.data;
+    if (cachedMTG && cachedFever && cachedSand && cachedOC) return;
 
     // MTG prices via Scryfall (free, no key, no tokens)
     // Scryfall rate limit: ~10 req/sec — fetch sequentially with 100ms delay
@@ -4391,6 +4539,26 @@ onAuthStateChanged(auth, user => {
         if (sandStatus) sandStatus.textContent = 'Cached · Writing Progress';
       }
     }
+
+    // OpenCritic Game Reviews — daily refresh via proxy
+    if (!cachedOC) {
+      ocEl.innerHTML = '<span class="digest-loading">Loading game reviews...</span>';
+      const ocStatus = document.getElementById('opencritic-updated');
+      try {
+        const r = await fetch(OPENCRITIC_PROXY_URL, { signal: AbortSignal.timeout(8000) });
+        if (r.ok) {
+          const games = await r.json();
+          ocEl.innerHTML = renderOpenCritic(games);
+          if (ocStatus) ocStatus.textContent = 'Live · via OpenCritic';
+          cacheSet('opencritic', ocEl.innerHTML);
+        } else { throw new Error('proxy ' + r.status); }
+      } catch(e) {
+        console.error('[Digest:opencritic] Error:', e.message);
+        ocEl.innerHTML = renderOpenCritic(OPENCRITIC_FALLBACK);
+        if (ocStatus) ocStatus.textContent = 'Cached · via OpenCritic';
+        cacheSet('opencritic', ocEl.innerHTML);
+      }
+    }
   }
 
 
@@ -4410,6 +4578,55 @@ onAuthStateChanged(auth, user => {
     { name: "Elephant Graveyard",         set: "Arabian Nights",     setCode: 'arn' },
   ];
 
+  // ── OPENCRITIC GAME REVIEWS ─────────────────────────────────
+  const OPENCRITIC_FALLBACK = [
+    { title: 'Mewgenics',                  score: 90, userScore: 8.1, genre: 'Roguelike',  platforms: ['PC'],                    date: 'Feb 10', url: 'https://opencritic.com/game/18498/mewgenics' },
+    { title: 'Resident Evil Requiem',       score: 88, userScore: 8.5, genre: 'Horror',     platforms: ['PS5','XSX','SW2','PC'],  date: 'Feb 27', url: 'https://opencritic.com/game/18012/resident-evil-requiem' },
+    { title: 'Hermit and Pig',             score: 88, userScore: 9.3, genre: 'Adventure',  platforms: ['PC'],                    date: 'Feb 5',  url: 'https://opencritic.com/game/18200/hermit-and-pig' },
+    { title: 'Super Bomberman Collection', score: 87, userScore: null, genre: 'Action',    platforms: ['PC'],                    date: 'Feb 5',  url: 'https://opencritic.com/game/super-bomberman-collection' },
+    { title: 'Cult of the Lamb: Woolhaven',score: 86, userScore: 8.7, genre: 'Sim',        platforms: ['PS5','XSX','SW2','PC'],  date: 'Jan 22', url: 'https://opencritic.com/game/cult-of-the-lamb-woolhaven' },
+    { title: 'Cairn',                      score: 86, userScore: 8.2, genre: 'Survival',   platforms: ['PS5','PC'],              date: 'Jan 29', url: 'https://opencritic.com/game/17832/cairn' },
+    { title: 'Nioh 3',                     score: 85, userScore: 7.5, genre: 'Soulslike',  platforms: ['PS5','PC'],              date: 'Feb 6',  url: 'https://opencritic.com/game/17950/nioh-3' },
+  ];
+
+  function renderOpenCritic(games) {
+    return games.slice(0, 7).map(function(g, i) {
+      var scoreClass = 'tbd';
+      if (g.score >= 75) scoreClass = 'green';
+      else if (g.score >= 50) scoreClass = 'yellow';
+      else if (g.score > 0) scoreClass = 'red';
+
+      var userVal = '--';
+      var userClass = 'none';
+      if (g.userScore !== null && g.userScore !== undefined) {
+        userVal = g.userScore.toFixed(1);
+        if (g.userScore >= 8) userClass = 'high';
+        else if (g.userScore >= 6) userClass = 'mid';
+        else userClass = 'low';
+      }
+
+      var platforms = (g.platforms || []).map(function(p) {
+        return '<span class="game-platform">' + p + '</span>';
+      }).join('');
+
+      return '<a class="game-row" href="' + g.url + '" target="_blank" rel="noopener">'
+        + '<span class="game-rank">' + (i + 1) + '</span>'
+        + '<span class="game-score ' + scoreClass + '">' + (g.score || 'TBD') + '</span>'
+        + '<div class="game-info">'
+        +   '<div class="game-title-row">'
+        +     '<span class="game-title">' + g.title + '</span>'
+        +     (g.genre ? '<span class="game-genre">' + g.genre + '</span>' : '')
+        +   '</div>'
+        +   '<div class="game-details">' + platforms + '<span>' + (g.date || '') + '</span></div>'
+        + '</div>'
+        + '<div class="game-user-score">'
+        +   '<div class="game-user-val ' + userClass + '">' + userVal + '</div>'
+        +   '<div class="game-user-label">users</div>'
+        + '</div>'
+        + '</a>';
+    }).join('');
+  }
+
 
   // ── FEVER LA EVENTS ───────────────────────────────────────
   // Static fallback data (updated Feb 2026)
@@ -4419,11 +4636,6 @@ onAuthStateChanged(auth, user => {
     { name: 'The Jazz Room: Journey to New Orleans',            venue: 'Historic Glendale Theater',      date: 'Mar 19 – Apr 23',   price: '$42.12',  rating: '4.7', id: '363888' },
     { name: 'The Jury Experience: Death by AI',                 venue: 'Glorya Kaufman Center',          date: 'Apr 11 – Jun 28',   price: '$38.88',  rating: '4.5', id: '486041' },
     { name: 'DroneArt Show: Four Seasons',                      venue: 'Santa Anita Park',               date: 'Apr 10 – 11',       price: '$41.80',  rating: '',    id: '573500' },
-    { name: 'Natural History Museum: Entry Ticket',             venue: 'NHM of LA County',               date: 'Ongoing',            price: '$18.00',  rating: '4.5', id: '394286' },
-    { name: 'Candlelight: Tribute to Fleetwood Mac',            venue: 'Immanuel Presbyterian',          date: 'Feb 28 – Apr 25',   price: '$37.80',  rating: '4.8', id: '114897' },
-    { name: 'Candlelight: Best of Hans Zimmer',                 venue: 'Immanuel Presbyterian',          date: 'Mar 14 – Apr 25',   price: '$65.88',  rating: '4.8', id: '176894' },
-    { name: 'The Magic Hour at Black Rabbit Rose',              venue: 'Black Rabbit Rose',              date: 'Feb 26 – May 30',   price: '$69.50',  rating: '4.7', id: '88858'  },
-    { name: 'Glow or Go: Escape Room in LA',                    venue: 'LA Beverly Center',              date: 'Feb 26 – May 31',   price: '$26.25',  rating: '4.7', id: '433990' },
   ];
 
   // Live scrape: fetch Fever top-10 page via CORS proxy, parse events
@@ -4432,7 +4644,7 @@ onAuthStateChanged(auth, user => {
     if (!r.ok) throw new Error('Fever proxy ' + r.status);
     const data = await r.json();
     if (!data.events || data.events.length < 3) throw new Error('Too few events');
-    renderFeverEvents(container, data.events.slice(0, 10));
+    renderFeverEvents(container, data.events.slice(0, 5));
   }
 
   function renderFeverEvents(container, events) {
