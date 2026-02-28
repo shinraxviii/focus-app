@@ -1444,6 +1444,7 @@
     color: inherit;
     cursor: pointer;
     transition: background 0.12s;
+    overflow: hidden;
   }
 
   .game-row + .game-row { border-top: 1px solid var(--border); }
@@ -1484,6 +1485,7 @@
     display: flex;
     align-items: baseline;
     gap: 8px;
+    min-width: 0;
   }
 
   .game-title {
@@ -2014,6 +2016,17 @@
     .earnings-countdown { min-width: 55px; font-size: 9px; padding: 3px 6px; margin-left: 10px; }
     .game-genre { display: none; }
     .game-user-label { display: none; }
+    .game-row { gap: 8px; padding: 8px 4px; min-height: 48px; }
+    .game-rank { width: 14px; font-size: 12px; }
+    .game-score { width: 32px; height: 32px; font-size: 12px; border-radius: 6px; }
+    .game-title { font-size: 11px; }
+    .game-details { font-size: 8px; gap: 4px; }
+    .game-platform { font-size: 7px; padding: 1px 4px; }
+    .game-user-score { min-width: 28px; }
+    .game-user-val { font-size: 11px; }
+    .card-row { padding: 8px 4px; min-height: 48px; }
+    .card-name { font-size: 11px; }
+    .card-price { font-size: 15px; }
   }
 
 
