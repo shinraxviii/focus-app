@@ -1919,6 +1919,119 @@
   }
   .digest-section-link:hover { color: var(--text); }
 
+  /* Speed Test Widget */
+  .speed-test-body { display: flex; flex-direction: column; gap: 10px; flex: 1; }
+
+  .speed-test-gauges {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    text-align: center;
+  }
+
+  .speed-gauge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .speed-gauge-ring {
+    position: relative;
+    width: 72px;
+    height: 72px;
+  }
+
+  .speed-gauge-ring svg {
+    width: 72px;
+    height: 72px;
+    transform: rotate(-90deg);
+  }
+
+  .speed-gauge-ring circle {
+    fill: none;
+    stroke-width: 5;
+  }
+
+  .speed-gauge-ring .gauge-track {
+    stroke: var(--border);
+  }
+
+  .speed-gauge-ring .gauge-fill {
+    stroke: var(--accent);
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.6s ease;
+  }
+
+  .speed-gauge-ring .gauge-fill--upload { stroke: var(--color-neon); }
+  .speed-gauge-ring .gauge-fill--ping   { stroke: var(--color-solar); }
+
+  .speed-gauge-val {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'DM Serif Display', serif;
+    font-size: 16px;
+    color: var(--text);
+  }
+
+  .speed-gauge-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+  }
+
+  .speed-gauge-unit {
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-top: -2px;
+  }
+
+  .speed-test-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+    width: 100%;
+  }
+  .speed-test-btn:hover { background: var(--border); }
+  .speed-test-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  .speed-test-progress {
+    height: 2px;
+    background: var(--border);
+    border-radius: 1px;
+    overflow: hidden;
+  }
+  .speed-test-progress-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+
+  .speed-test-status {
+    font-size: 9px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    text-align: center;
+    min-height: 14px;
+  }
+
   .clear-completed-btn {
     background: none;
     border: none;
@@ -2697,6 +2810,45 @@ onAuthStateChanged(auth, user => {
       </div>
       <div class="fever-list" id="fever-list">
         <span class="digest-loading">Loading...</span>
+      </div>
+    </div>
+
+    <!-- SPEED TEST -->
+    <div class="digest-card" id="speed-test-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title">Speed Test</span>
+        <span class="digest-card-updated" id="speed-test-updated"></span>
+      </div>
+      <div class="speed-test-body" id="speed-test-body">
+        <div class="speed-test-gauges">
+          <div class="speed-gauge">
+            <div class="speed-gauge-ring">
+              <svg viewBox="0 0 72 72"><circle class="gauge-track" cx="36" cy="36" r="30"/><circle class="gauge-fill" id="gauge-download" cx="36" cy="36" r="30" stroke-dasharray="188.5" stroke-dashoffset="188.5"/></svg>
+              <div class="speed-gauge-val" id="speed-dl-val">—</div>
+            </div>
+            <span class="speed-gauge-label">Download</span>
+            <span class="speed-gauge-unit">Mbps</span>
+          </div>
+          <div class="speed-gauge">
+            <div class="speed-gauge-ring">
+              <svg viewBox="0 0 72 72"><circle class="gauge-track" cx="36" cy="36" r="30"/><circle class="gauge-fill gauge-fill--upload" id="gauge-upload" cx="36" cy="36" r="30" stroke-dasharray="188.5" stroke-dashoffset="188.5"/></svg>
+              <div class="speed-gauge-val" id="speed-ul-val">—</div>
+            </div>
+            <span class="speed-gauge-label">Upload</span>
+            <span class="speed-gauge-unit">Mbps</span>
+          </div>
+          <div class="speed-gauge">
+            <div class="speed-gauge-ring">
+              <svg viewBox="0 0 72 72"><circle class="gauge-track" cx="36" cy="36" r="30"/><circle class="gauge-fill gauge-fill--ping" id="gauge-ping" cx="36" cy="36" r="30" stroke-dasharray="188.5" stroke-dashoffset="188.5"/></svg>
+              <div class="speed-gauge-val" id="speed-ping-val">—</div>
+            </div>
+            <span class="speed-gauge-label">Ping</span>
+            <span class="speed-gauge-unit">ms</span>
+          </div>
+        </div>
+        <div class="speed-test-progress" id="speed-progress" style="display:none;"><div class="speed-test-progress-fill" id="speed-progress-fill"></div></div>
+        <div class="speed-test-status" id="speed-test-status"></div>
+        <button class="speed-test-btn" id="speed-test-btn" onclick="runSpeedTest()">Run Speed Test</button>
       </div>
     </div>
   </div>
@@ -6430,6 +6582,160 @@ onAuthStateChanged(auth, user => {
   }
 
   // Init weather, date, title — these run immediately regardless of auth
+
+  // ── SPEED TEST ──────────────────────────────────────────────
+  const SPEED_CACHE_KEY = 'focus-digest-speedtest';
+  const CIRCUMFERENCE = 2 * Math.PI * 30; // r=30 on our SVG circles
+
+  function setGauge(id, value, max) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const pct = Math.min(value / max, 1);
+    el.setAttribute('stroke-dashoffset', CIRCUMFERENCE * (1 - pct));
+  }
+
+  function showSpeedResult(dl, ul, ping, ts) {
+    document.getElementById('speed-dl-val').textContent = dl !== null ? dl.toFixed(1) : '—';
+    document.getElementById('speed-ul-val').textContent = ul !== null ? ul.toFixed(1) : '—';
+    document.getElementById('speed-ping-val').textContent = ping !== null ? Math.round(ping) : '—';
+    setGauge('gauge-download', dl || 0, 500);
+    setGauge('gauge-upload', ul || 0, 500);
+    setGauge('gauge-ping', ping || 0, 200);
+    if (ts) {
+      const age = cacheAge(ts);
+      document.getElementById('speed-test-updated').textContent = age;
+    }
+  }
+
+  function loadSpeedCache() {
+    try {
+      const raw = localStorage.getItem(SPEED_CACHE_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch(e) { return null; }
+  }
+
+  // Show cached results on page load
+  (function initSpeedTest() {
+    const cached = loadSpeedCache();
+    if (cached) {
+      showSpeedResult(cached.download, cached.upload, cached.ping, cached.ts);
+    }
+  })();
+
+  async function measurePing() {
+    const pings = [];
+    for (let i = 0; i < 5; i++) {
+      const t0 = performance.now();
+      try {
+        await fetch('https://speed.cloudflare.com/__down?bytes=0', { cache: 'no-store', mode: 'cors' });
+        pings.push(performance.now() - t0);
+      } catch(e) { /* skip failed pings */ }
+    }
+    if (pings.length === 0) return null;
+    pings.sort((a, b) => a - b);
+    // Return median
+    return pings[Math.floor(pings.length / 2)];
+  }
+
+  async function measureDownload(onProgress) {
+    const bytes = 10 * 1024 * 1024; // 10MB
+    const t0 = performance.now();
+    try {
+      const resp = await fetch('https://speed.cloudflare.com/__down?bytes=' + bytes, { cache: 'no-store', mode: 'cors' });
+      const reader = resp.body.getReader();
+      let received = 0;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        received += value.length;
+        if (onProgress) onProgress(received / bytes);
+      }
+      const elapsed = (performance.now() - t0) / 1000; // seconds
+      return (received * 8) / (elapsed * 1000000); // Mbps
+    } catch(e) { return null; }
+  }
+
+  async function measureUpload(onProgress) {
+    const size = 2 * 1024 * 1024; // 2MB
+    const blob = new Blob([new ArrayBuffer(size)]);
+    const t0 = performance.now();
+    try {
+      await fetch('https://speed.cloudflare.com/__up', {
+        method: 'POST',
+        body: blob,
+        mode: 'cors',
+        cache: 'no-store'
+      });
+      const elapsed = (performance.now() - t0) / 1000;
+      if (onProgress) onProgress(1);
+      return (size * 8) / (elapsed * 1000000); // Mbps
+    } catch(e) { return null; }
+  }
+
+  async function runSpeedTest() {
+    const btn = document.getElementById('speed-test-btn');
+    const statusEl = document.getElementById('speed-test-status');
+    const progressBar = document.getElementById('speed-progress');
+    const progressFill = document.getElementById('speed-progress-fill');
+
+    btn.disabled = true;
+    btn.textContent = 'Testing...';
+    progressBar.style.display = 'block';
+    progressFill.style.width = '0%';
+
+    let dl = null, ul = null, ping = null;
+
+    // Phase 1: Ping
+    statusEl.textContent = 'Measuring latency...';
+    progressFill.style.width = '10%';
+    ping = await measurePing();
+    if (ping !== null) {
+      document.getElementById('speed-ping-val').textContent = Math.round(ping);
+      setGauge('gauge-ping', ping, 200);
+    }
+
+    // Phase 2: Download
+    statusEl.textContent = 'Testing download...';
+    dl = await measureDownload(function(pct) {
+      progressFill.style.width = (10 + pct * 50) + '%';
+      document.getElementById('speed-dl-val').textContent = '...';
+    });
+    if (dl !== null) {
+      document.getElementById('speed-dl-val').textContent = dl.toFixed(1);
+      setGauge('gauge-download', dl, 500);
+    }
+
+    // Phase 3: Upload
+    statusEl.textContent = 'Testing upload...';
+    ul = await measureUpload(function(pct) {
+      progressFill.style.width = (60 + pct * 35) + '%';
+      document.getElementById('speed-ul-val').textContent = '...';
+    });
+    if (ul !== null) {
+      document.getElementById('speed-ul-val').textContent = ul.toFixed(1);
+      setGauge('gauge-upload', ul, 500);
+    }
+
+    // Done
+    progressFill.style.width = '100%';
+    const nowTs = Date.now();
+    statusEl.textContent = dl !== null ? 'Test complete' : 'Test failed — check connection';
+    btn.textContent = 'Run Again';
+    btn.disabled = false;
+    setTimeout(function() { progressBar.style.display = 'none'; }, 600);
+
+    // Cache result
+    if (dl !== null || ul !== null || ping !== null) {
+      try {
+        localStorage.setItem(SPEED_CACHE_KEY, JSON.stringify({
+          ts: nowTs, download: dl, upload: ul, ping: ping
+        }));
+      } catch(e) {}
+      document.getElementById('speed-test-updated').textContent = 'Just now';
+    }
+  }
+  window.runSpeedTest = runSpeedTest;
 
 
 </script>
