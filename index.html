@@ -443,7 +443,7 @@
     padding: 2px 5px;
   }
   .task-date.overdue {
-    color: var(--danger-text);
+    color: #fff;
     font-weight: 500;
     background: var(--danger);
     border-radius: 4px;
@@ -6360,16 +6360,7 @@ onAuthStateChanged(auth, user => {
     </div>`;
   }
 
-  // Fallback static data (Tarzana, CA — refreshed on load when network available)
-  const STATIC_WEATHER = {
-    current: { temperature_2m: 65, weathercode: 1 },
-    daily: {
-      time: ['2026-02-22','2026-02-23','2026-02-24','2026-02-25'],
-      temperature_2m_max: [68, 70, 72, 71],
-      weathercode: [1, 1, 2, 1]
-    },
-    city: 'Los Angeles'
-  };
+  const WEATHER_CACHE_KEY = 'focus-weather-cache';
 
   async function fetchWeather(lat, lon) {
     try {
@@ -6379,42 +6370,56 @@ onAuthStateChanged(auth, user => {
       const res = await fetch(url, { signal: controller.signal });
       clearTimeout(timeout);
       const data = await res.json();
-      renderWeather(data, null);
 
-      // City name: check cache first (7-day TTL) before hitting Nominatim
+      // Resolve city name: check cache first (7-day TTL) before hitting Nominatim
       const cityKey = 'focus-weather-city';
+      let city = null;
       try {
         const cached = localStorage.getItem(cityKey);
         if (cached) {
           const c = JSON.parse(cached);
-          if (Date.now() - c.ts < 7 * 24 * 60 * 60 * 1000) {
-            const el = document.getElementById('weather-city');
-            if (el && c.city) el.textContent = c.city;
-          } else { throw new Error('stale'); }
-        } else { throw new Error('miss'); }
-      } catch(_) {
+          if (Date.now() - c.ts < 7 * 24 * 60 * 60 * 1000) city = c.city;
+        }
+      } catch(_) {}
+      if (!city) {
         try {
           const geo = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
           const gd = await geo.json();
-          const city = gd.address.city || gd.address.town || gd.address.village || gd.address.county || '';
-          if (city) {
-            localStorage.setItem(cityKey, JSON.stringify({ ts: Date.now(), city }));
-            const el = document.getElementById('weather-city');
-            if (el) el.textContent = city;
-          }
+          city = gd.address.city || gd.address.town || gd.address.village || gd.address.county || '';
+          if (city) localStorage.setItem(cityKey, JSON.stringify({ ts: Date.now(), city }));
         } catch(e) {}
       }
+
+      renderWeather(data, city);
+      // Cache the successful fetch for next page load
+      try { localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify({ ts: Date.now(), data, city })); } catch(e) {}
     } catch(e) {
-      // Network blocked (e.g. sandbox) — use static fallback
-      renderWeather(STATIC_WEATHER, STATIC_WEATHER.city);
+      // Network failed — show cached data if we have it (loading state stays if not)
+      const cached = loadWeatherCache();
+      if (cached) renderWeather(cached.data, cached.city);
     }
   }
 
+  function loadWeatherCache() {
+    try {
+      const raw = localStorage.getItem(WEATHER_CACHE_KEY);
+      if (!raw) return null;
+      const cached = JSON.parse(raw);
+      // Accept cache up to 3 hours old
+      if (Date.now() - cached.ts > 3 * 60 * 60 * 1000) return null;
+      return cached;
+    } catch(e) { return null; }
+  }
+
   const wEl = document.getElementById('weather-widget');
-  wEl.innerHTML = '<span class="weather-loading">—</span>';
-  // Show static data immediately so widget is never blank
-  renderWeather(STATIC_WEATHER, STATIC_WEATHER.city);
-  // Try geolocation for travel; silently fall back to LA coords if denied
+  // Show cached weather instantly if available, otherwise a loading indicator
+  const weatherCache = loadWeatherCache();
+  if (weatherCache) {
+    renderWeather(weatherCache.data, weatherCache.city);
+  } else {
+    wEl.innerHTML = '<span class="weather-loading">Loading weather\u2026</span>';
+  }
+  // Fetch fresh data in the background
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
       pos => fetchWeather(pos.coords.latitude, pos.coords.longitude),
