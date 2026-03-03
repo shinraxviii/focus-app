@@ -4438,7 +4438,7 @@ onAuthStateChanged(auth, user => {
       var borderRgba = 'rgba(' + r + ',' + g + ',' + b + ',0.3)';
 
       var html = '<div class="reddit-group">';
-      html += '<div class="reddit-group-header">'
+      html += '<div class="reddit-group-header" style="color:' + color + ';">'
         + '<span class="reddit-group-dot" style="background:' + color + ';"></span>'
         + sub
         + '</div>';
@@ -5102,8 +5102,9 @@ onAuthStateChanged(auth, user => {
       const results = await Promise.all(SPORTS_TEAMS.map(async t => {
         const empty = { name: t.name, league: t.league, result: '—', score: '', opponent: '', gameDate: '', record: '—', isLive: false, liveClock: '', isNext: false, gameUrl: '' };
         try {
-          // Step 1: Check today's scoreboard for live/scheduled games — most reliable for live
+          // Step 1: Check today's scoreboard for live or completed games today
           let liveGame = null;
+          let todayCompletedGame = null;
           try {
             const sbUrl = `https://site.api.espn.com/apis/site/v2/sports/${t.sport}/${t.league_path}/scoreboard`;
             const sbr = await fetch(sbUrl, { signal: AbortSignal.timeout(5000) });
@@ -5115,20 +5116,37 @@ onAuthStateChanged(auth, user => {
                   String(cx.id) === String(t.espnId) || cx.team?.id === String(t.espnId)
                 ));
               });
-              // Prefer in-progress, then most recent
+              // Prefer in-progress game
               liveGame = todayEvents.find(e => {
                 const s = e.competitions[0]?.status?.type;
                 return s && !s.completed && (s.state === 'in' || s.name === 'in');
               }) || null;
+              // Also find completed game from today's scoreboard
+              if (!liveGame) {
+                todayCompletedGame = todayEvents.find(e => {
+                  const s = e.competitions[0]?.status?.type;
+                  return s && s.completed === true;
+                }) || null;
+              }
             }
           } catch(_) {}
 
-          // Step 2: If live found on scoreboard, use it (no extra fetch needed)
+          // Step 2: If live found on scoreboard, use it
           if (liveGame) {
             const parsed = parseComp(t, liveGame, true);
             if (parsed) {
-              // Try to get record from scoreboard team data
               const sbTeam = (liveGame.competitions[0]?.competitors || []).find(c =>
+                String(c.id) === String(t.espnId) || c.team?.id === String(t.espnId) || c.team?.abbreviation === t.abbrev);
+              const record = sbTeam?.records?.[0]?.summary || sbTeam?.team?.record?.items?.[0]?.summary || '—';
+              return { name: t.name, league: t.league, record, ...parsed };
+            }
+          }
+
+          // Step 2b: If a completed game found on today's scoreboard, use it (most recent result)
+          if (todayCompletedGame) {
+            const parsed = parseComp(t, todayCompletedGame, false);
+            if (parsed) {
+              const sbTeam = (todayCompletedGame.competitions[0]?.competitors || []).find(c =>
                 String(c.id) === String(t.espnId) || c.team?.id === String(t.espnId) || c.team?.abbreviation === t.abbrev);
               const record = sbTeam?.records?.[0]?.summary || sbTeam?.team?.record?.items?.[0]?.summary || '—';
               return { name: t.name, league: t.league, record, ...parsed };
@@ -5147,7 +5165,9 @@ onAuthStateChanged(auth, user => {
             || '—';
 
           const completed = (sd.events || []).filter(e => e.competitions?.[0]?.status?.type?.completed === true);
-          const last = completed[completed.length - 1];
+          // Sort by date descending so we always get the most recent completed game
+          completed.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          const last = completed[0] || null;
 
           // Find next upcoming game if no completed game exists or as fallback
           const now = Date.now();
@@ -5155,6 +5175,7 @@ onAuthStateChanged(auth, user => {
             const s = e.competitions?.[0]?.status?.type;
             return s && !s.completed && s.state !== 'in' && new Date(e.date).getTime() > now;
           });
+          upcoming.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
           const next = upcoming[0] || null;
 
           if (!last && !next) return { ...empty, record };
