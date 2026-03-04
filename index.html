@@ -4574,10 +4574,10 @@ onAuthStateChanged(auth, user => {
         // Define groups and which labels belong to each
         const GROUPS = [
           { name: 'Index', labels: ['S&P 500', 'Nasdaq'] },
-          { name: 'Ad Tech', labels: ['APP', 'U'] },
+          { name: 'Ad Tech', labels: ['APP', 'U', 'APPS'] },
           { name: 'Tech', labels: ['AAPL', 'META', 'TSLA', 'GOOG', 'NVDA'] },
           { name: 'Crypto', labels: ['BTC', 'ETH', 'SOL'] },
-          { name: 'Commodities', labels: ['Gold', 'Silver', 'Platinum', 'Oil'] },
+          { name: 'Commodities', labels: ['Gold', 'Silver', 'Oil'] },
         ];
 
         // Build a lookup by label
@@ -4681,8 +4681,8 @@ onAuthStateChanged(auth, user => {
       // Tier 2: Direct Yahoo Finance (works in some browsers without CORS issues)
       if (!stocksLoaded) {
         try {
-          const TICKERS = ['APP','U','AAPL','TSLA','META','GOOG','NVDA','^GSPC','^IXIC','BTC-USD','ETH-USD','SOL-USD','GC=F','SI=F','PL=F','CL=F'];
-          const LABELS  = {'BTC-USD':'BTC','ETH-USD':'ETH','SOL-USD':'SOL','^GSPC':'S&P 500','^IXIC':'Nasdaq','GC=F':'Gold','SI=F':'Silver','PL=F':'Platinum','CL=F':'Oil'};
+          const TICKERS = ['APP','U','APPS','AAPL','TSLA','META','GOOG','NVDA','^GSPC','^IXIC','BTC-USD','ETH-USD','SOL-USD','GC=F','SI=F','CL=F'];
+          const LABELS  = {'BTC-USD':'BTC','ETH-USD':'ETH','SOL-USD':'SOL','^GSPC':'S&P 500','^IXIC':'Nasdaq','GC=F':'Gold','SI=F':'Silver','CL=F':'Oil'};
           const results = await Promise.race([
             Promise.all(TICKERS.map(async function(t) {
               try {
@@ -4705,7 +4705,7 @@ onAuthStateChanged(auth, user => {
       // Tier 3: Claude fallback (uses tokens but works when everything else fails)
       if (!stocksLoaded) {
         try {
-          const clean = await claudeSearch('Current prices and 1-day % change for: APP, U, AAPL, TSLA, META, GOOG, NVDA, S&P 500, Nasdaq, BTC, ETH, SOL, Gold, Silver, Platinum, Oil (WTI Crude). Return ONLY a JSON array: [{"label":"APP","price":100.00,"changePct":1.5}]', 550);
+          const clean = await claudeSearch('Current prices and 1-day % change for: APP, U, APPS, AAPL, TSLA, META, GOOG, NVDA, S&P 500, Nasdaq, BTC, ETH, SOL, Gold, Silver, Oil (WTI Crude). Return ONLY a JSON array: [{"label":"APP","price":100.00,"changePct":1.5}]', 550);
           const stocks = JSON.parse(clean);
           if (Array.isArray(stocks) && stocks.length) { renderStocks(stocks, 'via Claude'); stocksLoaded = true; }
         } catch(e) {
