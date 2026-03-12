@@ -3688,7 +3688,7 @@ onAuthStateChanged(auth, user => {
     cb.checked = t.section === 'completed';
     cb.addEventListener('change', () => {
       if (cb.checked) {
-        window._playComplete();
+        // window._playComplete(); // disabled — uncomment to re-enable completion sound
 
         const item = cb.closest('.task-item');
         const wrap = item ? item.querySelector('.task-text-wrap') : null;
