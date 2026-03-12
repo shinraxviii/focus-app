@@ -4014,7 +4014,7 @@ onAuthStateChanged(auth, user => {
   const DEALS_PROXY_URL    = 'https://focus-proxy.vercel.app/api/deals';
   const REDDIT_PROXY_URL   = 'https://focus-proxy.vercel.app/api/reddit';
   const OPENCRITIC_PROXY_URL = 'https://focus-proxy.vercel.app/api/opencritic';
-  const RAWG_API_KEY = '';  // Free key from https://rawg.io/apidocs
+  const RAWG_API_KEY = 'a87dd8c29ee341bdb8f429e1e55f2b7d';
 
   async function claudeSearch(prompt, max_tokens) {
     if (!PROXY_URL || !PROXY_URL.trim()) throw new Error('PROXY_URL is not configured');
