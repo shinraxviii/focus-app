@@ -4014,6 +4014,7 @@ onAuthStateChanged(auth, user => {
   const DEALS_PROXY_URL    = 'https://focus-proxy.vercel.app/api/deals';
   const REDDIT_PROXY_URL   = 'https://focus-proxy.vercel.app/api/reddit';
   const OPENCRITIC_PROXY_URL = 'https://focus-proxy.vercel.app/api/opencritic';
+  const RAWG_API_KEY = '';  // Free key from https://rawg.io/apidocs
 
   async function claudeSearch(prompt, max_tokens) {
     if (!PROXY_URL || !PROXY_URL.trim()) throw new Error('PROXY_URL is not configured');
@@ -4804,6 +4805,18 @@ onAuthStateChanged(auth, user => {
           } else { throw new Error('proxy ' + r.status); }
         } catch(e) {
           console.error('[Digest:opencritic] Error:', e.message);
+          // Try RAWG as fallback before using static data
+          try {
+            const rawgGames = await fetchRAWG();
+            if (rawgGames && rawgGames.length) {
+              ocEl.innerHTML = renderOpenCritic(rawgGames);
+              if (ocStatus) ocStatus.textContent = 'Live · via RAWG';
+              cacheSet('opencritic3', ocEl.innerHTML);
+              return;
+            }
+          } catch(e2) {
+            console.error('[Digest:rawg] Error:', e2.message);
+          }
           ocEl.innerHTML = renderOpenCritic(OPENCRITIC_FALLBACK);
           if (ocStatus) ocStatus.textContent = 'Cached · via OpenCritic';
           cacheSet('opencritic3', ocEl.innerHTML);
@@ -4921,6 +4934,43 @@ onAuthStateChanged(auth, user => {
     { name: "Serra's Sanctum",            set: "Urza's Saga",        setCode: 'usg' },
     { name: "Elephant Graveyard",         set: "Arabian Nights",     setCode: 'arn' },
   ];
+
+  // ── RAWG FALLBACK FOR GAME REVIEWS ──────────────────────────
+  async function fetchRAWG() {
+    if (!RAWG_API_KEY) return null;
+    const now = new Date();
+    const year = now.getFullYear();
+    const start = year + '-01-01';
+    const end = year + '-12-31';
+    const url = 'https://api.rawg.io/api/games?key=' + RAWG_API_KEY
+      + '&dates=' + start + ',' + end
+      + '&ordering=-metacritic&metacritic=1,100&page_size=12';
+    const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!r.ok) throw new Error('RAWG ' + r.status);
+    const data = await r.json();
+    return (data.results || []).map(function(g) {
+      var plats = (g.platforms || []).map(function(p) {
+        var n = p.platform.name;
+        if (n === 'PlayStation 5') return 'PS5';
+        if (n === 'Xbox Series S/X') return 'XSX';
+        if (n === 'Nintendo Switch') return 'SW2';
+        if (n === 'PC') return 'PC';
+        return n.length > 5 ? n.slice(0, 4) : n;
+      }).filter(function(v, i, a) { return a.indexOf(v) === i; }).slice(0, 4);
+      var d = g.released ? new Date(g.released) : null;
+      var dateStr = d ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+      var genre = g.genres && g.genres[0] ? g.genres[0].name : '';
+      return {
+        title: g.name,
+        score: g.metacritic || 0,
+        userScore: g.rating ? Math.round(g.rating * 20) / 10 : null,
+        genre: genre,
+        platforms: plats,
+        date: dateStr,
+        url: 'https://rawg.io/games/' + g.slug
+      };
+    });
+  }
 
   // ── OPENCRITIC GAME REVIEWS ─────────────────────────────────
   const OPENCRITIC_FALLBACK = [
