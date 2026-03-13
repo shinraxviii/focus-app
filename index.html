@@ -5182,34 +5182,107 @@ onAuthStateChanged(auth, user => {
   }
 
   // ── SORCERY: CONTESTED REALM ────────────────────────────────
-  const SORCERY_CDN = 'https://d27a44hjr9gen3.cloudfront.net/';
-  const SORCERY_CARDS = [
-    { name: 'King Arthur',          type: 'Avatar',    element: 'Earth',  set: 'Arthurian Legends',  slug: 'art/king_arthur_b_s' },
-    { name: 'Merlin',               type: 'Avatar',    element: 'Air',    set: 'Arthurian Legends',  slug: 'art/merlin_b_s' },
-    { name: 'Excalibur',            type: 'Relic',     element: 'Earth',  set: 'Arthurian Legends',  slug: 'art/excalibur_b_s' },
-    { name: 'Boudicca',             type: 'Minion',    element: 'Fire',   set: 'Arthurian Legends',  slug: 'art/boudicca_b_s' },
-    { name: 'Sir Lancelot',         type: 'Minion',    element: 'Earth',  set: 'Arthurian Legends',  slug: 'art/sir_lancelot_b_s' },
-    { name: 'Queen Guinevere',      type: 'Minion',    element: 'Water',  set: 'Arthurian Legends',  slug: 'art/queen_guinevere_b_s' },
-    { name: 'Black Knight',         type: 'Minion',    element: 'Fire',   set: 'Arthurian Legends',  slug: 'art/black_knight_b_s' },
-    { name: 'Ball Lightning',       type: 'Spell',     element: 'Air',    set: 'Arthurian Legends',  slug: 'art/ball_lightning_b_s' },
-    { name: 'Ancient Dragon',       type: 'Minion',    element: 'Fire',   set: 'Beta',   slug: 'bet/ancient_dragon_b_s' },
-    { name: 'Fireball',             type: 'Spell',     element: 'Fire',   set: 'Beta',   slug: 'bet/fireball_b_s' },
-    { name: 'Lightning Bolt',       type: 'Spell',     element: 'Air',    set: 'Beta',   slug: 'bet/lightning_bolt_b_s' },
-    { name: 'Earthquake',           type: 'Spell',     element: 'Earth',  set: 'Beta',   slug: 'bet/earthquake_b_s' },
-    { name: 'Chain Lightning',      type: 'Spell',     element: 'Air',    set: 'Beta',   slug: 'bet/chain_lightning_b_s' },
-    { name: 'Ghost Ship',           type: 'Minion',    element: 'Water',  set: 'Beta',   slug: 'bet/ghost_ship_b_s' },
-    { name: 'Giant Shark',          type: 'Minion',    element: 'Water',  set: 'Beta',   slug: 'bet/giant_shark_b_s' },
-    { name: 'Mountain Giant',       type: 'Minion',    element: 'Earth',  set: 'Beta',   slug: 'bet/mountain_giant_b_s' },
-    { name: 'Grandmaster Wizard',   type: 'Minion',    element: 'Air',    set: 'Beta',   slug: 'bet/grandmaster_wizard_b_s' },
-    { name: 'Cerberus in Chains',   type: 'Minion',    element: 'Fire',   set: 'Beta',   slug: 'bet/cerberus_in_chains_b_s' },
-    { name: 'Crown Prince',         type: 'Minion',    element: 'Earth',  set: 'Beta',   slug: 'bet/crown_prince_b_s' },
-    { name: 'Doomsday Prophet',     type: 'Minion',    element: 'Fire',   set: 'Beta',   slug: 'bet/doomsday_prophet_b_s' },
-    { name: 'Blood Ravens',         type: 'Minion',    element: 'Fire',   set: 'Beta',   slug: 'bet/blood_ravens_b_s' },
-    { name: 'Glastonbury Tor',      type: 'Site',      element: 'Earth',  set: 'Arthurian Legends',  slug: 'art/glastonbury_tor_b_s' },
-    { name: 'Cloud City',           type: 'Site',      element: 'Air',    set: 'Beta',   slug: 'bet/cloud_city_b_s' },
-    { name: 'River of Flame',       type: 'Site',      element: 'Fire',   set: 'Beta',   slug: 'bet/river_of_flame_b_s' },
-    { name: '13 Treasures of Britain', type: 'Spell',  element: 'Earth',  set: 'Arthurian Legends',  slug: 'art/13_treasures_of_britain_b_s' },
+  // FourCores API for full card database + image CDN
+  const FOURCORES_API = 'https://fourcores.xyz/api/cards';
+  const FOURCORES_IMG = 'https://fourcores-home.netlify.app/images/cards/';
+
+  // Set code → display name mapping
+  const SORCERY_SET_NAMES = {
+    ALP: 'Alpha', BET: 'Beta', ART: 'Arthurian Legends', GOT: 'Gothic'
+  };
+
+  // Fallback cards used when API is unavailable (small subset)
+  const SORCERY_FALLBACK = [
+    { name: 'King Arthur',          type: 'Avatar',  element: 'Earth', set: 'Arthurian Legends', imgId: null, slug: 'art/king_arthur_b_s' },
+    { name: 'Merlin',               type: 'Avatar',  element: 'Air',   set: 'Arthurian Legends', imgId: null, slug: 'art/merlin_b_s' },
+    { name: 'Excalibur',            type: 'Relic',   element: 'Earth', set: 'Arthurian Legends', imgId: null, slug: 'art/excalibur_b_s' },
+    { name: 'Boudicca',             type: 'Minion',  element: 'Fire',  set: 'Arthurian Legends', imgId: null, slug: 'art/boudicca_b_s' },
+    { name: 'Sir Lancelot',         type: 'Minion',  element: 'Earth', set: 'Arthurian Legends', imgId: null, slug: 'art/sir_lancelot_b_s' },
+    { name: 'Queen Guinevere',      type: 'Minion',  element: 'Water', set: 'Arthurian Legends', imgId: null, slug: 'art/queen_guinevere_b_s' },
+    { name: 'Black Knight',         type: 'Minion',  element: 'Fire',  set: 'Arthurian Legends', imgId: null, slug: 'art/black_knight_b_s' },
+    { name: 'Ball Lightning',       type: 'Spell',   element: 'Air',   set: 'Arthurian Legends', imgId: null, slug: 'art/ball_lightning_b_s' },
+    { name: 'Ancient Dragon',       type: 'Minion',  element: 'Fire',  set: 'Beta',   imgId: null, slug: 'bet/ancient_dragon_b_s' },
+    { name: 'Fireball',             type: 'Spell',   element: 'Fire',  set: 'Beta',   imgId: null, slug: 'bet/fireball_b_s' },
+    { name: 'Lightning Bolt',       type: 'Spell',   element: 'Air',   set: 'Beta',   imgId: null, slug: 'bet/lightning_bolt_b_s' },
+    { name: 'Earthquake',           type: 'Spell',   element: 'Earth', set: 'Beta',   imgId: null, slug: 'bet/earthquake_b_s' },
+    { name: 'Chain Lightning',      type: 'Spell',   element: 'Air',   set: 'Beta',   imgId: null, slug: 'bet/chain_lightning_b_s' },
+    { name: 'Ghost Ship',           type: 'Minion',  element: 'Water', set: 'Beta',   imgId: null, slug: 'bet/ghost_ship_b_s' },
+    { name: 'Giant Shark',          type: 'Minion',  element: 'Water', set: 'Beta',   imgId: null, slug: 'bet/giant_shark_b_s' },
+    { name: 'Mountain Giant',       type: 'Minion',  element: 'Earth', set: 'Beta',   imgId: null, slug: 'bet/mountain_giant_b_s' },
+    { name: 'Grandmaster Wizard',   type: 'Minion',  element: 'Air',   set: 'Beta',   imgId: null, slug: 'bet/grandmaster_wizard_b_s' },
+    { name: 'Cerberus in Chains',   type: 'Minion',  element: 'Fire',  set: 'Beta',   imgId: null, slug: 'bet/cerberus_in_chains_b_s' },
+    { name: 'Crown Prince',         type: 'Minion',  element: 'Earth', set: 'Beta',   imgId: null, slug: 'bet/crown_prince_b_s' },
+    { name: 'Doomsday Prophet',     type: 'Minion',  element: 'Fire',  set: 'Beta',   imgId: null, slug: 'bet/doomsday_prophet_b_s' },
+    { name: 'Blood Ravens',         type: 'Minion',  element: 'Fire',  set: 'Beta',   imgId: null, slug: 'bet/blood_ravens_b_s' },
+    { name: 'Glastonbury Tor',      type: 'Site',    element: 'Earth', set: 'Arthurian Legends', imgId: null, slug: 'art/glastonbury_tor_b_s' },
+    { name: 'Cloud City',           type: 'Site',    element: 'Air',   set: 'Beta',   imgId: null, slug: 'bet/cloud_city_b_s' },
+    { name: 'River of Flame',       type: 'Site',    element: 'Fire',  set: 'Beta',   imgId: null, slug: 'bet/river_of_flame_b_s' },
+    { name: '13 Treasures of Britain', type: 'Spell', element: 'Earth', set: 'Arthurian Legends', imgId: null, slug: 'art/13_treasures_of_britain_b_s' },
   ];
+
+  // Normalize API card to our internal format, keeping only one printing per unique card name
+  function _normalizeFourCoresCards(apiCards) {
+    var seen = {};
+    var result = [];
+    for (var i = 0; i < apiCards.length; i++) {
+      var c = apiCards[i];
+      if (!c.name || seen[c.name]) continue;
+      seen[c.name] = true;
+      var category = (c.category || '').toLowerCase();
+      var type = category.charAt(0).toUpperCase() + category.slice(1);
+      var elements = c.elements || [];
+      var element = elements.length > 0
+        ? elements.map(function(e) { return e.charAt(0).toUpperCase() + e.slice(1).toLowerCase(); }).join('/')
+        : '';
+      var setName = SORCERY_SET_NAMES[(c.setCode || '').toUpperCase()] || c.setCode || '';
+      result.push({
+        name: c.name,
+        type: type,
+        element: element,
+        set: setName,
+        imgId: c.id || null,
+        slug: null
+      });
+    }
+    return result;
+  }
+
+  // Active card pool (populated by API fetch or fallback)
+  var SORCERY_CARDS = SORCERY_FALLBACK;
+
+  // Fetch full card list from FourCores API, cache in localStorage for 24h
+  async function loadSorceryCards() {
+    var CACHE_KEY = 'focus-sorcery-cards';
+    var CACHE_TTL = 24 * 60 * 60 * 1000;
+    try {
+      var cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        var parsed = JSON.parse(cached);
+        if (parsed._ts && Date.now() - parsed._ts < CACHE_TTL && parsed.cards && parsed.cards.length > 50) {
+          SORCERY_CARDS = parsed.cards;
+          _sorceryDeck = [];
+          return;
+        }
+      }
+    } catch(_) {}
+    try {
+      var resp = await fetch(FOURCORES_API, { signal: AbortSignal.timeout(8000) });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      var apiCards = await resp.json();
+      if (apiCards && apiCards.length > 50) {
+        var normalized = _normalizeFourCoresCards(apiCards);
+        if (normalized.length > 50) {
+          SORCERY_CARDS = normalized;
+          _sorceryDeck = [];
+          try {
+            localStorage.setItem(CACHE_KEY, JSON.stringify({ _ts: Date.now(), cards: normalized }));
+          } catch(_) {}
+        }
+      }
+    } catch(_) {
+      // API unavailable — keep using fallback or cached data
+    }
+  }
 
   // Cryptographically random integer in [0, max)
   function _cryptoRand(max) {
@@ -5229,7 +5302,7 @@ onAuthStateChanged(auth, user => {
       }
       // Prevent same card appearing twice at deck boundary
       if (_lastSorceryCard && _sorceryDeck.length > 1 &&
-          _sorceryDeck[_sorceryDeck.length - 1].slug === _lastSorceryCard.slug) {
+          _sorceryDeck[_sorceryDeck.length - 1].name === _lastSorceryCard.name) {
         var swapIdx = _cryptoRand(_sorceryDeck.length - 1);
         var t = _sorceryDeck[_sorceryDeck.length - 1];
         _sorceryDeck[_sorceryDeck.length - 1] = _sorceryDeck[swapIdx];
@@ -5240,8 +5313,17 @@ onAuthStateChanged(auth, user => {
     return _sorceryDeck.pop();
   }
 
+  function _sorceryImgUrl(card) {
+    // Prefer FourCores image CDN if we have an imgId from the API
+    if (card.imgId) {
+      return FOURCORES_IMG + card.imgId + (card.type === 'Site' ? '_hor' : '') + '.png';
+    }
+    // Fallback to Curiosa CDN with slug
+    return 'https://d27a44hjr9gen3.cloudfront.net/' + card.slug + '.png';
+  }
+
   function _renderSorceryCard(viewer, card, status) {
-    var imgUrl = SORCERY_CDN + card.slug + '.png';
+    var imgUrl = _sorceryImgUrl(card);
     var imgClass = 'sorcery-card-img' + (card.type === 'Site' ? ' site-card' : '');
     viewer.innerHTML =
       '<div class="sorcery-img-wrap">'
@@ -6836,6 +6918,8 @@ onAuthStateChanged(auth, user => {
 
   // ── SORCERY CARD INIT ──────────────────────────────────────
   showRandomSorceryCard();
+  // Load full card pool from API (upgrades from 26 fallback cards to ~600+)
+  loadSorceryCards();
 
   // ── SEALED PRICES INIT ──────────────────────────────────────
   loadSealedPrices();
