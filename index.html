@@ -3050,6 +3050,17 @@ onAuthStateChanged(auth, user => {
       </div>
     </div>
 
+    <!-- MTG RANDOM CARD -->
+    <div class="digest-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title">Magic: The Gathering</span>
+        <span class="digest-card-updated" id="mtg-random-updated">via Scryfall</span>
+      </div>
+      <div class="sorcery-viewer" id="mtg-random-viewer">
+        <span class="digest-loading">Loading...</span>
+      </div>
+    </div>
+
     <!-- SEALED PRODUCT PRICES -->
     <div class="digest-card">
       <div class="digest-card-header">
@@ -5360,6 +5371,70 @@ onAuthStateChanged(auth, user => {
     }
   }
 
+  // ── MTG RANDOM CARD (Scryfall) ─────────────────────────────────
+  var _mtgCurrentCard = null;
+
+  function _renderMtgCard(viewer, card, status) {
+    var imgUrl = '';
+    if (card.image_uris && card.image_uris.normal) {
+      imgUrl = card.image_uris.normal;
+    } else if (card.card_faces && card.card_faces[0] && card.card_faces[0].image_uris) {
+      imgUrl = card.card_faces[0].image_uris.normal;
+    }
+    var typeLine = card.type_line || '';
+    var setName = card.set_name || '';
+    // Extract the broad type (e.g. "Creature", "Instant", "Land") from the type line
+    var cardType = typeLine.split('—')[0].replace(/Legendary|Basic|Snow|World|Tribal/g, '').trim();
+    var isLand = /\bLand\b/i.test(cardType);
+
+    viewer.innerHTML =
+      '<div class="sorcery-img-wrap">'
+      + '<img class="sorcery-card-img" src="' + esc(imgUrl) + '" alt="' + esc(card.name) + '"'
+      + ' onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'">'
+      + '<div style="display:none;color:var(--text-dim);font-size:11px;padding:40px 0;">Image unavailable</div>'
+      + '</div>'
+      + '<div class="sorcery-card-info">'
+      + '<div class="sorcery-card-name">' + esc(card.name) + '</div>'
+      + '<div class="sorcery-card-type">' + esc(typeLine) + '</div>'
+      + '<div class="sorcery-card-type">' + esc(setName) + (card.released_at ? ' · ' + esc(card.released_at.slice(0, 4)) : '') + '</div>'
+      + '</div>'
+      + '<button class="sorcery-new-btn" id="mtg-random-new-btn">New Card</button>';
+    viewer.style.opacity = '1';
+    document.getElementById('mtg-random-new-btn').addEventListener('click', showRandomMtgCard);
+    if (status) status.textContent = asOfNow();
+  }
+
+  async function showRandomMtgCard() {
+    var viewer = document.getElementById('mtg-random-viewer');
+    var status = document.getElementById('mtg-random-updated');
+    if (!viewer) return;
+
+    // Fade out if a card is already shown
+    var hasCard = viewer.querySelector('.sorcery-card-img');
+    if (hasCard) viewer.style.opacity = '0';
+
+    try {
+      var resp = await fetch('https://api.scryfall.com/cards/random?q=-is%3Adigital+-is%3Afunny', { signal: AbortSignal.timeout(8000) });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      var card = await resp.json();
+      _mtgCurrentCard = card;
+
+      if (hasCard) {
+        setTimeout(function() { _renderMtgCard(viewer, card, status); }, 150);
+      } else {
+        _renderMtgCard(viewer, card, status);
+      }
+    } catch(e) {
+      if (!hasCard) {
+        viewer.innerHTML = '<div style="color:var(--text-dim);font-size:11px;padding:40px 0;text-align:center;">Could not load card</div>'
+          + '<button class="sorcery-new-btn" id="mtg-random-new-btn">Try Again</button>';
+        document.getElementById('mtg-random-new-btn').addEventListener('click', showRandomMtgCard);
+      } else {
+        viewer.style.opacity = '1';
+      }
+    }
+  }
+
   // ── SEALED PRODUCT PRICES (MTGStocks) ─────────────────────────
   function drawSparkline(prices, w, h) {
     if (!prices || prices.length < 2) return '';
@@ -6922,6 +6997,9 @@ onAuthStateChanged(auth, user => {
   showRandomSorceryCard();
   // Load full card pool from API (upgrades from 26 fallback cards to ~600+)
   loadSorceryCards();
+
+  // ── MTG RANDOM CARD INIT ─────────────────────────────────
+  showRandomMtgCard();
 
   // ── SEALED PRICES INIT ──────────────────────────────────────
   loadSealedPrices();
