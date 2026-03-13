@@ -1617,9 +1617,9 @@
   }
   .sorcery-card-img.site-card {
     transform: rotate(90deg);
-    max-height: none;
-    max-width: 70%;
-    margin: 40px 0;
+    max-height: 300px;
+    max-width: none;
+    margin: 30px 0;
   }
   .sorcery-card-info {
     margin-top: 12px;
@@ -3153,6 +3153,11 @@ onAuthStateChanged(auth, user => {
       <span class="tile-label" id="tile-streak-label">Current Streak</span>
       <span class="tile-value" id="tile-streak">—<span class="unit"> days</span></span>
       <span class="tile-sub" id="tile-streak-sub">consecutive days with completions</span>
+    </div>
+    <div class="analytics-tile">
+      <span class="tile-label">Completed Today</span>
+      <span class="tile-value" id="tile-today">0</span>
+      <span class="tile-sub" id="tile-today-sub">tasks completed today</span>
     </div>
   </div>
   <div class="analytics-card">
@@ -5281,7 +5286,7 @@ onAuthStateChanged(auth, user => {
         + '<div class="sealed-info"><div class="sealed-name">' + esc(p.set) + '</div>'
         + '<div class="sealed-set">' + esc(p.name) + '</div></div>'
         + '<span class="sealed-spark">' + spark + '</span>'
-        + '<div style="text-align:right"><div class="sealed-price">$' + price.toFixed(0) + '</div>'
+        + '<div style="text-align:right"><div class="sealed-price">$' + Math.round(price).toLocaleString() + '</div>'
         + '<div class="sealed-delta ' + deltaClass + '">' + deltaStr + '</div></div>'
         + '</a>';
     }
@@ -6123,7 +6128,7 @@ onAuthStateChanged(auth, user => {
 
   function renderTiles(stats) {
     const total = completionLog.length;
-    const { streak, bestCount, bestLabel } = stats;
+    const { streak, bestCount, bestLabel, dailyCounts } = stats;
 
     document.getElementById('tile-total-pts').textContent = total;
     document.getElementById('tile-total-sub').textContent =
@@ -6134,6 +6139,11 @@ onAuthStateChanged(auth, user => {
 
     document.getElementById('tile-streak-sub').textContent =
       bestCount > 0 ? 'Best day: ' + bestCount + ' pts on ' + bestLabel : 'No completions yet';
+
+    var todayCount = dailyCounts[dateKey(new Date())] || 0;
+    document.getElementById('tile-today').textContent = todayCount;
+    document.getElementById('tile-today-sub').textContent =
+      todayCount + ' task' + (todayCount !== 1 ? 's' : '') + ' completed today';
   }
 
   function renderChart() {
