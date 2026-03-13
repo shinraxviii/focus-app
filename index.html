@@ -5286,7 +5286,7 @@ onAuthStateChanged(auth, user => {
         + '<div class="sealed-info"><div class="sealed-name">' + esc(p.set) + '</div>'
         + '<div class="sealed-set">' + esc(p.name) + '</div></div>'
         + '<span class="sealed-spark">' + spark + '</span>'
-        + '<div style="text-align:right"><div class="sealed-price">$' + price.toFixed(0) + '</div>'
+        + '<div style="text-align:right"><div class="sealed-price">$' + Math.round(price).toLocaleString() + '</div>'
         + '<div class="sealed-delta ' + deltaClass + '">' + deltaStr + '</div></div>'
         + '</a>';
     }
