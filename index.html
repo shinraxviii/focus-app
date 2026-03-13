@@ -2911,7 +2911,7 @@ onAuthStateChanged(auth, user => {
     <div class="digest-card">
       <div class="digest-card-header">
         <span class="digest-card-title">Magic: The Gathering</span>
-        <span class="digest-card-updated">via Scryfall</span>
+        <span class="digest-card-updated" id="mtg-updated">via Scryfall</span>
       </div>
       <div class="card-list" id="mtg-list">
         <span class="digest-loading">Loading...</span>
@@ -4245,6 +4245,9 @@ onAuthStateChanged(auth, user => {
   function timeNow() {
     return new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   }
+  function asOfNow() {
+    return 'as of ' + new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+  }
 
   // ── STOCKS ──────────────────────────────────────────────────
   // ── LIVE DATA: Stocks via Yahoo Finance (0 tokens), News via Claude ──
@@ -4471,7 +4474,7 @@ onAuthStateChanged(auth, user => {
       const posts = await r.json();
       if (!posts.length) throw new Error('No posts returned');
       redditEl.innerHTML = renderReddit(posts);
-      const statusLabel = 'Live · ' + subs.map(function(s) { return 'r/' + s; }).join(', ');
+      const statusLabel = asOfNow();
       document.getElementById('reddit-status').textContent = statusLabel;
       cacheSet('reddit2', redditEl.innerHTML, statusLabel);
     } catch(e) {
@@ -4738,9 +4741,9 @@ onAuthStateChanged(auth, user => {
         const deals = await r.json();
         if (!deals.length) throw new Error('No deals returned');
         dealsEl.innerHTML = renderDeals(deals);
-        const statusLabel = 'Live · via CheapShark + Slickdeals';
-        document.getElementById('deals-status').textContent = statusLabel;
-        cacheSet('deals', dealsEl.innerHTML, statusLabel);
+        var dealsLabel = asOfNow();
+        document.getElementById('deals-status').textContent = dealsLabel;
+        cacheSet('deals', dealsEl.innerHTML, dealsLabel);
       } catch(e) {
         console.error('[Digest:deals]', e.message);
         // Fallback: try CheapShark directly (it's CORS-friendly)
@@ -4759,14 +4762,14 @@ onAuthStateChanged(auth, user => {
             };
           });
           dealsEl.innerHTML = renderDeals(deals);
-          const statusLabel = 'Live · via CheapShark';
-          document.getElementById('deals-status').textContent = statusLabel;
-          cacheSet('deals', dealsEl.innerHTML, statusLabel);
+          var dealsLabel = asOfNow();
+          document.getElementById('deals-status').textContent = dealsLabel;
+          cacheSet('deals', dealsEl.innerHTML, dealsLabel);
         } catch(e2) {
           dealsEl.innerHTML = renderDeals(DEALS_FALLBACK);
-          const statusLabel = 'Cached · Top Picks';
-          document.getElementById('deals-status').textContent = statusLabel;
-          cacheSet('deals', dealsEl.innerHTML, statusLabel);
+          var dealsLabel = 'Cached · Top Picks';
+          document.getElementById('deals-status').textContent = dealsLabel;
+          cacheSet('deals', dealsEl.innerHTML, dealsLabel);
         }
       }
     }
@@ -4786,10 +4789,26 @@ onAuthStateChanged(auth, user => {
     const feverEl = document.getElementById('fever-list');
     const sandEl  = document.getElementById('sanderson-list');
     const ocEl    = document.getElementById('opencritic-list');
-    if (cachedMTG)   mtgEl.innerHTML   = cachedMTG.data;
-    if (cachedFever) feverEl.innerHTML  = cachedFever.data;
-    if (cachedSand)  sandEl.innerHTML   = cachedSand.data;
-    if (cachedOC)    ocEl.innerHTML     = cachedOC.data;
+    if (cachedMTG) {
+      mtgEl.innerHTML = cachedMTG.data;
+      var mtgUpd = document.getElementById('mtg-updated');
+      if (mtgUpd && cachedMTG.label) mtgUpd.textContent = cachedMTG.label;
+    }
+    if (cachedFever) {
+      feverEl.innerHTML = cachedFever.data;
+      var feverUpd = document.getElementById('fever-updated');
+      if (feverUpd && cachedFever.label) feverUpd.textContent = cachedFever.label;
+    }
+    if (cachedSand) {
+      sandEl.innerHTML = cachedSand.data;
+      var sandUpd = document.getElementById('sanderson-updated');
+      if (sandUpd && cachedSand.label) sandUpd.textContent = cachedSand.label;
+    }
+    if (cachedOC) {
+      ocEl.innerHTML = cachedOC.data;
+      var ocUpd = document.getElementById('opencritic-updated');
+      if (ocUpd && cachedOC.label) ocUpd.textContent = cachedOC.label;
+    }
     if (cachedMTG && cachedFever && cachedSand && cachedOC) return;
 
     // OpenCritic Game Reviews — daily refresh via proxy (run in parallel)
@@ -4802,8 +4821,9 @@ onAuthStateChanged(auth, user => {
           if (r.ok) {
             const games = await r.json();
             ocEl.innerHTML = renderOpenCritic(games);
-            if (ocStatus) ocStatus.textContent = 'Live · via OpenCritic';
-            cacheSet('opencritic3', ocEl.innerHTML);
+            var ocLabel = asOfNow();
+            if (ocStatus) ocStatus.textContent = ocLabel;
+            cacheSet('opencritic3', ocEl.innerHTML, ocLabel);
           } else { throw new Error('proxy ' + r.status); }
         } catch(e) {
           console.error('[Digest:opencritic] Error:', e.message);
@@ -4812,8 +4832,9 @@ onAuthStateChanged(auth, user => {
             const rawgGames = await fetchRAWG();
             if (rawgGames && rawgGames.length) {
               ocEl.innerHTML = renderOpenCritic(rawgGames);
-              if (ocStatus) ocStatus.textContent = 'Live · via RAWG';
-              cacheSet('opencritic3', ocEl.innerHTML);
+              var ocLabel = asOfNow();
+              if (ocStatus) ocStatus.textContent = ocLabel;
+              cacheSet('opencritic3', ocEl.innerHTML, ocLabel);
               return;
             }
           } catch(e2) {
@@ -4882,7 +4903,10 @@ onAuthStateChanged(auth, user => {
             + '</div>'
             + '</' + tag + '>';
         }).join('');
-        cacheSet('mtg', mtgEl.innerHTML);
+        var mtgLabel = asOfNow();
+        var mtgStatus = document.getElementById('mtg-updated');
+        if (mtgStatus) mtgStatus.textContent = mtgLabel;
+        cacheSet('mtg', mtgEl.innerHTML, mtgLabel);
       } catch(e) {
         console.error('[Digest:mtg] Error:', e.message, e);
         _staleOrError(mtgEl, 'mtg', e.message || 'MTG load failed');
@@ -4895,13 +4919,15 @@ onAuthStateChanged(auth, user => {
       const feverStatus = document.getElementById('fever-updated');
       try {
         await loadFeverEvents(feverEl);
-        cacheSet('fever5', feverEl.innerHTML);
-        if (feverStatus) feverStatus.textContent = 'Live · via Fever';
+        var feverLabel = asOfNow();
+        if (feverStatus) feverStatus.textContent = feverLabel;
+        cacheSet('fever5', feverEl.innerHTML, feverLabel);
       } catch(e) {
         // Fallback to static curated list
         renderFeverEvents(feverEl, FEVER_FALLBACK);
-        cacheSet('fever5', feverEl.innerHTML);
-        if (feverStatus) feverStatus.textContent = 'Cached · via Fever';
+        var feverLabel = 'Cached · via Fever';
+        if (feverStatus) feverStatus.textContent = feverLabel;
+        cacheSet('fever5', feverEl.innerHTML, feverLabel);
       }
     }
 
@@ -4911,12 +4937,14 @@ onAuthStateChanged(auth, user => {
       const sandStatus = document.getElementById('sanderson-updated');
       try {
         await loadSandersonProgress(sandEl);
-        cacheSet('sanderson', sandEl.innerHTML);
-        if (sandStatus) sandStatus.textContent = 'Live · Writing Progress';
+        var sandLabel = asOfNow();
+        if (sandStatus) sandStatus.textContent = sandLabel;
+        cacheSet('sanderson', sandEl.innerHTML, sandLabel);
       } catch(e) {
         renderSanderson(sandEl, SANDERSON_FALLBACK);
-        cacheSet('sanderson', sandEl.innerHTML);
-        if (sandStatus) sandStatus.textContent = 'Cached · Writing Progress';
+        var sandLabel = 'Cached · Writing Progress';
+        if (sandStatus) sandStatus.textContent = sandLabel;
+        cacheSet('sanderson', sandEl.innerHTML, sandLabel);
       }
     }
   }
@@ -5298,7 +5326,7 @@ onAuthStateChanged(auth, user => {
           </div>
         </${tag}>`;
       }).join('');
-      document.getElementById('sports-updated').textContent = 'as of ' + timeNow();
+      document.getElementById('sports-updated').textContent = asOfNow();
     } catch(e) {
       console.error('[Digest:sports]', e && e.message || e);
       list.innerHTML = _errorHTML('sports');
