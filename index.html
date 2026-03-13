@@ -252,7 +252,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: var(--surface2);
+    background: var(--border);
   }
 
   .section-title {
@@ -1158,6 +1158,53 @@
     align-items: stretch;
   }
 
+  /* Motivation quote tab */
+  .motivation-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 340px;
+    padding: 48px 32px;
+    text-align: center;
+    position: relative;
+  }
+  .motivation-quote {
+    font-family: 'DM Mono', monospace;
+    font-size: 22px;
+    line-height: 1.6;
+    color: var(--text);
+    max-width: 640px;
+    margin-bottom: 24px;
+  }
+  .motivation-author {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--text-dim);
+    letter-spacing: 0.5px;
+  }
+  .motivation-refresh {
+    position: absolute;
+    bottom: 24px;
+    right: 24px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .motivation-refresh:hover {
+    color: var(--text);
+    background: var(--surface3, var(--surface2));
+  }
+
   .digest-stack {
     display: flex;
     flex-direction: column;
@@ -1549,6 +1596,89 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
+
+  /* Sorcery Card Viewer */
+  .sorcery-viewer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 0;
+    position: relative;
+    transition: opacity 0.15s ease;
+  }
+  .sorcery-img-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 420px;
+    width: 100%;
+  }
+  .sorcery-card-img {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  }
+  .sorcery-card-img.site-card {
+    transform: rotate(90deg);
+    max-height: 380px;
+    max-width: none;
+  }
+  .sorcery-card-info {
+    margin-top: 12px;
+    text-align: center;
+  }
+  .sorcery-card-name {
+    font-family: 'DM Serif Display', serif;
+    font-size: 16px;
+    color: var(--text);
+  }
+  .sorcery-card-type {
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 4px;
+  }
+  .sorcery-new-btn {
+    margin-top: 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 16px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .sorcery-new-btn:hover {
+    color: var(--text);
+    background: var(--surface3, var(--surface2));
+  }
+
+  /* Sealed Prices */
+  .sealed-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 6px;
+    min-height: 58px;
+    text-decoration: none;
+    color: inherit;
+  }
+  .sealed-row + .sealed-row { border-top: 1px solid var(--border); }
+  .sealed-row:hover { background: var(--surface2); border-radius: 6px; }
+  .sealed-info { flex: 1; min-width: 0; }
+  .sealed-name { font-size: 12px; color: var(--text); }
+  .sealed-set { font-size: 9px; color: var(--text-muted); margin-top: 2px; letter-spacing: 0.04em; }
+  .sealed-spark svg { display: block; }
+  .sealed-price { font-family: 'DM Serif Display', serif; font-size: 18px; color: var(--text); letter-spacing: -0.5px; text-align: right; }
+  .sealed-delta { font-size: 9px; color: var(--text-muted); text-align: right; margin-top: 1px; }
+  .sealed-delta.up { color: #22c55e; }
+  .sealed-delta.down { color: #ef4444; }
 
   /* Sports */
   .sport-list {
@@ -2137,6 +2267,7 @@
     .game-platform { font-size: 7px; padding: 1px 4px; }
     .game-user-score { min-width: 28px; }
     .game-user-val { font-size: 11px; }
+    .sorcery-card-img { max-height: 300px; }
     .card-row { padding: 8px 4px; min-height: 48px; }
     .card-name { font-size: 11px; }
     .card-price { font-size: 15px; }
@@ -2294,7 +2425,7 @@
 
   .analytics-tiles {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 16px;
     margin-bottom: 24px;
   }
@@ -2775,7 +2906,8 @@ onAuthStateChanged(auth, user => {
   <div class="digest-sub-tabs" id="digest-sub-tabs">
     <button class="digest-sub-tab active" data-subtab="frontpage">Front Page</button>
     <button class="digest-sub-tab" data-subtab="hobbies">Hobbies</button>
-    <button class="digest-sub-tab" data-subtab="gaming">Gaming</button>
+    <button class="digest-sub-tab" data-subtab="gaming">TCG</button>
+    <button class="digest-sub-tab" data-subtab="motivation">Motivation</button>
   </div>
 
   <!-- FRONT PAGE -->
@@ -2892,10 +3024,7 @@ onAuthStateChanged(auth, user => {
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- GAMING -->
-  <div class="digest-grid digest-subtab-content" id="subtab-gaming" style="display:none;">
     <!-- OPENCRITIC GAME REVIEWS -->
     <div class="digest-card">
       <div class="digest-card-header">
@@ -2906,16 +3035,50 @@ onAuthStateChanged(auth, user => {
         <span class="digest-loading">Loading...</span>
       </div>
     </div>
+  </div>
+
+  <!-- GAMING -->
+  <div class="digest-grid digest-subtab-content" id="subtab-gaming" style="display:none;">
+    <!-- SORCERY: CONTESTED REALM -->
+    <div class="digest-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title">Sorcery: Contested Realm</span>
+        <span class="digest-card-updated" id="sorcery-updated">via Curiosa</span>
+      </div>
+      <div class="sorcery-viewer" id="sorcery-viewer">
+        <span class="digest-loading">Loading...</span>
+      </div>
+    </div>
+
+    <!-- SEALED PRODUCT PRICES -->
+    <div class="digest-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title">Magic: The Gathering Sealed</span>
+        <span class="digest-card-updated" id="sealed-updated">via MTGStocks</span>
+      </div>
+      <div id="sealed-list">
+        <span class="digest-loading">Loading...</span>
+      </div>
+    </div>
 
     <!-- MTG CARDS -->
     <div class="digest-card">
       <div class="digest-card-header">
-        <span class="digest-card-title">Magic: The Gathering</span>
+        <span class="digest-card-title">Magic: The Gathering Singles</span>
         <span class="digest-card-updated" id="mtg-updated">via Scryfall</span>
       </div>
       <div class="card-list" id="mtg-list">
         <span class="digest-loading">Loading...</span>
       </div>
+    </div>
+  </div>
+
+  <!-- MOTIVATION -->
+  <div class="digest-subtab-content" id="subtab-motivation" style="display:none;">
+    <div class="motivation-container">
+      <div class="motivation-quote" id="motivation-quote"></div>
+      <div class="motivation-author" id="motivation-author"></div>
+      <button class="motivation-refresh" id="motivation-refresh" title="New quote">&#x21bb;</button>
     </div>
   </div>
 
@@ -2993,6 +3156,11 @@ onAuthStateChanged(auth, user => {
       <span class="tile-label" id="tile-streak-label">Current Streak</span>
       <span class="tile-value" id="tile-streak">—<span class="unit"> days</span></span>
       <span class="tile-sub" id="tile-streak-sub">consecutive days with completions</span>
+    </div>
+    <div class="analytics-tile">
+      <span class="tile-label">Completed Today</span>
+      <span class="tile-value" id="tile-today">0</span>
+      <span class="tile-sub" id="tile-today-sub">tasks completed today</span>
     </div>
   </div>
   <div class="analytics-card">
@@ -4014,7 +4182,16 @@ onAuthStateChanged(auth, user => {
   const DEALS_PROXY_URL    = 'https://focus-proxy.vercel.app/api/deals';
   const REDDIT_PROXY_URL   = 'https://focus-proxy.vercel.app/api/reddit';
   const OPENCRITIC_PROXY_URL = 'https://focus-proxy.vercel.app/api/opencritic';
+  const MTGSTOCKS_PROXY_URL  = 'https://focus-proxy.vercel.app/api/mtgstocks';
   const RAWG_API_KEY = 'a87dd8c29ee341bdb8f429e1e55f2b7d';
+
+  const SEALED_PRODUCTS = [
+    { id: 5941, name: 'Special Edition Collector Booster Display', set: 'Lord of the Rings', fallbackPrice: 485 },
+    { id: 6243, name: 'Collector Booster Display', set: 'Universes Beyond: Fallout', fallbackPrice: 310 },
+    { id: 8894, name: 'Collector Booster Display', set: 'Universes Beyond: Final Fantasy', fallbackPrice: 260 },
+    { id: 4496, name: 'Collector Booster Display', set: 'Phyrexia: All Will Be One', fallbackPrice: 165 },
+    { id: 7199, name: 'Collector Booster Display', set: 'Bloomburrow', fallbackPrice: 185 },
+  ];
 
   async function claudeSearch(prompt, max_tokens) {
     if (!PROXY_URL || !PROXY_URL.trim()) throw new Error('PROXY_URL is not configured');
@@ -4885,6 +5062,7 @@ onAuthStateChanged(auth, user => {
           // Rate limit delay between requests
           await new Promise(resolve => setTimeout(resolve, 100));
         }
+        results.sort(function(a, b) { return (parseFloat(b.usd) || 0) - (parseFloat(a.usd) || 0); });
         mtgEl.innerHTML = results.map(function(c) {
           const displayName = c.name.includes(' // ') ? c.name.split(' // ')[0] : c.name;
           const price = c.usd      ? '$' + parseFloat(c.usd).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
@@ -5001,6 +5179,200 @@ onAuthStateChanged(auth, user => {
         url: 'https://rawg.io/games/' + g.slug
       };
     });
+  }
+
+  // ── SORCERY: CONTESTED REALM ────────────────────────────────
+  const SORCERY_CDN = 'https://d27a44hjr9gen3.cloudfront.net/';
+  const SORCERY_CARDS = [
+    { name: 'King Arthur',          type: 'Avatar',    element: 'Earth',  set: 'Arthurian Legends',  slug: 'art/king_arthur_b_s' },
+    { name: 'Merlin',               type: 'Avatar',    element: 'Air',    set: 'Arthurian Legends',  slug: 'art/merlin_b_s' },
+    { name: 'Excalibur',            type: 'Relic',     element: 'Earth',  set: 'Arthurian Legends',  slug: 'art/excalibur_b_s' },
+    { name: 'Boudicca',             type: 'Minion',    element: 'Fire',   set: 'Arthurian Legends',  slug: 'art/boudicca_b_s' },
+    { name: 'Sir Lancelot',         type: 'Minion',    element: 'Earth',  set: 'Arthurian Legends',  slug: 'art/sir_lancelot_b_s' },
+    { name: 'Queen Guinevere',      type: 'Minion',    element: 'Water',  set: 'Arthurian Legends',  slug: 'art/queen_guinevere_b_s' },
+    { name: 'Black Knight',         type: 'Minion',    element: 'Fire',   set: 'Arthurian Legends',  slug: 'art/black_knight_b_s' },
+    { name: 'Ball Lightning',       type: 'Spell',     element: 'Air',    set: 'Arthurian Legends',  slug: 'art/ball_lightning_b_s' },
+    { name: 'Ancient Dragon',       type: 'Minion',    element: 'Fire',   set: 'Beta',   slug: 'bet/ancient_dragon_b_s' },
+    { name: 'Fireball',             type: 'Spell',     element: 'Fire',   set: 'Beta',   slug: 'bet/fireball_b_s' },
+    { name: 'Lightning Bolt',       type: 'Spell',     element: 'Air',    set: 'Beta',   slug: 'bet/lightning_bolt_b_s' },
+    { name: 'Earthquake',           type: 'Spell',     element: 'Earth',  set: 'Beta',   slug: 'bet/earthquake_b_s' },
+    { name: 'Chain Lightning',      type: 'Spell',     element: 'Air',    set: 'Beta',   slug: 'bet/chain_lightning_b_s' },
+    { name: 'Ghost Ship',           type: 'Minion',    element: 'Water',  set: 'Beta',   slug: 'bet/ghost_ship_b_s' },
+    { name: 'Giant Shark',          type: 'Minion',    element: 'Water',  set: 'Beta',   slug: 'bet/giant_shark_b_s' },
+    { name: 'Mountain Giant',       type: 'Minion',    element: 'Earth',  set: 'Beta',   slug: 'bet/mountain_giant_b_s' },
+    { name: 'Grandmaster Wizard',   type: 'Minion',    element: 'Air',    set: 'Beta',   slug: 'bet/grandmaster_wizard_b_s' },
+    { name: 'Cerberus in Chains',   type: 'Minion',    element: 'Fire',   set: 'Beta',   slug: 'bet/cerberus_in_chains_b_s' },
+    { name: 'Crown Prince',         type: 'Minion',    element: 'Earth',  set: 'Beta',   slug: 'bet/crown_prince_b_s' },
+    { name: 'Doomsday Prophet',     type: 'Minion',    element: 'Fire',   set: 'Beta',   slug: 'bet/doomsday_prophet_b_s' },
+    { name: 'Blood Ravens',         type: 'Minion',    element: 'Fire',   set: 'Beta',   slug: 'bet/blood_ravens_b_s' },
+    { name: 'Glastonbury Tor',      type: 'Site',      element: 'Earth',  set: 'Arthurian Legends',  slug: 'art/glastonbury_tor_b_s' },
+    { name: 'Cloud City',           type: 'Site',      element: 'Air',    set: 'Beta',   slug: 'bet/cloud_city_b_s' },
+    { name: 'River of Flame',       type: 'Site',      element: 'Fire',   set: 'Beta',   slug: 'bet/river_of_flame_b_s' },
+    { name: '13 Treasures of Britain', type: 'Spell',  element: 'Earth',  set: 'Arthurian Legends',  slug: 'art/13_treasures_of_britain_b_s' },
+  ];
+
+  // Cryptographically random integer in [0, max)
+  function _cryptoRand(max) {
+    var arr = new Uint32Array(1);
+    crypto.getRandomValues(arr);
+    return arr[0] % max;
+  }
+  // Shuffle deck so every card appears once before repeating
+  var _sorceryDeck = [];
+  var _lastSorceryCard = null;
+  function _nextSorceryCard() {
+    if (_sorceryDeck.length === 0) {
+      _sorceryDeck = SORCERY_CARDS.slice();
+      for (var i = _sorceryDeck.length - 1; i > 0; i--) {
+        var j = _cryptoRand(i + 1);
+        var tmp = _sorceryDeck[i]; _sorceryDeck[i] = _sorceryDeck[j]; _sorceryDeck[j] = tmp;
+      }
+      // Prevent same card appearing twice at deck boundary
+      if (_lastSorceryCard && _sorceryDeck.length > 1 &&
+          _sorceryDeck[_sorceryDeck.length - 1].slug === _lastSorceryCard.slug) {
+        var swapIdx = _cryptoRand(_sorceryDeck.length - 1);
+        var t = _sorceryDeck[_sorceryDeck.length - 1];
+        _sorceryDeck[_sorceryDeck.length - 1] = _sorceryDeck[swapIdx];
+        _sorceryDeck[swapIdx] = t;
+      }
+    }
+    _lastSorceryCard = _sorceryDeck[_sorceryDeck.length - 1];
+    return _sorceryDeck.pop();
+  }
+
+  function _renderSorceryCard(viewer, card, status) {
+    var imgUrl = SORCERY_CDN + card.slug + '.png';
+    var imgClass = 'sorcery-card-img' + (card.type === 'Site' ? ' site-card' : '');
+    viewer.innerHTML =
+      '<div class="sorcery-img-wrap">'
+      + '<img class="' + imgClass + '" src="' + esc(imgUrl) + '" alt="' + esc(card.name) + '"'
+      + ' onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'">'
+      + '<div style="display:none;color:var(--text-dim);font-size:11px;padding:40px 0;">Image unavailable</div>'
+      + '</div>'
+      + '<div class="sorcery-card-info">'
+      + '<div class="sorcery-card-name">' + esc(card.name) + '</div>'
+      + '<div class="sorcery-card-type">' + esc(card.type) + ' · ' + esc(card.element) + '</div>'
+      + '<div class="sorcery-card-type">' + esc(card.set) + '</div>'
+      + '</div>'
+      + '<button class="sorcery-new-btn" id="sorcery-new-btn">New Card</button>';
+    viewer.style.opacity = '1';
+    document.getElementById('sorcery-new-btn').addEventListener('click', showRandomSorceryCard);
+    if (status) status.textContent = asOfNow();
+  }
+
+  function showRandomSorceryCard() {
+    var viewer = document.getElementById('sorcery-viewer');
+    var status = document.getElementById('sorcery-updated');
+    if (!viewer) return;
+
+    var card = _nextSorceryCard();
+
+    // Fade out, swap card, fade in (skip animation on first load)
+    if (viewer.querySelector('.sorcery-card-img')) {
+      viewer.style.opacity = '0';
+      setTimeout(function() { _renderSorceryCard(viewer, card, status); }, 150);
+    } else {
+      _renderSorceryCard(viewer, card, status);
+    }
+  }
+
+  // ── SEALED PRODUCT PRICES (MTGStocks) ─────────────────────────
+  function drawSparkline(prices, w, h) {
+    if (!prices || prices.length < 2) return '';
+    var min = Infinity, max = -Infinity;
+    for (var i = 0; i < prices.length; i++) {
+      if (prices[i] < min) min = prices[i];
+      if (prices[i] > max) max = prices[i];
+    }
+    var range = max - min || 1;
+    var pts = [];
+    for (var i = 0; i < prices.length; i++) {
+      var x = (i / (prices.length - 1)) * w;
+      var y = h - ((prices[i] - min) / range) * (h - 2) - 1;
+      pts.push(x.toFixed(1) + ',' + y.toFixed(1));
+    }
+    var color = prices[prices.length - 1] >= prices[0] ? '#22c55e' : '#ef4444';
+    return '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">'
+      + '<polyline points="' + pts.join(' ') + '" fill="none" stroke="' + color + '" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
+      + '</svg>';
+  }
+
+  function renderSealedPrices(data) {
+    var el = document.getElementById('sealed-list');
+    if (!el) return;
+    var html = '';
+    for (var i = 0; i < SEALED_PRODUCTS.length; i++) {
+      var p = SEALED_PRODUCTS[i];
+      var d = data[p.id] || {};
+      var price = d.price || p.fallbackPrice;
+      var prices = d.history || [];
+      var delta = 0;
+      if (prices.length >= 2) {
+        var old = prices[0];
+        var cur = prices[prices.length - 1];
+        delta = old > 0 ? ((cur - old) / old) * 100 : 0;
+      }
+      var deltaClass = delta >= 0 ? 'up' : 'down';
+      var deltaStr = (delta >= 0 ? '+' : '') + delta.toFixed(1) + '%';
+      var spark = drawSparkline(prices, 60, 24);
+      html += '<a class="sealed-row" href="https://www.mtgstocks.com/sealed/' + p.id + '" target="_blank" rel="noopener">'
+        + '<div class="sealed-info"><div class="sealed-name">' + esc(p.set) + '</div>'
+        + '<div class="sealed-set">' + esc(p.name) + '</div></div>'
+        + '<span class="sealed-spark">' + spark + '</span>'
+        + '<div style="text-align:right"><div class="sealed-price">$' + Math.round(price).toLocaleString() + '</div>'
+        + '<div class="sealed-delta ' + deltaClass + '">' + deltaStr + '</div></div>'
+        + '</a>';
+    }
+    el.innerHTML = html;
+  }
+
+  async function loadSealedPrices() {
+    var statusEl = document.getElementById('sealed-updated');
+    // Try cache first
+    var cached = cacheGet('sealed-prices', 6 * 60 * 60 * 1000);
+    if (cached) {
+      renderSealedPrices(cached.data);
+      if (statusEl && cached.label) statusEl.textContent = cached.label;
+      return;
+    }
+    // Try stale cache for instant display
+    var stale = cacheGetStale('sealed-prices');
+    if (stale) {
+      renderSealedPrices(stale.data);
+    }
+    // Fetch from proxy
+    try {
+      var ids = SEALED_PRODUCTS.map(function(p) { return p.id; }).join(',');
+      var r = await fetch(MTGSTOCKS_PROXY_URL + '?ids=' + ids, { signal: AbortSignal.timeout(10000) });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      var json = await r.json();
+      // Expect: { "5941": { price: 485, history: [p1, p2, ...] }, ... }
+      var data = {};
+      for (var i = 0; i < SEALED_PRODUCTS.length; i++) {
+        var p = SEALED_PRODUCTS[i];
+        var item = json[String(p.id)] || json[p.id];
+        if (item) {
+          data[p.id] = {
+            price: item.price || item.present_price || p.fallbackPrice,
+            history: item.history || []
+          };
+        }
+      }
+      cacheSet('sealed-prices', data, asOfNow());
+      renderSealedPrices(data);
+      if (statusEl) statusEl.textContent = asOfNow();
+    } catch (e) {
+      console.warn('Sealed prices fetch failed:', e);
+      // Use fallback
+      var fallback = {};
+      for (var i = 0; i < SEALED_PRODUCTS.length; i++) {
+        var p = SEALED_PRODUCTS[i];
+        fallback[p.id] = { price: p.fallbackPrice, history: [] };
+      }
+      cacheSet('sealed-prices', fallback, 'fallback');
+      renderSealedPrices(fallback);
+      if (statusEl) statusEl.textContent = 'using fallback';
+    }
   }
 
   // ── OPENCRITIC GAME REVIEWS ─────────────────────────────────
@@ -5789,7 +6161,7 @@ onAuthStateChanged(auth, user => {
 
   function renderTiles(stats) {
     const total = completionLog.length;
-    const { streak, bestCount, bestLabel } = stats;
+    const { streak, bestCount, bestLabel, dailyCounts } = stats;
 
     document.getElementById('tile-total-pts').textContent = total;
     document.getElementById('tile-total-sub').textContent =
@@ -5800,6 +6172,11 @@ onAuthStateChanged(auth, user => {
 
     document.getElementById('tile-streak-sub').textContent =
       bestCount > 0 ? 'Best day: ' + bestCount + ' pts on ' + bestLabel : 'No completions yet';
+
+    var todayCount = dailyCounts[dateKey(new Date())] || 0;
+    document.getElementById('tile-today').textContent = todayCount;
+    document.getElementById('tile-today-sub').textContent =
+      todayCount + ' task' + (todayCount !== 1 ? 's' : '') + ' completed today';
   }
 
   function renderChart() {
@@ -6407,6 +6784,61 @@ onAuthStateChanged(auth, user => {
       });
     }
   });
+
+  // ── MOTIVATION QUOTES ──────────────────────────────────────
+  (function initMotivation() {
+    var quotes = [
+      { text: 'The only way to do great work is to love what you do.', author: 'Steve Jobs' },
+      { text: 'It does not matter how slowly you go as long as you do not stop.', author: 'Confucius' },
+      { text: 'Everything you can imagine is real.', author: 'Pablo Picasso' },
+      { text: 'The best time to plant a tree was 20 years ago. The second best time is now.', author: 'Chinese Proverb' },
+      { text: 'What you get by achieving your goals is not as important as what you become by achieving your goals.', author: 'Zig Ziglar' },
+      { text: 'Hardships often prepare ordinary people for an extraordinary destiny.', author: 'C.S. Lewis' },
+      { text: 'You are never too old to set another goal or to dream a new dream.', author: 'C.S. Lewis' },
+      { text: 'Do what you can, with what you have, where you are.', author: 'Theodore Roosevelt' },
+      { text: 'Act as if what you do makes a difference. It does.', author: 'William James' },
+      { text: 'Success is not final, failure is not fatal: it is the courage to continue that counts.', author: 'Winston Churchill' },
+      { text: 'Believe you can and you\'re halfway there.', author: 'Theodore Roosevelt' },
+      { text: 'The future belongs to those who believe in the beauty of their dreams.', author: 'Eleanor Roosevelt' },
+      { text: 'In the middle of every difficulty lies opportunity.', author: 'Albert Einstein' },
+      { text: 'It always seems impossible until it\'s done.', author: 'Nelson Mandela' },
+      { text: 'Start where you are. Use what you have. Do what you can.', author: 'Arthur Ashe' },
+      { text: 'The secret of getting ahead is getting started.', author: 'Mark Twain' },
+      { text: 'Don\'t watch the clock; do what it does. Keep going.', author: 'Sam Levenson' },
+      { text: 'Everything has beauty, but not everyone sees it.', author: 'Confucius' },
+      { text: 'What lies behind us and what lies before us are tiny matters compared to what lies within us.', author: 'Ralph Waldo Emerson' },
+      { text: 'The mind is everything. What you think you become.', author: 'Buddha' },
+      { text: 'Strive not to be a success, but rather to be of value.', author: 'Albert Einstein' },
+      { text: 'You miss 100% of the shots you don\'t take.', author: 'Wayne Gretzky' },
+      { text: 'The only impossible journey is the one you never begin.', author: 'Tony Robbins' },
+      { text: 'Your time is limited, don\'t waste it living someone else\'s life.', author: 'Steve Jobs' },
+      { text: 'If you want to lift yourself up, lift up someone else.', author: 'Booker T. Washington' },
+      { text: 'We become what we think about most of the time.', author: 'Earl Nightingale' },
+      { text: 'Life is what happens when you\'re busy making other plans.', author: 'John Lennon' },
+      { text: 'Turn your wounds into wisdom.', author: 'Oprah Winfrey' },
+      { text: 'The best revenge is massive success.', author: 'Frank Sinatra' },
+      { text: 'If opportunity doesn\'t knock, build a door.', author: 'Milton Berle' },
+    ];
+    var quoteEl = document.getElementById('motivation-quote');
+    var authorEl = document.getElementById('motivation-author');
+    var refreshBtn = document.getElementById('motivation-refresh');
+    if (!quoteEl) return;
+
+    function showQuote() {
+      var q = quotes[Math.floor(Math.random() * quotes.length)];
+      quoteEl.textContent = '\u201C' + q.text + '\u201D';
+      authorEl.textContent = '\u2014 ' + q.author;
+    }
+
+    showQuote();
+    refreshBtn.addEventListener('click', showQuote);
+  })();
+
+  // ── SORCERY CARD INIT ──────────────────────────────────────
+  showRandomSorceryCard();
+
+  // ── SEALED PRICES INIT ──────────────────────────────────────
+  loadSealedPrices();
 
   // ── DIGEST SUB-TABS ────────────────────────────────────────
   (function initDigestSubTabs() {
