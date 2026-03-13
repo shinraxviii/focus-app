@@ -1616,8 +1616,10 @@
     transition: opacity 0.3s;
   }
   .sorcery-card-img.site-card {
+    transform: rotate(90deg);
     max-height: none;
-    max-width: 100%;
+    max-width: 70%;
+    margin: 40px 0;
   }
   .sorcery-card-info {
     margin-top: 12px;
@@ -5173,31 +5175,31 @@ onAuthStateChanged(auth, user => {
   // ── SORCERY: CONTESTED REALM ────────────────────────────────
   const SORCERY_CDN = 'https://d27a44hjr9gen3.cloudfront.net/';
   const SORCERY_CARDS = [
-    { name: 'King Arthur',          type: 'Avatar',    element: 'Earth',  slug: 'art/king_arthur_b_s' },
-    { name: 'Merlin',               type: 'Avatar',    element: 'Air',    slug: 'art/merlin_b_s' },
-    { name: 'Excalibur',            type: 'Relic',     element: 'Earth',  slug: 'art/excalibur_b_s' },
-    { name: 'Boudicca',             type: 'Minion',    element: 'Fire',   slug: 'art/boudicca_b_s' },
-    { name: 'Sir Lancelot',         type: 'Minion',    element: 'Earth',  slug: 'art/sir_lancelot_b_s' },
-    { name: 'Queen Guinevere',      type: 'Minion',    element: 'Water',  slug: 'art/queen_guinevere_b_s' },
-    { name: 'Black Knight',         type: 'Minion',    element: 'Fire',   slug: 'art/black_knight_b_s' },
-    { name: 'Ball Lightning',       type: 'Spell',     element: 'Air',    slug: 'art/ball_lightning_b_s' },
-    { name: 'Ancient Dragon',       type: 'Minion',    element: 'Fire',   slug: 'bet/ancient_dragon_b_s' },
-    { name: 'Fireball',             type: 'Spell',     element: 'Fire',   slug: 'bet/fireball_b_s' },
-    { name: 'Lightning Bolt',       type: 'Spell',     element: 'Air',    slug: 'bet/lightning_bolt_b_s' },
-    { name: 'Earthquake',           type: 'Spell',     element: 'Earth',  slug: 'bet/earthquake_b_s' },
-    { name: 'Chain Lightning',      type: 'Spell',     element: 'Air',    slug: 'bet/chain_lightning_b_s' },
-    { name: 'Ghost Ship',           type: 'Minion',    element: 'Water',  slug: 'bet/ghost_ship_b_s' },
-    { name: 'Giant Shark',          type: 'Minion',    element: 'Water',  slug: 'bet/giant_shark_b_s' },
-    { name: 'Mountain Giant',       type: 'Minion',    element: 'Earth',  slug: 'bet/mountain_giant_b_s' },
-    { name: 'Grandmaster Wizard',   type: 'Minion',    element: 'Air',    slug: 'bet/grandmaster_wizard_b_s' },
-    { name: 'Cerberus in Chains',   type: 'Minion',    element: 'Fire',   slug: 'bet/cerberus_in_chains_b_s' },
-    { name: 'Crown Prince',         type: 'Minion',    element: 'Earth',  slug: 'bet/crown_prince_b_s' },
-    { name: 'Doomsday Prophet',     type: 'Minion',    element: 'Fire',   slug: 'bet/doomsday_prophet_b_s' },
-    { name: 'Blood Ravens',         type: 'Minion',    element: 'Fire',   slug: 'bet/blood_ravens_b_s' },
-    { name: 'Glastonbury Tor',      type: 'Site',      element: 'Earth',  slug: 'art/glastonbury_tor_b_s' },
-    { name: 'Cloud City',           type: 'Site',      element: 'Air',    slug: 'bet/cloud_city_b_s' },
-    { name: 'River of Flame',       type: 'Site',      element: 'Fire',   slug: 'bet/river_of_flame_b_s' },
-    { name: '13 Treasures of Britain', type: 'Spell',  element: 'Earth',  slug: 'art/13_treasures_of_britain_b_s' },
+    { name: 'King Arthur',          type: 'Avatar',    element: 'Earth',  set: 'Alpha',  slug: 'art/king_arthur_b_s' },
+    { name: 'Merlin',               type: 'Avatar',    element: 'Air',    set: 'Alpha',  slug: 'art/merlin_b_s' },
+    { name: 'Excalibur',            type: 'Relic',     element: 'Earth',  set: 'Alpha',  slug: 'art/excalibur_b_s' },
+    { name: 'Boudicca',             type: 'Minion',    element: 'Fire',   set: 'Alpha',  slug: 'art/boudicca_b_s' },
+    { name: 'Sir Lancelot',         type: 'Minion',    element: 'Earth',  set: 'Alpha',  slug: 'art/sir_lancelot_b_s' },
+    { name: 'Queen Guinevere',      type: 'Minion',    element: 'Water',  set: 'Alpha',  slug: 'art/queen_guinevere_b_s' },
+    { name: 'Black Knight',         type: 'Minion',    element: 'Fire',   set: 'Alpha',  slug: 'art/black_knight_b_s' },
+    { name: 'Ball Lightning',       type: 'Spell',     element: 'Air',    set: 'Alpha',  slug: 'art/ball_lightning_b_s' },
+    { name: 'Ancient Dragon',       type: 'Minion',    element: 'Fire',   set: 'Beta',   slug: 'bet/ancient_dragon_b_s' },
+    { name: 'Fireball',             type: 'Spell',     element: 'Fire',   set: 'Beta',   slug: 'bet/fireball_b_s' },
+    { name: 'Lightning Bolt',       type: 'Spell',     element: 'Air',    set: 'Beta',   slug: 'bet/lightning_bolt_b_s' },
+    { name: 'Earthquake',           type: 'Spell',     element: 'Earth',  set: 'Beta',   slug: 'bet/earthquake_b_s' },
+    { name: 'Chain Lightning',      type: 'Spell',     element: 'Air',    set: 'Beta',   slug: 'bet/chain_lightning_b_s' },
+    { name: 'Ghost Ship',           type: 'Minion',    element: 'Water',  set: 'Beta',   slug: 'bet/ghost_ship_b_s' },
+    { name: 'Giant Shark',          type: 'Minion',    element: 'Water',  set: 'Beta',   slug: 'bet/giant_shark_b_s' },
+    { name: 'Mountain Giant',       type: 'Minion',    element: 'Earth',  set: 'Beta',   slug: 'bet/mountain_giant_b_s' },
+    { name: 'Grandmaster Wizard',   type: 'Minion',    element: 'Air',    set: 'Beta',   slug: 'bet/grandmaster_wizard_b_s' },
+    { name: 'Cerberus in Chains',   type: 'Minion',    element: 'Fire',   set: 'Beta',   slug: 'bet/cerberus_in_chains_b_s' },
+    { name: 'Crown Prince',         type: 'Minion',    element: 'Earth',  set: 'Beta',   slug: 'bet/crown_prince_b_s' },
+    { name: 'Doomsday Prophet',     type: 'Minion',    element: 'Fire',   set: 'Beta',   slug: 'bet/doomsday_prophet_b_s' },
+    { name: 'Blood Ravens',         type: 'Minion',    element: 'Fire',   set: 'Beta',   slug: 'bet/blood_ravens_b_s' },
+    { name: 'Glastonbury Tor',      type: 'Site',      element: 'Earth',  set: 'Alpha',  slug: 'art/glastonbury_tor_b_s' },
+    { name: 'Cloud City',           type: 'Site',      element: 'Air',    set: 'Beta',   slug: 'bet/cloud_city_b_s' },
+    { name: 'River of Flame',       type: 'Site',      element: 'Fire',   set: 'Beta',   slug: 'bet/river_of_flame_b_s' },
+    { name: '13 Treasures of Britain', type: 'Spell',  element: 'Earth',  set: 'Alpha',  slug: 'art/13_treasures_of_britain_b_s' },
   ];
 
   // Shuffle deck so every card appears once before repeating
@@ -5228,6 +5230,7 @@ onAuthStateChanged(auth, user => {
       + '<div class="sorcery-card-info">'
       + '<div class="sorcery-card-name">' + esc(card.name) + '</div>'
       + '<div class="sorcery-card-type">' + esc(card.type) + ' · ' + esc(card.element) + '</div>'
+      + '<div class="sorcery-card-type">' + esc(card.set) + '</div>'
       + '</div>'
       + '<button class="sorcery-new-btn" id="sorcery-new-btn">New Card</button>';
 
@@ -5275,8 +5278,8 @@ onAuthStateChanged(auth, user => {
       var deltaStr = (delta >= 0 ? '+' : '') + delta.toFixed(1) + '%';
       var spark = drawSparkline(prices, 60, 24);
       html += '<a class="sealed-row" href="https://www.mtgstocks.com/sealed/' + p.id + '" target="_blank" rel="noopener">'
-        + '<div class="sealed-info"><div class="sealed-name">' + esc(p.name) + '</div>'
-        + '<div class="sealed-set">' + esc(p.set) + '</div></div>'
+        + '<div class="sealed-info"><div class="sealed-name">' + esc(p.set) + '</div>'
+        + '<div class="sealed-set">' + esc(p.name) + '</div></div>'
         + '<span class="sealed-spark">' + spark + '</span>'
         + '<div style="text-align:right"><div class="sealed-price">$' + price.toFixed(0) + '</div>'
         + '<div class="sealed-delta ' + deltaClass + '">' + deltaStr + '</div></div>'
