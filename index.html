@@ -5324,7 +5324,9 @@ onAuthStateChanged(auth, user => {
 
   function _renderSorceryCard(viewer, card, status) {
     var imgUrl = _sorceryImgUrl(card);
-    var imgClass = 'sorcery-card-img' + (card.type === 'Site' ? ' site-card' : '');
+    // Only apply CSS rotation for fallback CDN images (FourCores _hor images are already landscape)
+    var needsRotation = card.type === 'Site' && !card.imgId;
+    var imgClass = 'sorcery-card-img' + (needsRotation ? ' site-card' : '');
     viewer.innerHTML =
       '<div class="sorcery-img-wrap">'
       + '<img class="' + imgClass + '" src="' + esc(imgUrl) + '" alt="' + esc(card.name) + '"'
