@@ -1659,17 +1659,19 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 7px 0;
-    border-bottom: 1px solid var(--border);
+    padding: 10px 6px;
+    min-height: 58px;
     text-decoration: none;
     color: inherit;
   }
-  .sealed-row:last-child { border-bottom: none; }
+  .sealed-row + .sealed-row { border-top: 1px solid var(--border); }
   .sealed-row:hover { background: var(--surface2); border-radius: 6px; }
-  .sealed-name { flex: 1; font-size: 0.82rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sealed-info { flex: 1; min-width: 0; }
+  .sealed-name { font-size: 12px; color: var(--text); }
+  .sealed-set { font-size: 9px; color: var(--text-muted); margin-top: 2px; letter-spacing: 0.04em; }
   .sealed-spark svg { display: block; }
-  .sealed-price { font-weight: 600; font-size: 0.88rem; min-width: 55px; text-align: right; color: var(--text); }
-  .sealed-delta { font-size: 0.75rem; min-width: 45px; text-align: right; }
+  .sealed-price { font-family: 'DM Serif Display', serif; font-size: 18px; color: var(--text); letter-spacing: -0.5px; text-align: right; }
+  .sealed-delta { font-size: 9px; color: var(--text-muted); text-align: right; margin-top: 1px; }
   .sealed-delta.up { color: #22c55e; }
   .sealed-delta.down { color: #ef4444; }
 
@@ -3046,7 +3048,7 @@ onAuthStateChanged(auth, user => {
     <!-- SEALED PRODUCT PRICES -->
     <div class="digest-card">
       <div class="digest-card-header">
-        <span class="digest-card-title">Sealed Prices</span>
+        <span class="digest-card-title">Magic: The Gathering Sealed</span>
         <span class="digest-card-updated" id="sealed-updated">via MTGStocks</span>
       </div>
       <div id="sealed-list">
@@ -3057,7 +3059,7 @@ onAuthStateChanged(auth, user => {
     <!-- MTG CARDS -->
     <div class="digest-card">
       <div class="digest-card-header">
-        <span class="digest-card-title">Magic: The Gathering</span>
+        <span class="digest-card-title">Magic: The Gathering Singles</span>
         <span class="digest-card-updated" id="mtg-updated">via Scryfall</span>
       </div>
       <div class="card-list" id="mtg-list">
@@ -4174,11 +4176,11 @@ onAuthStateChanged(auth, user => {
   const RAWG_API_KEY = 'a87dd8c29ee341bdb8f429e1e55f2b7d';
 
   const SEALED_PRODUCTS = [
-    { id: 5941, name: 'LTR Special Ed. Collector Booster', short: 'LTR SE CB', fallbackPrice: 485 },
-    { id: 6243, name: 'Fallout Collector Booster Display', short: 'Fallout CB', fallbackPrice: 310 },
-    { id: 8894, name: 'Final Fantasy Collector Booster Display', short: 'FF CB', fallbackPrice: 260 },
-    { id: 4496, name: 'ONE Collector Booster Display', short: 'ONE CB', fallbackPrice: 165 },
-    { id: 7199, name: 'Bloomburrow Collector Booster Display', short: 'Bloom CB', fallbackPrice: 185 },
+    { id: 5941, name: 'Special Edition Collector Booster Display', set: 'Lord of the Rings', fallbackPrice: 485 },
+    { id: 6243, name: 'Collector Booster Display', set: 'Universes Beyond: Fallout', fallbackPrice: 310 },
+    { id: 8894, name: 'Collector Booster Display', set: 'Universes Beyond: Final Fantasy', fallbackPrice: 260 },
+    { id: 4496, name: 'Collector Booster Display', set: 'Phyrexia: All Will Be One', fallbackPrice: 165 },
+    { id: 7199, name: 'Collector Booster Display', set: 'Bloomburrow', fallbackPrice: 185 },
   ];
 
   async function claudeSearch(prompt, max_tokens) {
@@ -5198,18 +5200,24 @@ onAuthStateChanged(auth, user => {
     { name: '13 Treasures of Britain', type: 'Spell',  element: 'Earth',  slug: 'art/13_treasures_of_britain_b_s' },
   ];
 
-  var _sorceryLastIdx = -1;
+  // Shuffle deck so every card appears once before repeating
+  var _sorceryDeck = [];
+  function _nextSorceryCard() {
+    if (_sorceryDeck.length === 0) {
+      _sorceryDeck = SORCERY_CARDS.slice();
+      for (var i = _sorceryDeck.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = _sorceryDeck[i]; _sorceryDeck[i] = _sorceryDeck[j]; _sorceryDeck[j] = tmp;
+      }
+    }
+    return _sorceryDeck.pop();
+  }
   function showRandomSorceryCard() {
     var viewer = document.getElementById('sorcery-viewer');
     var status = document.getElementById('sorcery-updated');
     if (!viewer) return;
 
-    // Pick a random card, avoid repeats
-    var cards = SORCERY_CARDS;
-    var idx;
-    do { idx = Math.floor(Math.random() * cards.length); } while (idx === _sorceryLastIdx && cards.length > 1);
-    _sorceryLastIdx = idx;
-    var card = cards[idx];
+    var card = _nextSorceryCard();
 
     var imgUrl = SORCERY_CDN + card.slug + '.png';
     var imgClass = 'sorcery-card-img' + (card.type === 'Site' ? ' site-card' : '');
@@ -5265,12 +5273,13 @@ onAuthStateChanged(auth, user => {
       }
       var deltaClass = delta >= 0 ? 'up' : 'down';
       var deltaStr = (delta >= 0 ? '+' : '') + delta.toFixed(1) + '%';
-      var spark = drawSparkline(prices, 60, 22);
+      var spark = drawSparkline(prices, 60, 24);
       html += '<a class="sealed-row" href="https://www.mtgstocks.com/sealed/' + p.id + '" target="_blank" rel="noopener">'
-        + '<span class="sealed-name">' + esc(p.short) + '</span>'
+        + '<div class="sealed-info"><div class="sealed-name">' + esc(p.name) + '</div>'
+        + '<div class="sealed-set">' + esc(p.set) + '</div></div>'
         + '<span class="sealed-spark">' + spark + '</span>'
-        + '<span class="sealed-price">$' + price.toFixed(0) + '</span>'
-        + '<span class="sealed-delta ' + deltaClass + '">' + deltaStr + '</span>'
+        + '<div style="text-align:right"><div class="sealed-price">$' + price.toFixed(0) + '</div>'
+        + '<div class="sealed-delta ' + deltaClass + '">' + deltaStr + '</div></div>'
         + '</a>';
     }
     el.innerHTML = html;
