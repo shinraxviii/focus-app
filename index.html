@@ -1602,9 +1602,11 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     padding: 8px 0;
     position: relative;
     min-height: 200px;
+    flex: 1;
   }
   .sorcery-card-img {
     max-width: 100%;
@@ -1612,6 +1614,10 @@
     border-radius: 12px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.12);
     transition: opacity 0.3s;
+  }
+  .sorcery-card-img.site-card {
+    max-height: none;
+    max-width: 100%;
   }
   .sorcery-card-info {
     margin-top: 12px;
@@ -5206,8 +5212,9 @@ onAuthStateChanged(auth, user => {
     var card = cards[idx];
 
     var imgUrl = SORCERY_CDN + card.slug + '.png';
+    var imgClass = 'sorcery-card-img' + (card.type === 'Site' ? ' site-card' : '');
     viewer.innerHTML =
-      '<img class="sorcery-card-img" src="' + esc(imgUrl) + '" alt="' + esc(card.name) + '"'
+      '<img class="' + imgClass + '" src="' + esc(imgUrl) + '" alt="' + esc(card.name) + '"'
       + ' onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'">'
       + '<div style="display:none;color:var(--text-dim);font-size:11px;padding:40px 0;">Image unavailable</div>'
       + '<div class="sorcery-card-info">'
