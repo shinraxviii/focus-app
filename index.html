@@ -1158,6 +1158,53 @@
     align-items: stretch;
   }
 
+  /* Motivation quote tab */
+  .motivation-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 340px;
+    padding: 48px 32px;
+    text-align: center;
+    position: relative;
+  }
+  .motivation-quote {
+    font-family: 'DM Mono', monospace;
+    font-size: 22px;
+    line-height: 1.6;
+    color: var(--text);
+    max-width: 640px;
+    margin-bottom: 24px;
+  }
+  .motivation-author {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--text-dim);
+    letter-spacing: 0.5px;
+  }
+  .motivation-refresh {
+    position: absolute;
+    bottom: 24px;
+    right: 24px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .motivation-refresh:hover {
+    color: var(--text);
+    background: var(--surface3, var(--surface2));
+  }
+
   .digest-stack {
     display: flex;
     flex-direction: column;
@@ -2776,6 +2823,7 @@ onAuthStateChanged(auth, user => {
     <button class="digest-sub-tab active" data-subtab="frontpage">Front Page</button>
     <button class="digest-sub-tab" data-subtab="hobbies">Hobbies</button>
     <button class="digest-sub-tab" data-subtab="gaming">Gaming</button>
+    <button class="digest-sub-tab" data-subtab="motivation">Motivation</button>
   </div>
 
   <!-- FRONT PAGE -->
@@ -2916,6 +2964,15 @@ onAuthStateChanged(auth, user => {
       <div class="card-list" id="mtg-list">
         <span class="digest-loading">Loading...</span>
       </div>
+    </div>
+  </div>
+
+  <!-- MOTIVATION -->
+  <div class="digest-subtab-content" id="subtab-motivation" style="display:none;">
+    <div class="motivation-container">
+      <div class="motivation-quote" id="motivation-quote"></div>
+      <div class="motivation-author" id="motivation-author"></div>
+      <button class="motivation-refresh" id="motivation-refresh" title="New quote">&#x21bb;</button>
     </div>
   </div>
 
@@ -6407,6 +6464,55 @@ onAuthStateChanged(auth, user => {
       });
     }
   });
+
+  // ── MOTIVATION QUOTES ──────────────────────────────────────
+  (function initMotivation() {
+    var quotes = [
+      { text: 'The only way to do great work is to love what you do.', author: 'Steve Jobs' },
+      { text: 'It does not matter how slowly you go as long as you do not stop.', author: 'Confucius' },
+      { text: 'Everything you can imagine is real.', author: 'Pablo Picasso' },
+      { text: 'The best time to plant a tree was 20 years ago. The second best time is now.', author: 'Chinese Proverb' },
+      { text: 'What you get by achieving your goals is not as important as what you become by achieving your goals.', author: 'Zig Ziglar' },
+      { text: 'Hardships often prepare ordinary people for an extraordinary destiny.', author: 'C.S. Lewis' },
+      { text: 'You are never too old to set another goal or to dream a new dream.', author: 'C.S. Lewis' },
+      { text: 'Do what you can, with what you have, where you are.', author: 'Theodore Roosevelt' },
+      { text: 'Act as if what you do makes a difference. It does.', author: 'William James' },
+      { text: 'Success is not final, failure is not fatal: it is the courage to continue that counts.', author: 'Winston Churchill' },
+      { text: 'Believe you can and you\'re halfway there.', author: 'Theodore Roosevelt' },
+      { text: 'The future belongs to those who believe in the beauty of their dreams.', author: 'Eleanor Roosevelt' },
+      { text: 'In the middle of every difficulty lies opportunity.', author: 'Albert Einstein' },
+      { text: 'It always seems impossible until it\'s done.', author: 'Nelson Mandela' },
+      { text: 'Start where you are. Use what you have. Do what you can.', author: 'Arthur Ashe' },
+      { text: 'The secret of getting ahead is getting started.', author: 'Mark Twain' },
+      { text: 'Don\'t watch the clock; do what it does. Keep going.', author: 'Sam Levenson' },
+      { text: 'Everything has beauty, but not everyone sees it.', author: 'Confucius' },
+      { text: 'What lies behind us and what lies before us are tiny matters compared to what lies within us.', author: 'Ralph Waldo Emerson' },
+      { text: 'The mind is everything. What you think you become.', author: 'Buddha' },
+      { text: 'Strive not to be a success, but rather to be of value.', author: 'Albert Einstein' },
+      { text: 'You miss 100% of the shots you don\'t take.', author: 'Wayne Gretzky' },
+      { text: 'The only impossible journey is the one you never begin.', author: 'Tony Robbins' },
+      { text: 'Your time is limited, don\'t waste it living someone else\'s life.', author: 'Steve Jobs' },
+      { text: 'If you want to lift yourself up, lift up someone else.', author: 'Booker T. Washington' },
+      { text: 'We become what we think about most of the time.', author: 'Earl Nightingale' },
+      { text: 'Life is what happens when you\'re busy making other plans.', author: 'John Lennon' },
+      { text: 'Turn your wounds into wisdom.', author: 'Oprah Winfrey' },
+      { text: 'The best revenge is massive success.', author: 'Frank Sinatra' },
+      { text: 'If opportunity doesn\'t knock, build a door.', author: 'Milton Berle' },
+    ];
+    var quoteEl = document.getElementById('motivation-quote');
+    var authorEl = document.getElementById('motivation-author');
+    var refreshBtn = document.getElementById('motivation-refresh');
+    if (!quoteEl) return;
+
+    function showQuote() {
+      var q = quotes[Math.floor(Math.random() * quotes.length)];
+      quoteEl.textContent = '\u201C' + q.text + '\u201D';
+      authorEl.textContent = '\u2014 ' + q.author;
+    }
+
+    showQuote();
+    refreshBtn.addEventListener('click', showQuote);
+  })();
 
   // ── DIGEST SUB-TABS ────────────────────────────────────────
   (function initDigestSubTabs() {
