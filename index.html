@@ -5061,6 +5061,7 @@ onAuthStateChanged(auth, user => {
           // Rate limit delay between requests
           await new Promise(resolve => setTimeout(resolve, 100));
         }
+        results.sort(function(a, b) { return (parseFloat(b.usd) || 0) - (parseFloat(a.usd) || 0); });
         mtgEl.innerHTML = results.map(function(c) {
           const displayName = c.name.includes(' // ') ? c.name.split(' // ')[0] : c.name;
           const price = c.usd      ? '$' + parseFloat(c.usd).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
