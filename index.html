@@ -5275,8 +5275,8 @@ onAuthStateChanged(auth, user => {
       var deltaStr = (delta >= 0 ? '+' : '') + delta.toFixed(1) + '%';
       var spark = drawSparkline(prices, 60, 24);
       html += '<a class="sealed-row" href="https://www.mtgstocks.com/sealed/' + p.id + '" target="_blank" rel="noopener">'
-        + '<div class="sealed-info"><div class="sealed-name">' + esc(p.name) + '</div>'
-        + '<div class="sealed-set">' + esc(p.set) + '</div></div>'
+        + '<div class="sealed-info"><div class="sealed-name">' + esc(p.set) + '</div>'
+        + '<div class="sealed-set">' + esc(p.name) + '</div></div>'
         + '<span class="sealed-spark">' + spark + '</span>'
         + '<div style="text-align:right"><div class="sealed-price">$' + price.toFixed(0) + '</div>'
         + '<div class="sealed-delta ' + deltaClass + '">' + deltaStr + '</div></div>'
