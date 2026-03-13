@@ -4777,7 +4777,9 @@ onAuthStateChanged(auth, user => {
     const cachedMTG   = cacheGet('mtg',   24 * 60 * 60 * 1000);
     const cachedFever = cacheGet('fever5', 7 * 24 * 60 * 60 * 1000);
     const cachedSand  = cacheGet('sanderson', 24 * 60 * 60 * 1000);
-    const cachedOC    = cacheGet('opencritic3', 24 * 60 * 60 * 1000);
+    // Use shorter TTL (2h) for fallback data so we retry the proxy sooner
+    const ocRaw       = cacheGet('opencritic3', 24 * 60 * 60 * 1000);
+    const cachedOC    = ocRaw && ocRaw.label === 'fallback' ? cacheGet('opencritic3', 2 * 60 * 60 * 1000) : ocRaw;
 
     // Show whatever we have cached immediately
     const mtgEl   = document.getElementById('mtg-list');
@@ -4818,8 +4820,9 @@ onAuthStateChanged(auth, user => {
             console.error('[Digest:rawg] Error:', e2.message);
           }
           ocEl.innerHTML = renderOpenCritic(OPENCRITIC_FALLBACK);
-          if (ocStatus) ocStatus.textContent = 'Cached · via OpenCritic';
-          cacheSet('opencritic3', ocEl.innerHTML);
+          if (ocStatus) ocStatus.textContent = 'Offline · static data';
+          // Tag as fallback so we use a shorter 2h TTL and retry sooner
+          cacheSet('opencritic3', ocEl.innerHTML, 'fallback');
         }
       })();
     }
