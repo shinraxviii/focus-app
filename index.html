@@ -1648,6 +1648,25 @@
     background: var(--surface3, var(--surface2));
   }
 
+  /* Sealed Prices */
+  .sealed-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+    text-decoration: none;
+    color: inherit;
+  }
+  .sealed-row:last-child { border-bottom: none; }
+  .sealed-row:hover { background: var(--surface2); border-radius: 6px; }
+  .sealed-name { flex: 1; font-size: 0.82rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sealed-spark svg { display: block; }
+  .sealed-price { font-weight: 600; font-size: 0.88rem; min-width: 55px; text-align: right; color: var(--text); }
+  .sealed-delta { font-size: 0.75rem; min-width: 45px; text-align: right; }
+  .sealed-delta.up { color: #22c55e; }
+  .sealed-delta.down { color: #ef4444; }
+
   /* Sports */
   .sport-list {
     display: flex;
@@ -3018,6 +3037,17 @@ onAuthStateChanged(auth, user => {
       </div>
     </div>
 
+    <!-- SEALED PRODUCT PRICES -->
+    <div class="digest-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title">Sealed Prices</span>
+        <span class="digest-card-updated" id="sealed-updated">via MTGStocks</span>
+      </div>
+      <div id="sealed-list">
+        <span class="digest-loading">Loading...</span>
+      </div>
+    </div>
+
     <!-- MTG CARDS -->
     <div class="digest-card">
       <div class="digest-card-header">
@@ -4134,7 +4164,16 @@ onAuthStateChanged(auth, user => {
   const DEALS_PROXY_URL    = 'https://focus-proxy.vercel.app/api/deals';
   const REDDIT_PROXY_URL   = 'https://focus-proxy.vercel.app/api/reddit';
   const OPENCRITIC_PROXY_URL = 'https://focus-proxy.vercel.app/api/opencritic';
+  const MTGSTOCKS_PROXY_URL  = 'https://focus-proxy.vercel.app/api/mtgstocks';
   const RAWG_API_KEY = 'a87dd8c29ee341bdb8f429e1e55f2b7d';
+
+  const SEALED_PRODUCTS = [
+    { id: 5941, name: 'LTR Special Ed. Collector Booster', short: 'LTR SE CB', fallbackPrice: 485 },
+    { id: 6243, name: 'Fallout Collector Booster Display', short: 'Fallout CB', fallbackPrice: 310 },
+    { id: 8894, name: 'Final Fantasy Collector Booster Display', short: 'FF CB', fallbackPrice: 260 },
+    { id: 4496, name: 'ONE Collector Booster Display', short: 'ONE CB', fallbackPrice: 165 },
+    { id: 7199, name: 'Bloomburrow Collector Booster Display', short: 'Bloom CB', fallbackPrice: 185 },
+  ];
 
   async function claudeSearch(prompt, max_tokens) {
     if (!PROXY_URL || !PROXY_URL.trim()) throw new Error('PROXY_URL is not configured');
@@ -5179,6 +5218,104 @@ onAuthStateChanged(auth, user => {
 
     document.getElementById('sorcery-new-btn').addEventListener('click', showRandomSorceryCard);
     if (status) status.textContent = asOfNow();
+  }
+
+  // ── SEALED PRODUCT PRICES (MTGStocks) ─────────────────────────
+  function drawSparkline(prices, w, h) {
+    if (!prices || prices.length < 2) return '';
+    var min = Infinity, max = -Infinity;
+    for (var i = 0; i < prices.length; i++) {
+      if (prices[i] < min) min = prices[i];
+      if (prices[i] > max) max = prices[i];
+    }
+    var range = max - min || 1;
+    var pts = [];
+    for (var i = 0; i < prices.length; i++) {
+      var x = (i / (prices.length - 1)) * w;
+      var y = h - ((prices[i] - min) / range) * (h - 2) - 1;
+      pts.push(x.toFixed(1) + ',' + y.toFixed(1));
+    }
+    var color = prices[prices.length - 1] >= prices[0] ? '#22c55e' : '#ef4444';
+    return '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">'
+      + '<polyline points="' + pts.join(' ') + '" fill="none" stroke="' + color + '" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
+      + '</svg>';
+  }
+
+  function renderSealedPrices(data) {
+    var el = document.getElementById('sealed-list');
+    if (!el) return;
+    var html = '';
+    for (var i = 0; i < SEALED_PRODUCTS.length; i++) {
+      var p = SEALED_PRODUCTS[i];
+      var d = data[p.id] || {};
+      var price = d.price || p.fallbackPrice;
+      var prices = d.history || [];
+      var delta = 0;
+      if (prices.length >= 2) {
+        var old = prices[0];
+        var cur = prices[prices.length - 1];
+        delta = old > 0 ? ((cur - old) / old) * 100 : 0;
+      }
+      var deltaClass = delta >= 0 ? 'up' : 'down';
+      var deltaStr = (delta >= 0 ? '+' : '') + delta.toFixed(1) + '%';
+      var spark = drawSparkline(prices, 60, 22);
+      html += '<a class="sealed-row" href="https://www.mtgstocks.com/sealed/' + p.id + '" target="_blank" rel="noopener">'
+        + '<span class="sealed-name">' + esc(p.short) + '</span>'
+        + '<span class="sealed-spark">' + spark + '</span>'
+        + '<span class="sealed-price">$' + price.toFixed(0) + '</span>'
+        + '<span class="sealed-delta ' + deltaClass + '">' + deltaStr + '</span>'
+        + '</a>';
+    }
+    el.innerHTML = html;
+  }
+
+  async function loadSealedPrices() {
+    var statusEl = document.getElementById('sealed-updated');
+    // Try cache first
+    var cached = cacheGet('sealed-prices', 6 * 60 * 60 * 1000);
+    if (cached) {
+      renderSealedPrices(cached.data);
+      if (statusEl && cached.label) statusEl.textContent = cached.label;
+      return;
+    }
+    // Try stale cache for instant display
+    var stale = cacheGetStale('sealed-prices');
+    if (stale) {
+      renderSealedPrices(stale.data);
+    }
+    // Fetch from proxy
+    try {
+      var ids = SEALED_PRODUCTS.map(function(p) { return p.id; }).join(',');
+      var r = await fetch(MTGSTOCKS_PROXY_URL + '?ids=' + ids, { signal: AbortSignal.timeout(10000) });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      var json = await r.json();
+      // Expect: { "5941": { price: 485, history: [p1, p2, ...] }, ... }
+      var data = {};
+      for (var i = 0; i < SEALED_PRODUCTS.length; i++) {
+        var p = SEALED_PRODUCTS[i];
+        var item = json[String(p.id)] || json[p.id];
+        if (item) {
+          data[p.id] = {
+            price: item.price || item.present_price || p.fallbackPrice,
+            history: item.history || []
+          };
+        }
+      }
+      cacheSet('sealed-prices', data, asOfNow());
+      renderSealedPrices(data);
+      if (statusEl) statusEl.textContent = asOfNow();
+    } catch (e) {
+      console.warn('Sealed prices fetch failed:', e);
+      // Use fallback
+      var fallback = {};
+      for (var i = 0; i < SEALED_PRODUCTS.length; i++) {
+        var p = SEALED_PRODUCTS[i];
+        fallback[p.id] = { price: p.fallbackPrice, history: [] };
+      }
+      cacheSet('sealed-prices', fallback, 'fallback');
+      renderSealedPrices(fallback);
+      if (statusEl) statusEl.textContent = 'using fallback';
+    }
   }
 
   // ── OPENCRITIC GAME REVIEWS ─────────────────────────────────
@@ -6637,6 +6774,9 @@ onAuthStateChanged(auth, user => {
 
   // ── SORCERY CARD INIT ──────────────────────────────────────
   showRandomSorceryCard();
+
+  // ── SEALED PRICES INIT ──────────────────────────────────────
+  loadSealedPrices();
 
   // ── DIGEST SUB-TABS ────────────────────────────────────────
   (function initDigestSubTabs() {
