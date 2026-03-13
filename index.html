@@ -2911,7 +2911,7 @@ onAuthStateChanged(auth, user => {
     <div class="digest-card">
       <div class="digest-card-header">
         <span class="digest-card-title">Magic: The Gathering</span>
-        <span class="digest-card-updated">via Scryfall</span>
+        <span class="digest-card-updated" id="mtg-updated">via Scryfall</span>
       </div>
       <div class="card-list" id="mtg-list">
         <span class="digest-loading">Loading...</span>
@@ -4014,6 +4014,7 @@ onAuthStateChanged(auth, user => {
   const DEALS_PROXY_URL    = 'https://focus-proxy.vercel.app/api/deals';
   const REDDIT_PROXY_URL   = 'https://focus-proxy.vercel.app/api/reddit';
   const OPENCRITIC_PROXY_URL = 'https://focus-proxy.vercel.app/api/opencritic';
+  const RAWG_API_KEY = 'a87dd8c29ee341bdb8f429e1e55f2b7d';
 
   async function claudeSearch(prompt, max_tokens) {
     if (!PROXY_URL || !PROXY_URL.trim()) throw new Error('PROXY_URL is not configured');
@@ -4244,6 +4245,9 @@ onAuthStateChanged(auth, user => {
   function timeNow() {
     return new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   }
+  function asOfNow() {
+    return 'as of ' + new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+  }
 
   // ── STOCKS ──────────────────────────────────────────────────
   // ── LIVE DATA: Stocks via Yahoo Finance (0 tokens), News via Claude ──
@@ -4470,7 +4474,7 @@ onAuthStateChanged(auth, user => {
       const posts = await r.json();
       if (!posts.length) throw new Error('No posts returned');
       redditEl.innerHTML = renderReddit(posts);
-      const statusLabel = 'Live · ' + subs.map(function(s) { return 'r/' + s; }).join(', ');
+      const statusLabel = asOfNow();
       document.getElementById('reddit-status').textContent = statusLabel;
       cacheSet('reddit2', redditEl.innerHTML, statusLabel);
     } catch(e) {
@@ -4737,9 +4741,9 @@ onAuthStateChanged(auth, user => {
         const deals = await r.json();
         if (!deals.length) throw new Error('No deals returned');
         dealsEl.innerHTML = renderDeals(deals);
-        const statusLabel = 'Live · via CheapShark + Slickdeals';
-        document.getElementById('deals-status').textContent = statusLabel;
-        cacheSet('deals', dealsEl.innerHTML, statusLabel);
+        var dealsLabel = asOfNow();
+        document.getElementById('deals-status').textContent = dealsLabel;
+        cacheSet('deals', dealsEl.innerHTML, dealsLabel);
       } catch(e) {
         console.error('[Digest:deals]', e.message);
         // Fallback: try CheapShark directly (it's CORS-friendly)
@@ -4758,14 +4762,14 @@ onAuthStateChanged(auth, user => {
             };
           });
           dealsEl.innerHTML = renderDeals(deals);
-          const statusLabel = 'Live · via CheapShark';
-          document.getElementById('deals-status').textContent = statusLabel;
-          cacheSet('deals', dealsEl.innerHTML, statusLabel);
+          var dealsLabel = asOfNow();
+          document.getElementById('deals-status').textContent = dealsLabel;
+          cacheSet('deals', dealsEl.innerHTML, dealsLabel);
         } catch(e2) {
           dealsEl.innerHTML = renderDeals(DEALS_FALLBACK);
-          const statusLabel = 'Cached · Top Picks';
-          document.getElementById('deals-status').textContent = statusLabel;
-          cacheSet('deals', dealsEl.innerHTML, statusLabel);
+          var dealsLabel = 'Cached · Top Picks';
+          document.getElementById('deals-status').textContent = dealsLabel;
+          cacheSet('deals', dealsEl.innerHTML, dealsLabel);
         }
       }
     }
@@ -4776,17 +4780,35 @@ onAuthStateChanged(auth, user => {
     const cachedMTG   = cacheGet('mtg',   24 * 60 * 60 * 1000);
     const cachedFever = cacheGet('fever5', 7 * 24 * 60 * 60 * 1000);
     const cachedSand  = cacheGet('sanderson', 24 * 60 * 60 * 1000);
-    const cachedOC    = cacheGet('opencritic3', 24 * 60 * 60 * 1000);
+    // Use shorter TTL (2h) for fallback data so we retry the proxy sooner
+    const ocRaw       = cacheGet('opencritic3', 24 * 60 * 60 * 1000);
+    const cachedOC    = ocRaw && ocRaw.label === 'fallback' ? cacheGet('opencritic3', 2 * 60 * 60 * 1000) : ocRaw;
 
     // Show whatever we have cached immediately
     const mtgEl   = document.getElementById('mtg-list');
     const feverEl = document.getElementById('fever-list');
     const sandEl  = document.getElementById('sanderson-list');
     const ocEl    = document.getElementById('opencritic-list');
-    if (cachedMTG)   mtgEl.innerHTML   = cachedMTG.data;
-    if (cachedFever) feverEl.innerHTML  = cachedFever.data;
-    if (cachedSand)  sandEl.innerHTML   = cachedSand.data;
-    if (cachedOC)    ocEl.innerHTML     = cachedOC.data;
+    if (cachedMTG) {
+      mtgEl.innerHTML = cachedMTG.data;
+      var mtgUpd = document.getElementById('mtg-updated');
+      if (mtgUpd && cachedMTG.label) mtgUpd.textContent = cachedMTG.label;
+    }
+    if (cachedFever) {
+      feverEl.innerHTML = cachedFever.data;
+      var feverUpd = document.getElementById('fever-updated');
+      if (feverUpd && cachedFever.label) feverUpd.textContent = cachedFever.label;
+    }
+    if (cachedSand) {
+      sandEl.innerHTML = cachedSand.data;
+      var sandUpd = document.getElementById('sanderson-updated');
+      if (sandUpd && cachedSand.label) sandUpd.textContent = cachedSand.label;
+    }
+    if (cachedOC) {
+      ocEl.innerHTML = cachedOC.data;
+      var ocUpd = document.getElementById('opencritic-updated');
+      if (ocUpd && cachedOC.label) ocUpd.textContent = cachedOC.label;
+    }
     if (cachedMTG && cachedFever && cachedSand && cachedOC) return;
 
     // OpenCritic Game Reviews — daily refresh via proxy (run in parallel)
@@ -4799,14 +4821,29 @@ onAuthStateChanged(auth, user => {
           if (r.ok) {
             const games = await r.json();
             ocEl.innerHTML = renderOpenCritic(games);
-            if (ocStatus) ocStatus.textContent = 'Live · via OpenCritic';
-            cacheSet('opencritic3', ocEl.innerHTML);
+            var ocLabel = asOfNow();
+            if (ocStatus) ocStatus.textContent = ocLabel;
+            cacheSet('opencritic3', ocEl.innerHTML, ocLabel);
           } else { throw new Error('proxy ' + r.status); }
         } catch(e) {
           console.error('[Digest:opencritic] Error:', e.message);
+          // Try RAWG as fallback before using static data
+          try {
+            const rawgGames = await fetchRAWG();
+            if (rawgGames && rawgGames.length) {
+              ocEl.innerHTML = renderOpenCritic(rawgGames);
+              var ocLabel = asOfNow();
+              if (ocStatus) ocStatus.textContent = ocLabel;
+              cacheSet('opencritic3', ocEl.innerHTML, ocLabel);
+              return;
+            }
+          } catch(e2) {
+            console.error('[Digest:rawg] Error:', e2.message);
+          }
           ocEl.innerHTML = renderOpenCritic(OPENCRITIC_FALLBACK);
-          if (ocStatus) ocStatus.textContent = 'Cached · via OpenCritic';
-          cacheSet('opencritic3', ocEl.innerHTML);
+          if (ocStatus) ocStatus.textContent = 'Offline · static data';
+          // Tag as fallback so we use a shorter 2h TTL and retry sooner
+          cacheSet('opencritic3', ocEl.innerHTML, 'fallback');
         }
       })();
     }
@@ -4866,7 +4903,10 @@ onAuthStateChanged(auth, user => {
             + '</div>'
             + '</' + tag + '>';
         }).join('');
-        cacheSet('mtg', mtgEl.innerHTML);
+        var mtgLabel = asOfNow();
+        var mtgStatus = document.getElementById('mtg-updated');
+        if (mtgStatus) mtgStatus.textContent = mtgLabel;
+        cacheSet('mtg', mtgEl.innerHTML, mtgLabel);
       } catch(e) {
         console.error('[Digest:mtg] Error:', e.message, e);
         _staleOrError(mtgEl, 'mtg', e.message || 'MTG load failed');
@@ -4879,13 +4919,15 @@ onAuthStateChanged(auth, user => {
       const feverStatus = document.getElementById('fever-updated');
       try {
         await loadFeverEvents(feverEl);
-        cacheSet('fever5', feverEl.innerHTML);
-        if (feverStatus) feverStatus.textContent = 'Live · via Fever';
+        var feverLabel = asOfNow();
+        if (feverStatus) feverStatus.textContent = feverLabel;
+        cacheSet('fever5', feverEl.innerHTML, feverLabel);
       } catch(e) {
         // Fallback to static curated list
         renderFeverEvents(feverEl, FEVER_FALLBACK);
-        cacheSet('fever5', feverEl.innerHTML);
-        if (feverStatus) feverStatus.textContent = 'Cached · via Fever';
+        var feverLabel = 'Cached · via Fever';
+        if (feverStatus) feverStatus.textContent = feverLabel;
+        cacheSet('fever5', feverEl.innerHTML, feverLabel);
       }
     }
 
@@ -4895,12 +4937,14 @@ onAuthStateChanged(auth, user => {
       const sandStatus = document.getElementById('sanderson-updated');
       try {
         await loadSandersonProgress(sandEl);
-        cacheSet('sanderson', sandEl.innerHTML);
-        if (sandStatus) sandStatus.textContent = 'Live · Writing Progress';
+        var sandLabel = asOfNow();
+        if (sandStatus) sandStatus.textContent = sandLabel;
+        cacheSet('sanderson', sandEl.innerHTML, sandLabel);
       } catch(e) {
         renderSanderson(sandEl, SANDERSON_FALLBACK);
-        cacheSet('sanderson', sandEl.innerHTML);
-        if (sandStatus) sandStatus.textContent = 'Cached · Writing Progress';
+        var sandLabel = 'Cached · Writing Progress';
+        if (sandStatus) sandStatus.textContent = sandLabel;
+        cacheSet('sanderson', sandEl.innerHTML, sandLabel);
       }
     }
   }
@@ -4922,20 +4966,58 @@ onAuthStateChanged(auth, user => {
     { name: "Elephant Graveyard",         set: "Arabian Nights",     setCode: 'arn' },
   ];
 
+  // ── RAWG FALLBACK FOR GAME REVIEWS ──────────────────────────
+  async function fetchRAWG() {
+    if (!RAWG_API_KEY) return null;
+    const now = new Date();
+    const year = now.getFullYear();
+    const start = year + '-01-01';
+    const end = year + '-12-31';
+    const url = 'https://api.rawg.io/api/games?key=' + RAWG_API_KEY
+      + '&dates=' + start + ',' + end
+      + '&ordering=-metacritic&metacritic=1,100&page_size=12';
+    const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!r.ok) throw new Error('RAWG ' + r.status);
+    const data = await r.json();
+    return (data.results || []).map(function(g) {
+      var plats = (g.platforms || []).map(function(p) {
+        var n = p.platform.name;
+        if (n === 'PlayStation 5') return 'PS5';
+        if (n === 'Xbox Series S/X') return 'XSX';
+        if (n === 'Nintendo Switch') return 'SW2';
+        if (n === 'PC') return 'PC';
+        return n.length > 5 ? n.slice(0, 4) : n;
+      }).filter(function(v, i, a) { return a.indexOf(v) === i; }).slice(0, 4);
+      var d = g.released ? new Date(g.released) : null;
+      var dateStr = d ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+      var genre = g.genres && g.genres[0] ? g.genres[0].name : '';
+      return {
+        title: g.name,
+        score: g.metacritic || 0,
+        userScore: g.rating ? Math.round(g.rating * 20) / 10 : null,
+        genre: genre,
+        platforms: plats,
+        date: dateStr,
+        url: 'https://rawg.io/games/' + g.slug
+      };
+    });
+  }
+
   // ── OPENCRITIC GAME REVIEWS ─────────────────────────────────
+  // Last updated: 2026-03-13
   const OPENCRITIC_FALLBACK = [
-    { title: 'Mewgenics',                  score: 90, userScore: 8.1, genre: 'Roguelike',     platforms: ['PC'],                    date: 'Feb 10', url: 'https://opencritic.com/game/20055/mewgenics' },
+    { title: 'Resident Evil Requiem',       score: 90, userScore: 9.6, genre: 'Horror',        platforms: ['PS5','XSX','SW2','PC'],  date: 'Feb 27', url: 'https://opencritic.com/game/18716/resident-evil-requiem' },
+    { title: 'Mewgenics',                  score: 89, userScore: 8.1, genre: 'Roguelike',     platforms: ['PC'],                    date: 'Feb 10', url: 'https://opencritic.com/game/20055/mewgenics' },
+    { title: 'Pokémon Pokopia',            score: 89, userScore: null, genre: 'Simulation',   platforms: ['SW2'],                   date: 'Mar 5',  url: 'https://opencritic.com/browse/all/2026' },
     { title: 'Hermit and Pig',             score: 88, userScore: 9.3, genre: 'RPG',           platforms: ['PC'],                    date: 'Feb 5',  url: 'https://opencritic.com/browse/all/2026' },
-    { title: 'Resident Evil Requiem',       score: 88, userScore: 8.5, genre: 'Horror',        platforms: ['PS5','XSX','SW2','PC'],  date: 'Feb 27', url: 'https://opencritic.com/game/18716/resident-evil-requiem' },
-    { title: 'Super Bomberman Collection', score: 87, userScore: null, genre: 'Action',       platforms: ['PC'],                    date: 'Feb 5',  url: 'https://opencritic.com/browse/all/2026' },
+    { title: 'Esoteric Ebb',              score: 88, userScore: 9.0, genre: 'RPG',           platforms: ['PC'],                    date: 'Feb 20', url: 'https://opencritic.com/browse/all/2026' },
     { title: 'Cult of the Lamb: Woolhaven',score: 86, userScore: 8.7, genre: 'Roguelike',     platforms: ['PS5','XSX','SW2','PC'],  date: 'Jan 22', url: 'https://opencritic.com/game/19962/cult-of-the-lamb-woolhaven' },
+    { title: 'Perfect Tides: Station to Station', score: 86, userScore: null, genre: 'Adventure', platforms: ['PC'],               date: 'Feb 18', url: 'https://opencritic.com/browse/all/2026' },
     { title: 'Cairn',                      score: 86, userScore: 8.2, genre: 'Survival',      platforms: ['PS5','PC'],              date: 'Jan 29', url: 'https://opencritic.com/game/19998/cairn' },
-    { title: 'Lovish',                     score: 86, userScore: null, genre: 'Puzzle',       platforms: ['PS5','XSX','SW2','PC'],  date: 'Feb 5',  url: 'https://opencritic.com/browse/all/2026' },
     { title: 'Nioh 3',                     score: 85, userScore: 7.5, genre: 'Soulslike',     platforms: ['PS5','PC'],              date: 'Feb 6',  url: 'https://opencritic.com/game/19372/nioh-3' },
-    { title: "PARANORMASIGHT: Mermaid's Curse", score: 84, userScore: null, genre: 'Visual Novel', platforms: ['SW','PC'],          date: 'Feb 19', url: 'https://opencritic.com/browse/all/2026' },
-    { title: 'Demon Tides',               score: 84, userScore: null, genre: 'Action',       platforms: ['PC'],                    date: 'Feb 19', url: 'https://opencritic.com/browse/all/2026' },
-    { title: 'Reanimal',                   score: 81, userScore: null, genre: 'Adventure',    platforms: ['PS5','XSX','PC'],        date: 'Feb 13', url: 'https://opencritic.com/browse/all/2026' },
-    { title: 'High On Life 2',             score: 74, userScore: 5.8, genre: 'FPS',           platforms: ['PS5','XSX','PC'],        date: 'Feb 13', url: 'https://opencritic.com/browse/all/2026' },
+    { title: 'Romeo is a Dead Man',        score: 84, userScore: null, genre: 'Action',       platforms: ['PS5','XSX','PC'],        date: 'Feb 11', url: 'https://opencritic.com/browse/all/2026' },
+    { title: 'Big Hops',                   score: 83, userScore: null, genre: 'Platformer',   platforms: ['PS5','XSX','SW2','PC'],  date: 'Jan 30', url: 'https://opencritic.com/browse/all/2026' },
+    { title: 'Monster Hunter Stories 3',   score: 82, userScore: null, genre: 'RPG',          platforms: ['SW2','PC'],              date: 'Mar 7',  url: 'https://opencritic.com/browse/all/2026' },
   ];
 
   function renderOpenCritic(games) {
@@ -5244,7 +5326,7 @@ onAuthStateChanged(auth, user => {
           </div>
         </${tag}>`;
       }).join('');
-      document.getElementById('sports-updated').textContent = 'as of ' + timeNow();
+      document.getElementById('sports-updated').textContent = asOfNow();
     } catch(e) {
       console.error('[Digest:sports]', e && e.message || e);
       list.innerHTML = _errorHTML('sports');
