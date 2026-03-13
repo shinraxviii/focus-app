@@ -1602,24 +1602,26 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
     padding: 8px 0;
     position: relative;
-    min-height: 200px;
-    flex: 1;
+  }
+  .sorcery-img-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 420px;
+    width: 100%;
   }
   .sorcery-card-img {
     max-width: 100%;
-    max-height: 420px;
+    max-height: 100%;
     border-radius: 12px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-    transition: opacity 0.3s;
   }
   .sorcery-card-img.site-card {
     transform: rotate(90deg);
-    max-height: 300px;
+    max-height: 280px;
     max-width: none;
-    margin: 30px 0;
   }
   .sorcery-card-info {
     margin-top: 12px;
@@ -2422,7 +2424,7 @@
 
   .analytics-tiles {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 16px;
     margin-bottom: 24px;
   }
@@ -5059,6 +5061,7 @@ onAuthStateChanged(auth, user => {
           // Rate limit delay between requests
           await new Promise(resolve => setTimeout(resolve, 100));
         }
+        results.sort(function(a, b) { return (parseFloat(b.usd) || 0) - (parseFloat(a.usd) || 0); });
         mtgEl.innerHTML = results.map(function(c) {
           const displayName = c.name.includes(' // ') ? c.name.split(' // ')[0] : c.name;
           const price = c.usd      ? '$' + parseFloat(c.usd).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
@@ -5180,14 +5183,14 @@ onAuthStateChanged(auth, user => {
   // ── SORCERY: CONTESTED REALM ────────────────────────────────
   const SORCERY_CDN = 'https://d27a44hjr9gen3.cloudfront.net/';
   const SORCERY_CARDS = [
-    { name: 'King Arthur',          type: 'Avatar',    element: 'Earth',  set: 'Alpha',  slug: 'art/king_arthur_b_s' },
-    { name: 'Merlin',               type: 'Avatar',    element: 'Air',    set: 'Alpha',  slug: 'art/merlin_b_s' },
-    { name: 'Excalibur',            type: 'Relic',     element: 'Earth',  set: 'Alpha',  slug: 'art/excalibur_b_s' },
-    { name: 'Boudicca',             type: 'Minion',    element: 'Fire',   set: 'Alpha',  slug: 'art/boudicca_b_s' },
-    { name: 'Sir Lancelot',         type: 'Minion',    element: 'Earth',  set: 'Alpha',  slug: 'art/sir_lancelot_b_s' },
-    { name: 'Queen Guinevere',      type: 'Minion',    element: 'Water',  set: 'Alpha',  slug: 'art/queen_guinevere_b_s' },
-    { name: 'Black Knight',         type: 'Minion',    element: 'Fire',   set: 'Alpha',  slug: 'art/black_knight_b_s' },
-    { name: 'Ball Lightning',       type: 'Spell',     element: 'Air',    set: 'Alpha',  slug: 'art/ball_lightning_b_s' },
+    { name: 'King Arthur',          type: 'Avatar',    element: 'Earth',  set: 'Arthurian Legends',  slug: 'art/king_arthur_b_s' },
+    { name: 'Merlin',               type: 'Avatar',    element: 'Air',    set: 'Arthurian Legends',  slug: 'art/merlin_b_s' },
+    { name: 'Excalibur',            type: 'Relic',     element: 'Earth',  set: 'Arthurian Legends',  slug: 'art/excalibur_b_s' },
+    { name: 'Boudicca',             type: 'Minion',    element: 'Fire',   set: 'Arthurian Legends',  slug: 'art/boudicca_b_s' },
+    { name: 'Sir Lancelot',         type: 'Minion',    element: 'Earth',  set: 'Arthurian Legends',  slug: 'art/sir_lancelot_b_s' },
+    { name: 'Queen Guinevere',      type: 'Minion',    element: 'Water',  set: 'Arthurian Legends',  slug: 'art/queen_guinevere_b_s' },
+    { name: 'Black Knight',         type: 'Minion',    element: 'Fire',   set: 'Arthurian Legends',  slug: 'art/black_knight_b_s' },
+    { name: 'Ball Lightning',       type: 'Spell',     element: 'Air',    set: 'Arthurian Legends',  slug: 'art/ball_lightning_b_s' },
     { name: 'Ancient Dragon',       type: 'Minion',    element: 'Fire',   set: 'Beta',   slug: 'bet/ancient_dragon_b_s' },
     { name: 'Fireball',             type: 'Spell',     element: 'Fire',   set: 'Beta',   slug: 'bet/fireball_b_s' },
     { name: 'Lightning Bolt',       type: 'Spell',     element: 'Air',    set: 'Beta',   slug: 'bet/lightning_bolt_b_s' },
@@ -5201,19 +5204,25 @@ onAuthStateChanged(auth, user => {
     { name: 'Crown Prince',         type: 'Minion',    element: 'Earth',  set: 'Beta',   slug: 'bet/crown_prince_b_s' },
     { name: 'Doomsday Prophet',     type: 'Minion',    element: 'Fire',   set: 'Beta',   slug: 'bet/doomsday_prophet_b_s' },
     { name: 'Blood Ravens',         type: 'Minion',    element: 'Fire',   set: 'Beta',   slug: 'bet/blood_ravens_b_s' },
-    { name: 'Glastonbury Tor',      type: 'Site',      element: 'Earth',  set: 'Alpha',  slug: 'art/glastonbury_tor_b_s' },
+    { name: 'Glastonbury Tor',      type: 'Site',      element: 'Earth',  set: 'Arthurian Legends',  slug: 'art/glastonbury_tor_b_s' },
     { name: 'Cloud City',           type: 'Site',      element: 'Air',    set: 'Beta',   slug: 'bet/cloud_city_b_s' },
     { name: 'River of Flame',       type: 'Site',      element: 'Fire',   set: 'Beta',   slug: 'bet/river_of_flame_b_s' },
-    { name: '13 Treasures of Britain', type: 'Spell',  element: 'Earth',  set: 'Alpha',  slug: 'art/13_treasures_of_britain_b_s' },
+    { name: '13 Treasures of Britain', type: 'Spell',  element: 'Earth',  set: 'Arthurian Legends',  slug: 'art/13_treasures_of_britain_b_s' },
   ];
 
+  // Cryptographically random integer in [0, max)
+  function _cryptoRand(max) {
+    var arr = new Uint32Array(1);
+    crypto.getRandomValues(arr);
+    return arr[0] % max;
+  }
   // Shuffle deck so every card appears once before repeating
   var _sorceryDeck = [];
   function _nextSorceryCard() {
     if (_sorceryDeck.length === 0) {
       _sorceryDeck = SORCERY_CARDS.slice();
       for (var i = _sorceryDeck.length - 1; i > 0; i--) {
-        var j = Math.floor(Math.random() * (i + 1));
+        var j = _cryptoRand(i + 1);
         var tmp = _sorceryDeck[i]; _sorceryDeck[i] = _sorceryDeck[j]; _sorceryDeck[j] = tmp;
       }
     }
@@ -5229,9 +5238,11 @@ onAuthStateChanged(auth, user => {
     var imgUrl = SORCERY_CDN + card.slug + '.png';
     var imgClass = 'sorcery-card-img' + (card.type === 'Site' ? ' site-card' : '');
     viewer.innerHTML =
-      '<img class="' + imgClass + '" src="' + esc(imgUrl) + '" alt="' + esc(card.name) + '"'
+      '<div class="sorcery-img-wrap">'
+      + '<img class="' + imgClass + '" src="' + esc(imgUrl) + '" alt="' + esc(card.name) + '"'
       + ' onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'">'
       + '<div style="display:none;color:var(--text-dim);font-size:11px;padding:40px 0;">Image unavailable</div>'
+      + '</div>'
       + '<div class="sorcery-card-info">'
       + '<div class="sorcery-card-name">' + esc(card.name) + '</div>'
       + '<div class="sorcery-card-type">' + esc(card.type) + ' · ' + esc(card.element) + '</div>'
