@@ -4319,24 +4319,34 @@ onAuthStateChanged(auth, user => {
 
   // ── PULL-TO-REFRESH ──────────────────────────────────────
   async function refreshDigest() {
-    // Tier 1: Always force-refresh (fast-changing, free)
+    // Tier 1: Always force-refresh (fast-changing, free APIs)
     localStorage.removeItem('focus-digest-stocks');
     localStorage.removeItem('focus-digest-reddit2');
+    localStorage.removeItem('focus-digest-sealed-prices');
 
     // Tier 2: Refresh if older than 1 hour
-    const dealsCache = cacheGet('deals', 60 * 60 * 1000);
-    if (!dealsCache) localStorage.removeItem('focus-digest-deals');
+    if (!cacheGet('deals', 60 * 60 * 1000)) localStorage.removeItem('focus-digest-deals');
 
-    // Tier 3+4: Keep daily/weekly caches (MTG, OpenCritic, Sanderson, Fever)
-    // These are rate-limited or slow-changing — don't bust them
+    // Tier 3: Refresh daily sections if older than 6 hours (normally 24h TTL)
+    const FORCE_DAILY_TTL = 6 * 60 * 60 * 1000;
+    if (!cacheGet('mtg', FORCE_DAILY_TTL))         localStorage.removeItem('focus-digest-mtg');
+    if (!cacheGet('opencritic3', FORCE_DAILY_TTL))  localStorage.removeItem('focus-digest-opencritic3');
+
+    // Tier 4: Refresh weekly sections if older than 24 hours (normally 7d TTL)
+    const FORCE_WEEKLY_TTL = 24 * 60 * 60 * 1000;
+    if (!cacheGet('fever5', FORCE_WEEKLY_TTL))      localStorage.removeItem('focus-digest-fever5');
+    if (!cacheGet('sanderson', FORCE_WEEKLY_TTL))   localStorage.removeItem('focus-digest-sanderson');
 
     // Reset session guard so loadDigest actually runs
     loadDigest._sessionLoaded = false;
 
-    // Re-run all loaders
-    loadSports();
-    await loadLiveData();
-    await loadDailyData();
+    // Re-run all loaders in parallel where possible
+    await Promise.all([
+      loadSports(),
+      loadLiveData(),
+      loadDailyData(),
+      loadSealedPrices()
+    ]);
   }
 
   (function initPullToRefresh() {
@@ -4401,6 +4411,9 @@ onAuthStateChanged(auth, user => {
 
         refreshDigest().then(function() {
           label.textContent = 'Updated';
+        }).catch(function() {
+          label.textContent = 'Refresh failed';
+        }).finally(function() {
           setTimeout(function() {
             indicator.classList.remove('refreshing');
             refreshing = false;
