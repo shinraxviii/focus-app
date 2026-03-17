@@ -5723,7 +5723,7 @@ onAuthStateChanged(auth, user => {
         opponent:  `${isHome ? 'vs' : '@'} ${oppName}`,
         isLive,
         liveClock: isLive ? (status?.shortDetail || comp.status?.displayClock || 'LIVE') : '',
-        result:    isLive ? 'LIVE' : (myTeam.winner === true ? 'W' : myTeam.winner === false ? 'L' : '—'),
+        result:    isLive ? 'LIVE' : (myTeam.winner === true ? 'W' : myTeam.winner === false ? (other.winner === false ? 'D' : 'L') : '—'),
         gameDate:  !isLive ? new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '',
         gameUrl
       };
@@ -5848,6 +5848,7 @@ onAuthStateChanged(auth, user => {
         const resultColor = isLive ? 'var(--live-color)'
           : t.result === 'W' ? 'var(--win-color)'
           : t.result === 'L' ? 'var(--loss-color)'
+          : t.result === 'D' ? 'var(--text-muted)'
           : isNext ? '#1e90ff'
           : 'var(--text-muted)';
         const subLine = isLive
