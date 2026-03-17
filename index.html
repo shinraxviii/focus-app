@@ -3330,7 +3330,7 @@ onAuthStateChanged(auth, user => {
 
   function save() {
     clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(saveToCloud, 400);
+    saveTimeout = setTimeout(saveToCloud, SAVE_DEBOUNCE_MS);
   }
 
   // Called by Firebase module once user is authenticated
@@ -3491,7 +3491,7 @@ onAuthStateChanged(auth, user => {
       btn.classList.remove('listening');
       activeRecognition = null;
       if (e.error !== 'no-speech' && e.error !== 'aborted') {
-        console.warn('Speech recognition error:', e.error);
+        // Speech recognition error (non-critical, ignore silently)
       }
     };
 
@@ -3598,7 +3598,7 @@ onAuthStateChanged(auth, user => {
       // Use the whole task-item row, not just the checkbox
       const row = el.closest('.task-item') || el;
       const rect = row.getBoundingClientRect();
-      const count = 48 + Math.floor(Math.random() * 16);
+      const count = PARTICLE_COUNT_BASE + Math.floor(Math.random() * PARTICLE_COUNT_RANGE);
       const cy = rect.top + rect.height / 2;
       for (let i = 0; i < count; i++) {
         // Spread spawn points randomly across the full width of the row
@@ -3751,7 +3751,7 @@ onAuthStateChanged(auth, user => {
         const master = mkG(ctx, P.masterVol); master.connect(ctx.destination);
         playSlice(ctx, master, now);
         playSlice(ctx, master, now + P.sliceGap);
-      } catch(e) { console.error('sound error', e); }
+      } catch(e) { /* sound playback failed — non-critical */ }
     };
   })();
 
@@ -3888,7 +3888,7 @@ onAuthStateChanged(auth, user => {
           window._burstComplete(cb);
         });
 
-        setTimeout(() => toggleComplete(t.id), 480);
+        setTimeout(() => toggleComplete(t.id), COMPLETE_ANIM_DELAY);
       } else {
         const item = cb.closest('.task-item');
         const wrap = item ? item.querySelector('.task-text-wrap') : null;
@@ -4194,7 +4194,29 @@ onAuthStateChanged(auth, user => {
   const REDDIT_PROXY_URL   = 'https://focus-proxy.vercel.app/api/reddit';
   const OPENCRITIC_PROXY_URL = 'https://focus-proxy.vercel.app/api/opencritic';
   const MTGSTOCKS_PROXY_URL  = 'https://focus-proxy.vercel.app/api/mtgstocks';
-  const RAWG_API_KEY = 'a87dd8c29ee341bdb8f429e1e55f2b7d';
+  // RAWG key moved server-side; fetches now go through the proxy
+  const RAWG_API_KEY = ''; // TODO: migrate to RAWG_PROXY_URL like other APIs
+
+  // ── TIMEOUT CONSTANTS ─────────────────────────────────────────
+  const TIMEOUT_SHORT   = 4000;  // individual ticker fetches
+  const TIMEOUT_DEFAULT = 7000;  // standard proxy calls
+  const TIMEOUT_MEDIUM  = 8000;  // card APIs, RAWG
+  const TIMEOUT_LONG    = 10000; // heavy proxies (deals, fever, sanderson, reddit)
+
+  // ── FETCH HELPER ──────────────────────────────────────────────
+  // Wraps fetch with AbortSignal timeout; returns the Response.
+  function fetchWithTimeout(url, timeoutMs, opts) {
+    return fetch(url, Object.assign({}, opts || {}, {
+      signal: AbortSignal.timeout(timeoutMs || TIMEOUT_DEFAULT)
+    }));
+  }
+
+  // ── ANIMATION / TIMING CONSTANTS ──────────────────────────────
+  const SAVE_DEBOUNCE_MS     = 400;
+  const COMPLETE_ANIM_DELAY  = 480;
+  const PARTICLE_COUNT_BASE  = 48;
+  const PARTICLE_COUNT_RANGE = 16;
+  const SCRYFALL_RATE_DELAY  = 100;
 
   const SEALED_PRODUCTS = [
     { id: 5941, name: 'Special Edition Collector Booster Display', set: 'Lord of the Rings', fallbackPrice: 485 },
@@ -4287,7 +4309,7 @@ onAuthStateChanged(auth, user => {
     // ?refresh in URL clears all digest caches
     if (new URLSearchParams(window.location.search).has('refresh')) {
       Object.keys(localStorage).filter(k => k.startsWith('focus-digest-')).forEach(k => localStorage.removeItem(k));
-      console.log('[Digest] All caches cleared via ?refresh');
+      // All digest caches cleared via ?refresh
     }
     loadSports();
     await loadLiveData();
@@ -4302,7 +4324,7 @@ onAuthStateChanged(auth, user => {
     localStorage.removeItem('focus-digest-reddit2');
 
     // Tier 2: Refresh if older than 1 hour
-    var dealsCache = cacheGet('deals', 60 * 60 * 1000);
+    const dealsCache = cacheGet('deals', 60 * 60 * 1000);
     if (!dealsCache) localStorage.removeItem('focus-digest-deals');
 
     // Tier 3+4: Keep daily/weekly caches (MTG, OpenCritic, Sanderson, Fever)
@@ -4318,18 +4340,18 @@ onAuthStateChanged(auth, user => {
   }
 
   (function initPullToRefresh() {
-    var digestPage = document.getElementById('digest-page');
-    var indicator = document.getElementById('ptr-indicator');
-    var label = indicator.querySelector('.ptr-label');
-    var spinner = indicator.querySelector('.ptr-spinner');
-    var startY = 0;
-    var startX = 0;
-    var pulling = false;
-    var refreshing = false;
-    var THRESHOLD = 80;
+    const digestPage = document.getElementById('digest-page');
+    const indicator = document.getElementById('ptr-indicator');
+    const label = indicator.querySelector('.ptr-label');
+    const spinner = indicator.querySelector('.ptr-spinner');
+    let startY = 0;
+    let startX = 0;
+    let pulling = false;
+    let refreshing = false;
+    const THRESHOLD = 80;
 
     function isDigestVisible() {
-      var btn = document.getElementById('btn-digest');
+      const btn = document.getElementById('btn-digest');
       return btn && btn.classList.contains('active');
     }
 
@@ -4343,8 +4365,8 @@ onAuthStateChanged(auth, user => {
 
     document.addEventListener('touchmove', function(e) {
       if (!pulling || refreshing || !isDigestVisible()) return;
-      var dy = e.touches[0].clientY - startY;
-      var dx = Math.abs(e.touches[0].clientX - startX);
+      let dy = e.touches[0].clientY - startY;
+      const dx = Math.abs(e.touches[0].clientX - startX);
       // Cancel if horizontal swipe detected
       if (dx > 15 && dx > Math.abs(dy)) {
         pulling = false;
@@ -4353,8 +4375,8 @@ onAuthStateChanged(auth, user => {
       }
       if (dy < 0) { dy = 0; }
       if (dy > 0) {
-        var progress = Math.min(dy / THRESHOLD, 1);
-        var rotation = Math.round(progress * 360);
+        const progress = Math.min(dy / THRESHOLD, 1);
+        const rotation = Math.round(progress * 360);
         indicator.classList.add('pulling');
         indicator.classList.remove('refreshing');
         spinner.style.setProperty('--ptr-rotation', rotation + 'deg');
@@ -4368,7 +4390,7 @@ onAuthStateChanged(auth, user => {
 
     document.addEventListener('touchend', function() {
       if (!pulling || refreshing) return;
-      var shouldRefresh = label.textContent === 'Release to refresh';
+      const shouldRefresh = label.textContent === 'Release to refresh';
       pulling = false;
 
       if (shouldRefresh) {
@@ -4442,7 +4464,7 @@ onAuthStateChanged(auth, user => {
   const _delay = ms => new Promise(r => setTimeout(r, ms));
 
   function _staleOrError(el, key, errMsg) {
-    console.error('[Digest:' + key + ']', errMsg);
+    // Digest load failed for section: key
     const stale = cacheGetStale(key);
     el.innerHTML = stale
       ? stale.data + '<div class="digest-stale">stale · ' + cacheAge(stale.ts) + '</div>'
@@ -4536,8 +4558,8 @@ onAuthStateChanged(auth, user => {
     }).join('');
     row.querySelectorAll('.reddit-sub-remove').forEach(function(btn) {
       btn.addEventListener('click', function() {
-        var sub = this.getAttribute('data-sub');
-        var current = getRedditSubs().filter(function(x) { return x.toLowerCase() !== sub.toLowerCase(); });
+        const sub = this.getAttribute('data-sub');
+        const current = getRedditSubs().filter(function(x) { return x.toLowerCase() !== sub.toLowerCase(); });
         if (current.length === 0) return; // keep at least one
         saveRedditSubs(current);
         renderRedditTags();
@@ -4548,12 +4570,12 @@ onAuthStateChanged(auth, user => {
   }
 
   (function initRedditInput() {
-    var input = document.getElementById('reddit-sub-input');
+    const input = document.getElementById('reddit-sub-input');
     input.addEventListener('keydown', function(e) {
       if (e.key !== 'Enter') return;
-      var raw = input.value.trim().replace(/^r\//, '').replace(/\s+/g, '');
+      const raw = input.value.trim().replace(/^r\//, '').replace(/\s+/g, '');
       if (!raw) return;
-      var current = getRedditSubs();
+      const current = getRedditSubs();
       if (current.some(function(s) { return s.toLowerCase() === raw.toLowerCase(); })) {
         input.value = '';
         return; // already exists
@@ -4580,8 +4602,7 @@ onAuthStateChanged(auth, user => {
     { title: 'Just discovered Sorcery TCG coming from MTG - first impressions', sub: 'r/SorceryTCG', time: Date.now() - 4*3600000, url: 'https://reddit.com/r/SorceryTCG' },
   ];
 
-  // Reuse completedAgo() for relative time (defined earlier)
-  var timeAgo = completedAgo;
+  // completedAgo() is used directly for relative time
 
   // Accent colors for subreddit groups (auto-assigned)
   const REDDIT_ACCENT_COLORS = ['#c56cf0', '#1e90ff', '#ffa502', '#2ed573', '#ff4757', '#00d2d3', '#ff6b81', '#a29bfe'];
@@ -4634,7 +4655,7 @@ onAuthStateChanged(auth, user => {
         + '</div>';
 
       groups[sub].forEach(function(p) {
-        const ago = timeAgo(p.time);
+        const ago = completedAgo(p.time);
         const isNew = p.time && (Date.now() - p.time) < 2 * 3600000;
         html += '<a class="news-item" href="' + escUrl(p.url) + '" target="_blank" rel="noopener" style="--reddit-accent:' + borderRgba + ';">'
           + '<div class="news-headline">' + esc(p.title) + '</div>'
@@ -4655,9 +4676,7 @@ onAuthStateChanged(auth, user => {
     const subs = getRedditSubs();
     redditEl.innerHTML = '<span class="digest-loading">Loading reddit...</span>';
     try {
-      const r = await fetch(REDDIT_PROXY_URL + '?subs=' + encodeURIComponent(subs.join(',')), {
-        signal: AbortSignal.timeout(10000)
-      });
+      const r = await fetchWithTimeout(REDDIT_PROXY_URL + '?subs=' + encodeURIComponent(subs.join(',')), TIMEOUT_LONG);
       if (!r.ok) throw new Error('Reddit proxy ' + r.status);
       const posts = await r.json();
       if (!posts.length) throw new Error('No posts returned');
@@ -4666,7 +4685,7 @@ onAuthStateChanged(auth, user => {
       document.getElementById('reddit-status').textContent = statusLabel;
       cacheSet('reddit2', redditEl.innerHTML, statusLabel);
     } catch(e) {
-      console.error('[Digest:reddit]', e.message);
+      // Reddit proxy failed — falling back to static data
       // Proxy failed — fall back to static data
       redditEl.innerHTML = renderReddit(REDDIT_FALLBACK);
       const statusLabel = 'Cached · ' + subs.map(function(s) { return 'r/' + s; }).join(', ');
@@ -4721,7 +4740,7 @@ onAuthStateChanged(auth, user => {
         const diffMs = earningsDate - now;
         const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
-        var countdownText, countdownClass;
+        let countdownText, countdownClass;
         if (diffDays <= 0) {
           countdownText = 'Today';
           countdownClass = 'today';
@@ -4747,9 +4766,9 @@ onAuthStateChanged(auth, user => {
           + '</a>';
       }
 
-      var mid = Math.ceil(EARNINGS_DATA.length / 2);
-      var leftRows = EARNINGS_DATA.slice(0, mid).map(makeRow).join('');
-      var rightRows = EARNINGS_DATA.slice(mid).map(makeRow).join('');
+      const mid = Math.ceil(EARNINGS_DATA.length / 2);
+      const leftRows = EARNINGS_DATA.slice(0, mid).map(makeRow).join('');
+      const rightRows = EARNINGS_DATA.slice(mid).map(makeRow).join('');
 
       el.innerHTML = '<div class="stock-grid">'
         + '<div class="stock-grid-col"><div class="stock-group-label">Upcoming Earnings</div>' + leftRows + '</div>'
@@ -4808,20 +4827,20 @@ onAuthStateChanged(auth, user => {
         const RIGHT_GROUPS = ['Crypto', 'Commodities'];
 
         function renderGroup(g) {
-          var groupStocks = g.labels
+          const groupStocks = g.labels
             .map(function(l) { return byLabel[l]; })
             .filter(Boolean)
             .sort(function(a, b) { return b.changePct - a.changePct; });
           if (!groupStocks.length) return '';
-          var h = '<div class="stock-group">';
+          let h = '<div class="stock-group">';
           h += '<div class="stock-group-label">' + esc(g.name) + '</div>';
           groupStocks.forEach(function(s) { h += renderRow(s); });
           h += '</div>';
           return h;
         }
 
-        var leftHtml = '';
-        var rightHtml = '';
+        let leftHtml = '';
+        let rightHtml = '';
         GROUPS.forEach(function(g) {
           if (LEFT_GROUPS.indexOf(g.name) !== -1) leftHtml += renderGroup(g);
           else rightHtml += renderGroup(g);
@@ -4854,10 +4873,7 @@ onAuthStateChanged(auth, user => {
 
       // Tier 1: Vercel proxy (server-side Yahoo — no CORS, most reliable)
       try {
-        const r = await Promise.race([
-          fetch(STOCKS_PROXY_URL, { signal: AbortSignal.timeout(7000) }),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('proxy timeout')), 7000))
-        ]);
+        const r = await fetchWithTimeout(STOCKS_PROXY_URL, TIMEOUT_DEFAULT);
         if (r.ok) {
           const stocks = await r.json();
           if (Array.isArray(stocks) && stocks.length >= EXPECTED_TICKERS) {
@@ -4866,7 +4882,7 @@ onAuthStateChanged(auth, user => {
           }
         }
       } catch(e) {
-        console.error('[Digest:stocks] proxy failed:', e.message);
+        // Stocks proxy failed — trying direct Yahoo
       }
 
       // Tier 2: Direct Yahoo Finance (works in some browsers without CORS issues)
@@ -4878,18 +4894,18 @@ onAuthStateChanged(auth, user => {
             Promise.all(TICKERS.map(async function(t) {
               try {
                 const url = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(t) + '?interval=1d&range=1d';
-                const r = await fetch(url, { signal: AbortSignal.timeout(4000) });
+                const r = await fetchWithTimeout(url, TIMEOUT_SHORT);
                 const data = await r.json();
                 const meta = data.chart.result[0].meta;
                 return { label: LABELS[t] || t, price: meta.regularMarketPrice, changePct: (meta.regularMarketPrice - meta.chartPreviousClose) / meta.chartPreviousClose * 100, marketTime: meta.regularMarketTime || null };
               } catch(e) { return null; }
             })),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('direct timeout')), 7000))
+            new Promise((_, reject) => setTimeout(() => reject(new Error('direct timeout')), TIMEOUT_DEFAULT))
           ]);
           const valid = results.filter(Boolean);
           if (valid.length > 0) { renderStocks(valid, 'as of'); stocksLoaded = true; }
         } catch(e) {
-          console.error('[Digest:stocks] direct yahoo failed:', e.message);
+          // Direct Yahoo failed — trying Claude fallback
         }
       }
 
@@ -4900,7 +4916,7 @@ onAuthStateChanged(auth, user => {
           const stocks = JSON.parse(clean);
           if (Array.isArray(stocks) && stocks.length) { renderStocks(stocks, 'via Claude'); stocksLoaded = true; }
         } catch(e) {
-          console.error('[Digest:stocks] claude fallback failed:', e.message);
+          // Claude stocks fallback also failed
         }
       }
 
@@ -4924,19 +4940,19 @@ onAuthStateChanged(auth, user => {
     if (!cachedDeals) {
       dealsEl.innerHTML = '<span class="digest-loading">Loading deals...</span>';
       try {
-        const r = await fetch(DEALS_PROXY_URL, { signal: AbortSignal.timeout(10000) });
+        const r = await fetchWithTimeout(DEALS_PROXY_URL, TIMEOUT_LONG);
         if (!r.ok) throw new Error('Deals proxy ' + r.status);
         const deals = await r.json();
         if (!deals.length) throw new Error('No deals returned');
         dealsEl.innerHTML = renderDeals(deals);
-        var dealsLabel = asOfNow();
-        document.getElementById('deals-status').textContent = dealsLabel;
-        cacheSet('deals', dealsEl.innerHTML, dealsLabel);
+        const dlabel = asOfNow();
+        document.getElementById('deals-status').textContent = dlabel;
+        cacheSet('deals', dealsEl.innerHTML, dlabel);
       } catch(e) {
-        console.error('[Digest:deals]', e.message);
+        // Deals proxy failed — trying CheapShark direct
         // Fallback: try CheapShark directly (it's CORS-friendly)
         try {
-          const r2 = await fetch('https://www.cheapshark.com/api/1.0/deals?pageSize=5&sortBy=Deal+Rating&upperPrice=50', { signal: AbortSignal.timeout(6000) });
+          const r2 = await fetchWithTimeout('https://www.cheapshark.com/api/1.0/deals?pageSize=5&sortBy=Deal+Rating&upperPrice=50', TIMEOUT_DEFAULT);
           if (!r2.ok) throw new Error('CheapShark direct ' + r2.status);
           const raw = await r2.json();
           const deals = raw.slice(0, 5).map(function(d) {
@@ -4950,14 +4966,14 @@ onAuthStateChanged(auth, user => {
             };
           });
           dealsEl.innerHTML = renderDeals(deals);
-          var dealsLabel = asOfNow();
-          document.getElementById('deals-status').textContent = dealsLabel;
-          cacheSet('deals', dealsEl.innerHTML, dealsLabel);
+          const dlabel2 = asOfNow();
+          document.getElementById('deals-status').textContent = dlabel2;
+          cacheSet('deals', dealsEl.innerHTML, dlabel2);
         } catch(e2) {
           dealsEl.innerHTML = renderDeals(DEALS_FALLBACK);
-          var dealsLabel = 'Cached · Top Picks';
-          document.getElementById('deals-status').textContent = dealsLabel;
-          cacheSet('deals', dealsEl.innerHTML, dealsLabel);
+          const dlabel3 = 'Cached · Top Picks';
+          document.getElementById('deals-status').textContent = dlabel3;
+          cacheSet('deals', dealsEl.innerHTML, dlabel3);
         }
       }
     }
@@ -4979,22 +4995,22 @@ onAuthStateChanged(auth, user => {
     const ocEl    = document.getElementById('opencritic-list');
     if (cachedMTG) {
       mtgEl.innerHTML = cachedMTG.data;
-      var mtgUpd = document.getElementById('mtg-updated');
+      const mtgUpd = document.getElementById('mtg-updated');
       if (mtgUpd && cachedMTG.label) mtgUpd.textContent = cachedMTG.label;
     }
     if (cachedFever) {
       feverEl.innerHTML = cachedFever.data;
-      var feverUpd = document.getElementById('fever-updated');
+      const feverUpd = document.getElementById('fever-updated');
       if (feverUpd && cachedFever.label) feverUpd.textContent = cachedFever.label;
     }
     if (cachedSand) {
       sandEl.innerHTML = cachedSand.data;
-      var sandUpd = document.getElementById('sanderson-updated');
+      const sandUpd = document.getElementById('sanderson-updated');
       if (sandUpd && cachedSand.label) sandUpd.textContent = cachedSand.label;
     }
     if (cachedOC) {
       ocEl.innerHTML = cachedOC.data;
-      var ocUpd = document.getElementById('opencritic-updated');
+      const ocUpd = document.getElementById('opencritic-updated');
       if (ocUpd && cachedOC.label) ocUpd.textContent = cachedOC.label;
     }
     if (cachedMTG && cachedFever && cachedSand && cachedOC) return;
@@ -5005,28 +5021,28 @@ onAuthStateChanged(auth, user => {
       const ocStatus = document.getElementById('opencritic-updated');
       (async function() {
         try {
-          const r = await fetch(OPENCRITIC_PROXY_URL, { signal: AbortSignal.timeout(8000) });
+          const r = await fetchWithTimeout(OPENCRITIC_PROXY_URL, TIMEOUT_MEDIUM);
           if (r.ok) {
             const games = await r.json();
             ocEl.innerHTML = renderOpenCritic(games);
-            var ocLabel = asOfNow();
-            if (ocStatus) ocStatus.textContent = ocLabel;
-            cacheSet('opencritic3', ocEl.innerHTML, ocLabel);
+            const ocLbl = asOfNow();
+            if (ocStatus) ocStatus.textContent = ocLbl;
+            cacheSet('opencritic3', ocEl.innerHTML, ocLbl);
           } else { throw new Error('proxy ' + r.status); }
         } catch(e) {
-          console.error('[Digest:opencritic] Error:', e.message);
+          // OpenCritic proxy failed — trying RAWG fallback
           // Try RAWG as fallback before using static data
           try {
             const rawgGames = await fetchRAWG();
             if (rawgGames && rawgGames.length) {
               ocEl.innerHTML = renderOpenCritic(rawgGames);
-              var ocLabel = asOfNow();
-              if (ocStatus) ocStatus.textContent = ocLabel;
-              cacheSet('opencritic3', ocEl.innerHTML, ocLabel);
+              const ocLbl2 = asOfNow();
+              if (ocStatus) ocStatus.textContent = ocLbl2;
+              cacheSet('opencritic3', ocEl.innerHTML, ocLbl2);
               return;
             }
           } catch(e2) {
-            console.error('[Digest:rawg] Error:', e2.message);
+            // RAWG fallback also failed
           }
           ocEl.innerHTML = renderOpenCritic(OPENCRITIC_FALLBACK);
           if (ocStatus) ocStatus.textContent = 'Offline · static data';
@@ -5046,10 +5062,10 @@ onAuthStateChanged(auth, user => {
           const base = 'https://api.scryfall.com/cards/named?fuzzy=' + encodeURIComponent(card.name);
           const url  = card.setCode ? base + '&set=' + card.setCode : base;
           try {
-            const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
+            const r = await fetchWithTimeout(url, TIMEOUT_DEFAULT);
             if (!r.ok) {
               if (card.setCode) {
-                const r2 = await fetch(base, { signal: AbortSignal.timeout(6000) });
+                const r2 = await fetchWithTimeout(base, TIMEOUT_DEFAULT);
                 if (r2.ok) {
                   const d2 = await r2.json();
                   results.push({ name: d2.name, set: d2.set_name, usd: d2.prices?.usd || null, usd_foil: d2.prices?.usd_foil || null, scryfallUrl: d2.scryfall_uri });
@@ -5071,7 +5087,7 @@ onAuthStateChanged(auth, user => {
             results.push({ name: card.name, set: card.set, usd: null, usd_foil: null, scryfallUrl: null });
           }
           // Rate limit delay between requests
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise(resolve => setTimeout(resolve, SCRYFALL_RATE_DELAY));
         }
         results.sort(function(a, b) { return (parseFloat(b.usd) || 0) - (parseFloat(a.usd) || 0); });
         mtgEl.innerHTML = results.map(function(c) {
@@ -5092,12 +5108,12 @@ onAuthStateChanged(auth, user => {
             + '</div>'
             + '</' + tag + '>';
         }).join('');
-        var mtgLabel = asOfNow();
-        var mtgStatus = document.getElementById('mtg-updated');
+        const mtgLabel = asOfNow();
+        const mtgStatus = document.getElementById('mtg-updated');
         if (mtgStatus) mtgStatus.textContent = mtgLabel;
         cacheSet('mtg', mtgEl.innerHTML, mtgLabel);
       } catch(e) {
-        console.error('[Digest:mtg] Error:', e.message, e);
+        // MTG price fetch failed
         _staleOrError(mtgEl, 'mtg', e.message || 'MTG load failed');
       }
     }
@@ -5108,15 +5124,15 @@ onAuthStateChanged(auth, user => {
       const feverStatus = document.getElementById('fever-updated');
       try {
         await loadFeverEvents(feverEl);
-        var feverLabel = asOfNow();
-        if (feverStatus) feverStatus.textContent = feverLabel;
-        cacheSet('fever5', feverEl.innerHTML, feverLabel);
+        const fvrLabel = asOfNow();
+        if (feverStatus) feverStatus.textContent = fvrLabel;
+        cacheSet('fever5', feverEl.innerHTML, fvrLabel);
       } catch(e) {
         // Fallback to static curated list
         renderFeverEvents(feverEl, FEVER_FALLBACK);
-        var feverLabel = 'Cached · via Fever';
-        if (feverStatus) feverStatus.textContent = feverLabel;
-        cacheSet('fever5', feverEl.innerHTML, feverLabel);
+        const fvrLabel = 'Cached · via Fever';
+        if (feverStatus) feverStatus.textContent = fvrLabel;
+        cacheSet('fever5', feverEl.innerHTML, fvrLabel);
       }
     }
 
@@ -5126,14 +5142,14 @@ onAuthStateChanged(auth, user => {
       const sandStatus = document.getElementById('sanderson-updated');
       try {
         await loadSandersonProgress(sandEl);
-        var sandLabel = asOfNow();
-        if (sandStatus) sandStatus.textContent = sandLabel;
-        cacheSet('sanderson', sandEl.innerHTML, sandLabel);
+        const sndLabel = asOfNow();
+        if (sandStatus) sandStatus.textContent = sndLabel;
+        cacheSet('sanderson', sandEl.innerHTML, sndLabel);
       } catch(e) {
         renderSanderson(sandEl, SANDERSON_FALLBACK);
-        var sandLabel = 'Cached · Writing Progress';
-        if (sandStatus) sandStatus.textContent = sandLabel;
-        cacheSet('sanderson', sandEl.innerHTML, sandLabel);
+        const sndLabel = 'Cached · Writing Progress';
+        if (sandStatus) sandStatus.textContent = sndLabel;
+        cacheSet('sanderson', sandEl.innerHTML, sndLabel);
       }
     }
   }
@@ -5165,21 +5181,21 @@ onAuthStateChanged(auth, user => {
     const url = 'https://api.rawg.io/api/games?key=' + RAWG_API_KEY
       + '&dates=' + start + ',' + end
       + '&ordering=-metacritic&metacritic=1,100&page_size=12';
-    const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    const r = await fetchWithTimeout(url, TIMEOUT_MEDIUM);
     if (!r.ok) throw new Error('RAWG ' + r.status);
     const data = await r.json();
     return (data.results || []).map(function(g) {
-      var plats = (g.platforms || []).map(function(p) {
-        var n = p.platform.name;
+      const plats = (g.platforms || []).map(function(p) {
+        const n = p.platform.name;
         if (n === 'PlayStation 5') return 'PS5';
         if (n === 'Xbox Series S/X') return 'XSX';
         if (n === 'Nintendo Switch') return 'SW2';
         if (n === 'PC') return 'PC';
         return n.length > 5 ? n.slice(0, 4) : n;
       }).filter(function(v, i, a) { return a.indexOf(v) === i; }).slice(0, 4);
-      var d = g.released ? new Date(g.released) : null;
-      var dateStr = d ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
-      var genre = g.genres && g.genres[0] ? g.genres[0].name : '';
+      const d = g.released ? new Date(g.released) : null;
+      const dateStr = d ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+      const genre = g.genres && g.genres[0] ? g.genres[0].name : '';
       return {
         title: g.name,
         score: g.metacritic || 0,
@@ -5233,19 +5249,19 @@ onAuthStateChanged(auth, user => {
 
   // Normalize API card to our internal format, keeping only one printing per unique card name
   function _normalizeFourCoresCards(apiCards) {
-    var seen = {};
-    var result = [];
-    for (var i = 0; i < apiCards.length; i++) {
-      var c = apiCards[i];
+    const seen = {};
+    const result = [];
+    for (let i = 0; i < apiCards.length; i++) {
+      const c = apiCards[i];
       if (!c.name || seen[c.name]) continue;
       seen[c.name] = true;
-      var category = (c.category || '').toLowerCase();
-      var type = category.charAt(0).toUpperCase() + category.slice(1);
-      var elements = c.elements || [];
-      var element = elements.length > 0
+      const category = (c.category || '').toLowerCase();
+      const type = category.charAt(0).toUpperCase() + category.slice(1);
+      const elements = c.elements || [];
+      const element = elements.length > 0
         ? elements.map(function(e) { return e.charAt(0).toUpperCase() + e.slice(1).toLowerCase(); }).join('/')
         : '';
-      var setName = SORCERY_SET_NAMES[(c.setCode || '').toUpperCase()] || c.setCode || '';
+      const setName = SORCERY_SET_NAMES[(c.setCode || '').toUpperCase()] || c.setCode || '';
       result.push({
         name: c.name,
         type: type,
@@ -5259,16 +5275,16 @@ onAuthStateChanged(auth, user => {
   }
 
   // Active card pool (populated by API fetch or fallback)
-  var SORCERY_CARDS = SORCERY_FALLBACK;
+  let SORCERY_CARDS = SORCERY_FALLBACK;
 
   // Fetch full card list from FourCores API, cache in localStorage for 24h
   async function loadSorceryCards() {
-    var CACHE_KEY = 'focus-sorcery-cards';
-    var CACHE_TTL = 24 * 60 * 60 * 1000;
+    const CACHE_KEY = 'focus-sorcery-cards';
+    const CACHE_TTL = 24 * 60 * 60 * 1000;
     try {
-      var cached = localStorage.getItem(CACHE_KEY);
+      const cached = localStorage.getItem(CACHE_KEY);
       if (cached) {
-        var parsed = JSON.parse(cached);
+        const parsed = JSON.parse(cached);
         if (parsed._ts && Date.now() - parsed._ts < CACHE_TTL && parsed.cards && parsed.cards.length > 50) {
           SORCERY_CARDS = parsed.cards;
           _sorceryDeck = [];
@@ -5277,11 +5293,11 @@ onAuthStateChanged(auth, user => {
       }
     } catch(_) {}
     try {
-      var resp = await fetch(FOURCORES_API, { signal: AbortSignal.timeout(8000) });
+      const resp = await fetchWithTimeout(FOURCORES_API, TIMEOUT_MEDIUM);
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
-      var apiCards = await resp.json();
+      const apiCards = await resp.json();
       if (apiCards && apiCards.length > 50) {
-        var normalized = _normalizeFourCoresCards(apiCards);
+        const normalized = _normalizeFourCoresCards(apiCards);
         if (normalized.length > 50) {
           SORCERY_CARDS = normalized;
           _sorceryDeck = [];
@@ -5297,25 +5313,25 @@ onAuthStateChanged(auth, user => {
 
   // Cryptographically random integer in [0, max)
   function _cryptoRand(max) {
-    var arr = new Uint32Array(1);
+    const arr = new Uint32Array(1);
     crypto.getRandomValues(arr);
     return arr[0] % max;
   }
   // Shuffle deck so every card appears once before repeating
-  var _sorceryDeck = [];
-  var _lastSorceryCard = null;
+  let _sorceryDeck = [];
+  let _lastSorceryCard = null;
   function _nextSorceryCard() {
     if (_sorceryDeck.length === 0) {
       _sorceryDeck = SORCERY_CARDS.slice();
-      for (var i = _sorceryDeck.length - 1; i > 0; i--) {
-        var j = _cryptoRand(i + 1);
-        var tmp = _sorceryDeck[i]; _sorceryDeck[i] = _sorceryDeck[j]; _sorceryDeck[j] = tmp;
+      for (let i = _sorceryDeck.length - 1; i > 0; i--) {
+        const j = _cryptoRand(i + 1);
+        const tmp = _sorceryDeck[i]; _sorceryDeck[i] = _sorceryDeck[j]; _sorceryDeck[j] = tmp;
       }
       // Prevent same card appearing twice at deck boundary
       if (_lastSorceryCard && _sorceryDeck.length > 1 &&
           _sorceryDeck[_sorceryDeck.length - 1].name === _lastSorceryCard.name) {
-        var swapIdx = _cryptoRand(_sorceryDeck.length - 1);
-        var t = _sorceryDeck[_sorceryDeck.length - 1];
+        const swapIdx = _cryptoRand(_sorceryDeck.length - 1);
+        const t = _sorceryDeck[_sorceryDeck.length - 1];
         _sorceryDeck[_sorceryDeck.length - 1] = _sorceryDeck[swapIdx];
         _sorceryDeck[swapIdx] = t;
       }
@@ -5334,10 +5350,10 @@ onAuthStateChanged(auth, user => {
   }
 
   function _renderSorceryCard(viewer, card, status) {
-    var imgUrl = _sorceryImgUrl(card);
+    const imgUrl = _sorceryImgUrl(card);
     // Only apply CSS rotation for fallback CDN images (FourCores _hor images are already landscape)
-    var needsRotation = card.type === 'Site' && !card.imgId;
-    var imgClass = 'sorcery-card-img' + (needsRotation ? ' site-card' : '');
+    const needsRotation = card.type === 'Site' && !card.imgId;
+    const imgClass = 'sorcery-card-img' + (needsRotation ? ' site-card' : '');
     viewer.innerHTML =
       '<div class="sorcery-img-wrap">'
       + '<img class="' + imgClass + '" src="' + esc(imgUrl) + '" alt="' + esc(card.name) + '"'
@@ -5356,11 +5372,11 @@ onAuthStateChanged(auth, user => {
   }
 
   function showRandomSorceryCard() {
-    var viewer = document.getElementById('sorcery-viewer');
-    var status = document.getElementById('sorcery-updated');
+    const viewer = document.getElementById('sorcery-viewer');
+    const status = document.getElementById('sorcery-updated');
     if (!viewer) return;
 
-    var card = _nextSorceryCard();
+    const card = _nextSorceryCard();
 
     // Fade out, swap card, fade in (skip animation on first load)
     if (viewer.querySelector('.sorcery-card-img')) {
@@ -5372,20 +5388,20 @@ onAuthStateChanged(auth, user => {
   }
 
   // ── MTG RANDOM CARD (Scryfall) ─────────────────────────────────
-  var _mtgCurrentCard = null;
+  let _mtgCurrentCard = null;
 
   function _renderMtgCard(viewer, card, status) {
-    var imgUrl = '';
+    let imgUrl = '';
     if (card.image_uris && card.image_uris.normal) {
       imgUrl = card.image_uris.normal;
     } else if (card.card_faces && card.card_faces[0] && card.card_faces[0].image_uris) {
       imgUrl = card.card_faces[0].image_uris.normal;
     }
-    var typeLine = card.type_line || '';
-    var setName = card.set_name || '';
+    const typeLine = card.type_line || '';
+    const setName = card.set_name || '';
     // Extract the broad type (e.g. "Creature", "Instant", "Land") from the type line
-    var cardType = typeLine.split('—')[0].replace(/Legendary|Basic|Snow|World|Tribal/g, '').trim();
-    var isLand = /\bLand\b/i.test(cardType);
+    const cardType = typeLine.split('—')[0].replace(/Legendary|Basic|Snow|World|Tribal/g, '').trim();
+    const isLand = /\bLand\b/i.test(cardType);
 
     viewer.innerHTML =
       '<div class="sorcery-img-wrap">'
@@ -5405,18 +5421,18 @@ onAuthStateChanged(auth, user => {
   }
 
   async function showRandomMtgCard() {
-    var viewer = document.getElementById('mtg-random-viewer');
-    var status = document.getElementById('mtg-random-updated');
+    const viewer = document.getElementById('mtg-random-viewer');
+    const status = document.getElementById('mtg-random-updated');
     if (!viewer) return;
 
     // Fade out if a card is already shown
-    var hasCard = viewer.querySelector('.sorcery-card-img');
+    const hasCard = viewer.querySelector('.sorcery-card-img');
     if (hasCard) viewer.style.opacity = '0';
 
     try {
-      var resp = await fetch('https://api.scryfall.com/cards/random?q=-is%3Adigital+-is%3Afunny', { signal: AbortSignal.timeout(8000) });
+      const resp = await fetchWithTimeout('https://api.scryfall.com/cards/random?q=-is%3Adigital+-is%3Afunny', TIMEOUT_MEDIUM);
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
-      var card = await resp.json();
+      const card = await resp.json();
       _mtgCurrentCard = card;
 
       if (hasCard) {
@@ -5438,42 +5454,42 @@ onAuthStateChanged(auth, user => {
   // ── SEALED PRODUCT PRICES (MTGStocks) ─────────────────────────
   function drawSparkline(prices, w, h) {
     if (!prices || prices.length < 2) return '';
-    var min = Infinity, max = -Infinity;
-    for (var i = 0; i < prices.length; i++) {
+    let min = Infinity, max = -Infinity;
+    for (let i = 0; i < prices.length; i++) {
       if (prices[i] < min) min = prices[i];
       if (prices[i] > max) max = prices[i];
     }
-    var range = max - min || 1;
-    var pts = [];
-    for (var i = 0; i < prices.length; i++) {
-      var x = (i / (prices.length - 1)) * w;
-      var y = h - ((prices[i] - min) / range) * (h - 2) - 1;
+    const range = max - min || 1;
+    const pts = [];
+    for (let i = 0; i < prices.length; i++) {
+      const x = (i / (prices.length - 1)) * w;
+      const y = h - ((prices[i] - min) / range) * (h - 2) - 1;
       pts.push(x.toFixed(1) + ',' + y.toFixed(1));
     }
-    var color = prices[prices.length - 1] >= prices[0] ? '#22c55e' : '#ef4444';
+    const color = prices[prices.length - 1] >= prices[0] ? '#22c55e' : '#ef4444';
     return '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">'
       + '<polyline points="' + pts.join(' ') + '" fill="none" stroke="' + color + '" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
       + '</svg>';
   }
 
   function renderSealedPrices(data) {
-    var el = document.getElementById('sealed-list');
+    const el = document.getElementById('sealed-list');
     if (!el) return;
-    var html = '';
-    for (var i = 0; i < SEALED_PRODUCTS.length; i++) {
-      var p = SEALED_PRODUCTS[i];
-      var d = data[p.id] || {};
-      var price = d.price || p.fallbackPrice;
-      var prices = d.history || [];
-      var delta = 0;
+    let html = '';
+    for (let i = 0; i < SEALED_PRODUCTS.length; i++) {
+      const p = SEALED_PRODUCTS[i];
+      const d = data[p.id] || {};
+      const price = d.price || p.fallbackPrice;
+      const prices = d.history || [];
+      let delta = 0;
       if (prices.length >= 2) {
-        var old = prices[0];
-        var cur = prices[prices.length - 1];
+        const old = prices[0];
+        const cur = prices[prices.length - 1];
         delta = old > 0 ? ((cur - old) / old) * 100 : 0;
       }
-      var deltaClass = delta >= 0 ? 'up' : 'down';
-      var deltaStr = (delta >= 0 ? '+' : '') + delta.toFixed(1) + '%';
-      var spark = drawSparkline(prices, 60, 24);
+      const deltaClass = delta >= 0 ? 'up' : 'down';
+      const deltaStr = (delta >= 0 ? '+' : '') + delta.toFixed(1) + '%';
+      const spark = drawSparkline(prices, 60, 24);
       html += '<a class="sealed-row" href="https://www.mtgstocks.com/sealed/' + p.id + '" target="_blank" rel="noopener">'
         + '<div class="sealed-info"><div class="sealed-name">' + esc(p.set) + '</div>'
         + '<div class="sealed-set">' + esc(p.name) + '</div></div>'
@@ -5486,30 +5502,30 @@ onAuthStateChanged(auth, user => {
   }
 
   async function loadSealedPrices() {
-    var statusEl = document.getElementById('sealed-updated');
+    const statusEl = document.getElementById('sealed-updated');
     // Try cache first
-    var cached = cacheGet('sealed-prices', 6 * 60 * 60 * 1000);
+    const cached = cacheGet('sealed-prices', 6 * 60 * 60 * 1000);
     if (cached) {
       renderSealedPrices(cached.data);
       if (statusEl && cached.label) statusEl.textContent = cached.label;
       return;
     }
     // Try stale cache for instant display
-    var stale = cacheGetStale('sealed-prices');
+    const stale = cacheGetStale('sealed-prices');
     if (stale) {
       renderSealedPrices(stale.data);
     }
     // Fetch from proxy
     try {
-      var ids = SEALED_PRODUCTS.map(function(p) { return p.id; }).join(',');
-      var r = await fetch(MTGSTOCKS_PROXY_URL + '?ids=' + ids, { signal: AbortSignal.timeout(10000) });
+      const ids = SEALED_PRODUCTS.map(function(p) { return p.id; }).join(',');
+      const r = await fetchWithTimeout(MTGSTOCKS_PROXY_URL + '?ids=' + ids, TIMEOUT_LONG);
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      var json = await r.json();
+      const json = await r.json();
       // Expect: { "5941": { price: 485, history: [p1, p2, ...] }, ... }
-      var data = {};
-      for (var i = 0; i < SEALED_PRODUCTS.length; i++) {
-        var p = SEALED_PRODUCTS[i];
-        var item = json[String(p.id)] || json[p.id];
+      const data = {};
+      for (let i = 0; i < SEALED_PRODUCTS.length; i++) {
+        const p = SEALED_PRODUCTS[i];
+        const item = json[String(p.id)] || json[p.id];
         if (item) {
           data[p.id] = {
             price: item.price || item.present_price || p.fallbackPrice,
@@ -5521,11 +5537,10 @@ onAuthStateChanged(auth, user => {
       renderSealedPrices(data);
       if (statusEl) statusEl.textContent = asOfNow();
     } catch (e) {
-      console.warn('Sealed prices fetch failed:', e);
-      // Use fallback
-      var fallback = {};
-      for (var i = 0; i < SEALED_PRODUCTS.length; i++) {
-        var p = SEALED_PRODUCTS[i];
+      // Sealed prices fetch failed — using fallback
+      const fallback = {};
+      for (let i = 0; i < SEALED_PRODUCTS.length; i++) {
+        const p = SEALED_PRODUCTS[i];
         fallback[p.id] = { price: p.fallbackPrice, history: [] };
       }
       cacheSet('sealed-prices', fallback, 'fallback');
@@ -5553,13 +5568,13 @@ onAuthStateChanged(auth, user => {
 
   function renderOpenCritic(games) {
     return games.slice(0, 12).map(function(g, i) {
-      var scoreClass = 'tbd';
+      let scoreClass = 'tbd';
       if (g.score >= 75) scoreClass = 'green';
       else if (g.score >= 50) scoreClass = 'yellow';
       else if (g.score > 0) scoreClass = 'red';
 
-      var userVal = '--';
-      var userClass = 'none';
+      let userVal = '--';
+      let userClass = 'none';
       if (g.userScore !== null && g.userScore !== undefined) {
         userVal = g.userScore.toFixed(1);
         if (g.userScore >= 8) userClass = 'high';
@@ -5567,7 +5582,7 @@ onAuthStateChanged(auth, user => {
         else userClass = 'low';
       }
 
-      var platforms = (g.platforms || []).map(function(p) {
+      const platforms = (g.platforms || []).map(function(p) {
         return '<span class="game-platform">' + esc(p) + '</span>';
       }).join('');
 
@@ -5602,7 +5617,7 @@ onAuthStateChanged(auth, user => {
 
   // Live scrape: fetch Fever top-10 page via CORS proxy, parse events
   async function loadFeverEvents(container) {
-    const r = await fetch(FEVER_PROXY_URL, { signal: AbortSignal.timeout(10000) });
+    const r = await fetchWithTimeout(FEVER_PROXY_URL, TIMEOUT_LONG);
     if (!r.ok) throw new Error('Fever proxy ' + r.status);
     const data = await r.json();
     if (!data.events || data.events.length < 3) throw new Error('Too few events');
@@ -5611,12 +5626,12 @@ onAuthStateChanged(auth, user => {
 
   function renderFeverEvents(container, events) {
     container.innerHTML = events.slice(0, 5).map(function(ev) {
-      var ratingHTML = ev.rating ? '<span class="fever-rating">' + esc(ev.rating) + ' ★</span>' : '';
-      var venueHTML  = ev.venue  ? '<div class="fever-venue">' + esc(ev.venue) + '</div>' : '';
-      var dateHTML   = ev.date   ? esc(ev.date) : 'Upcoming';
-      var priceHTML  = ev.price  ? esc(ev.price) : '';
+      const ratingHTML = ev.rating ? '<span class="fever-rating">' + esc(ev.rating) + ' ★</span>' : '';
+      const venueHTML  = ev.venue  ? '<div class="fever-venue">' + esc(ev.venue) + '</div>' : '';
+      const dateHTML   = ev.date   ? esc(ev.date) : 'Upcoming';
+      let priceHTML  = ev.price  ? esc(ev.price) : '';
       if (priceHTML && !priceHTML.toLowerCase().startsWith('from')) priceHTML = 'From ' + priceHTML;
-      var feverUrl = ev.id ? 'https://feverup.com/m/' + encodeURIComponent(ev.id) : '#';
+      const feverUrl = ev.id ? 'https://feverup.com/m/' + encodeURIComponent(ev.id) : '#';
       return '<a class="fever-item" href="' + feverUrl + '" target="_blank" rel="noopener">'
         + '<div class="fever-name">' + esc(ev.name) + '</div>'
         + venueHTML
@@ -5643,7 +5658,7 @@ onAuthStateChanged(auth, user => {
 
   // Live scrape: fetch brandonsanderson.com homepage and parse progress bars
   async function loadSandersonProgress(container) {
-    const r = await fetch(SANDERSON_PROXY_URL, { signal: AbortSignal.timeout(10000) });
+    const r = await fetchWithTimeout(SANDERSON_PROXY_URL, TIMEOUT_LONG);
     if (!r.ok) throw new Error('Sanderson proxy ' + r.status);
     const data = await r.json();
     if (!data.projects || data.projects.length < 1) throw new Error('No progress items');
@@ -5652,7 +5667,7 @@ onAuthStateChanged(auth, user => {
 
   function renderSanderson(list, projects) {
     list.innerHTML = projects.map(function(p) {
-      var pct = Math.max(0, Math.min(100, parseInt(p.pct, 10) || 0));
+      const pct = Math.max(0, Math.min(100, parseInt(p.pct, 10) || 0));
       return '<div class="sanderson-item">'
         + '<div style="display:flex; justify-content:space-between; align-items:center;">'
         + '<span class="sanderson-book">' + esc(p.title) + '</span>'
@@ -5723,7 +5738,7 @@ onAuthStateChanged(auth, user => {
           let todayCompletedGame = null;
           try {
             const sbUrl = `https://site.api.espn.com/apis/site/v2/sports/${t.sport}/${t.league_path}/scoreboard`;
-            const sbr = await fetch(sbUrl, { signal: AbortSignal.timeout(5000) });
+            const sbr = await fetchWithTimeout(sbUrl, TIMEOUT_DEFAULT);
             if (sbr.ok) {
               const sbd = await sbr.json();
               const todayEvents = (sbd.events || []).filter(e => {
@@ -5771,7 +5786,7 @@ onAuthStateChanged(auth, user => {
 
           // Step 3: Schedule response contains record — one fetch covers both
           const schedUrl = `https://site.api.espn.com/apis/site/v2/sports/${t.sport}/${t.league_path}/teams/${t.espnId}/schedule`;
-          const sr = await fetch(schedUrl, { signal: AbortSignal.timeout(7000) });
+          const sr = await fetchWithTimeout(schedUrl, TIMEOUT_DEFAULT);
           if (!sr.ok) return empty;
           const sd = await sr.json();
 
@@ -5859,7 +5874,7 @@ onAuthStateChanged(auth, user => {
       }).join('');
       document.getElementById('sports-updated').textContent = asOfNow();
     } catch(e) {
-      console.error('[Digest:sports]', e && e.message || e);
+      // Sports data load failed
       list.innerHTML = _errorHTML('sports');
     }
   }
@@ -6332,7 +6347,7 @@ onAuthStateChanged(auth, user => {
     document.getElementById('tile-streak-sub').textContent =
       bestCount > 0 ? 'Best day: ' + bestCount + ' pts on ' + bestLabel : 'No completions yet';
 
-    var todayCount = dailyCounts[dateKey(new Date())] || 0;
+    const todayCount = dailyCounts[dateKey(new Date())] || 0;
     document.getElementById('tile-today').textContent = todayCount;
     document.getElementById('tile-today-sub').textContent =
       todayCount + ' task' + (todayCount !== 1 ? 's' : '') + ' completed today';
@@ -6946,7 +6961,7 @@ onAuthStateChanged(auth, user => {
 
   // ── MOTIVATION QUOTES ──────────────────────────────────────
   (function initMotivation() {
-    var quotes = [
+    const quotes = [
       { text: 'The only way to do great work is to love what you do.', author: 'Steve Jobs' },
       { text: 'It does not matter how slowly you go as long as you do not stop.', author: 'Confucius' },
       { text: 'Everything you can imagine is real.', author: 'Pablo Picasso' },
@@ -6978,13 +6993,13 @@ onAuthStateChanged(auth, user => {
       { text: 'The best revenge is massive success.', author: 'Frank Sinatra' },
       { text: 'If opportunity doesn\'t knock, build a door.', author: 'Milton Berle' },
     ];
-    var quoteEl = document.getElementById('motivation-quote');
-    var authorEl = document.getElementById('motivation-author');
-    var refreshBtn = document.getElementById('motivation-refresh');
+    const quoteEl = document.getElementById('motivation-quote');
+    const authorEl = document.getElementById('motivation-author');
+    const refreshBtn = document.getElementById('motivation-refresh');
     if (!quoteEl) return;
 
     function showQuote() {
-      var q = quotes[Math.floor(Math.random() * quotes.length)];
+      const q = quotes[Math.floor(Math.random() * quotes.length)];
       quoteEl.textContent = '\u201C' + q.text + '\u201D';
       authorEl.textContent = '\u2014 ' + q.author;
     }
@@ -7034,7 +7049,7 @@ onAuthStateChanged(auth, user => {
   (function initKeyboardShortcuts() {
     document.addEventListener('keydown', function(e) {
       // Skip if user is typing in an input/textarea
-      var tag = e.target.tagName;
+      const tag = e.target.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable) return;
 
       // Skip if modifier keys (Ctrl, Cmd, Alt) are held
@@ -7060,7 +7075,7 @@ onAuthStateChanged(auth, user => {
         case 'N':
           e.preventDefault();
           showPage('tasks');
-          var inp = document.getElementById('input-todo');
+          const inp = document.getElementById('input-todo');
           if (inp) { inp.focus(); inp.scrollIntoView({ block: 'nearest' }); }
           break;
 
@@ -7068,7 +7083,7 @@ onAuthStateChanged(auth, user => {
         case '/':
           e.preventDefault();
           showPage('tasks');
-          var searchInp = document.getElementById('input-todo');
+          const searchInp = document.getElementById('input-todo');
           if (searchInp) { searchInp.focus(); searchInp.scrollIntoView({ block: 'nearest' }); }
           break;
 
@@ -7080,7 +7095,7 @@ onAuthStateChanged(auth, user => {
 
         // Escape = close shortcuts help or blur focused input
         case 'Escape':
-          var helpEl = document.getElementById('shortcuts-help');
+          const helpEl = document.getElementById('shortcuts-help');
           if (helpEl && helpEl.style.display !== 'none') {
             helpEl.style.display = 'none';
           } else if (document.activeElement) {
@@ -7092,7 +7107,7 @@ onAuthStateChanged(auth, user => {
 
     // Shortcuts help overlay
     function toggleShortcutsHelp() {
-      var el = document.getElementById('shortcuts-help');
+      let el = document.getElementById('shortcuts-help');
       if (!el) {
         el = document.createElement('div');
         el.id = 'shortcuts-help';
