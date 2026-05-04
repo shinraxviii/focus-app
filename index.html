@@ -3308,6 +3308,7 @@ onAuthStateChanged(auth, user => {
     let migrated = false;
     tasks.forEach(t => { if (colorMap[t.color]) { t.color = colorMap[t.color]; migrated = true; } });
     if (migrated) save();
+    if (ensureWeeklyRecurringTasks()) save();
     render();
     applyMobileLayout();
   }
@@ -3413,6 +3414,60 @@ onAuthStateChanged(auth, user => {
     dateEl.value = '';
     save();
     render([section]);
+  }
+
+  // ── WEEKLY RECURRING TASKS ───────────────────────────────────
+  // Generated each Monday at 7am local time. If the prior week's task
+  // is still unfinished at that point, it's removed and replaced.
+  const RECURRING_WEEKLY = [
+    { key: 'folate',    prefix: 'Folate' },
+    { key: 'vitaminD',  prefix: 'Vitamin D' },
+  ];
+
+  function mostRecentMonday7am(now) {
+    const d = new Date(now);
+    const daysBack = (d.getDay() + 6) % 7; // Mon→0, Sun→6
+    d.setHours(7, 0, 0, 0);
+    d.setDate(d.getDate() - daysBack);
+    if (d.getTime() > now.getTime()) d.setDate(d.getDate() - 7);
+    return d;
+  }
+
+  function ensureWeeklyRecurringTasks() {
+    const now = new Date();
+    const cutoff = mostRecentMonday7am(now).getTime();
+    const monthDay = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    let changed = false;
+
+    for (const r of RECURRING_WEEKLY) {
+      const stale = tasks.find(t => t.recurringKey === r.key
+                                 && t.section !== 'completed'
+                                 && (t.weekOf || 0) < cutoff);
+      if (stale) {
+        tasks = tasks.filter(t => t.id !== stale.id);
+        changed = true;
+      }
+      const currentExists = tasks.some(t => t.recurringKey === r.key && t.weekOf === cutoff);
+      if (currentExists) continue;
+      tasks.push({
+        id: genId(),
+        text: r.prefix + ' - ' + monthDay,
+        date: '',
+        color: 'none',
+        link: '',
+        section: 'todo',
+        notes: '',
+        subtasks: [
+          { id: genId(), text: '1', done: false },
+          { id: genId(), text: '2', done: false },
+          { id: genId(), text: '3', done: false },
+        ],
+        recurringKey: r.key,
+        weekOf: cutoff,
+      });
+      changed = true;
+    }
+    return changed;
   }
 
   // ── VOICE INPUT ──────────────────────────────────────────────
