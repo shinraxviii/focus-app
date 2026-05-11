@@ -3401,6 +3401,13 @@ onAuthStateChanged(auth, user => {
   }
 
   async function handleSignOut() {
+    // Cancel any pending debounced save and disarm write gates so an
+    // in-flight 400ms timer can't fire after we clear tasks and write
+    // an empty array back to cloud, wiping the user's data.
+    clearTimeout(saveTimeout);
+    saveTimeout = null;
+    mainTasksReadOk = false;
+    recurringReadOk = false;
     tasks = [];
     completionLog = [];
     await window._fbSignOut();
