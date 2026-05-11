@@ -2788,6 +2788,15 @@ window._fbLoadRecurring = async () => {
   const snap = await getDoc(doc(db, 'users', currentUser.uid, 'data', 'recurring'));
   return snap.exists() ? JSON.parse(snap.data().recurring) : [];
 };
+window._fbSaveBackups = async (backups) => {
+  if (!currentUser) return;
+  await setDoc(doc(db, 'users', currentUser.uid, 'data', 'backups'), { backups: JSON.stringify(backups) });
+};
+window._fbLoadBackups = async () => {
+  if (!currentUser) return null;
+  const snap = await getDoc(doc(db, 'users', currentUser.uid, 'data', 'backups'));
+  return snap.exists() ? JSON.parse(snap.data().backups) : [];
+};
 window._fbSaveLog = async (log) => {
   if (!currentUser) return;
   await setDoc(doc(db, 'users', currentUser.uid, 'data', 'log'), { log: JSON.stringify(log) });
@@ -3286,6 +3295,7 @@ onAuthStateChanged(auth, user => {
   // so a transient read failure can't overwrite cloud with stale data.
   let mainTasksReadOk = false;
   let recurringReadOk = false;
+  let logReadOk = false;
   let syncTimer = null;
   function showSync(msg, duration = 1500) {
     const el = document.getElementById('sync-status');
@@ -3364,7 +3374,72 @@ onAuthStateChanged(auth, user => {
     else if (needsMigration && mainTasksReadOk && recurringReadOk) save();
     render();
     applyMobileLayout();
+    maybeTakeWeeklyBackup();
   }
+
+  // ── WEEKLY BACKUP ────────────────────────────────────────────
+  // Snapshot tasks + recurring + completion log to a separate Firestore
+  // doc once per week. Keeps up to BACKUP_KEEP rolling snapshots so we
+  // can recover from an accidental wipe.
+  const BACKUP_KEEP = 4;
+  const BACKUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+
+  async function maybeTakeWeeklyBackup() {
+    // Require confirmed reads of every source — never snapshot stale or
+    // partially-loaded data, as that could overwrite a good backup.
+    if (!mainTasksReadOk || !recurringReadOk || !logReadOk) return;
+    // Skip empty state (new user, or post-wipe before user re-adds data).
+    if (tasks.length === 0 && completionLog.length === 0) return;
+
+    let backups = [];
+    try {
+      const loaded = await window._fbLoadBackups();
+      if (loaded === null) return; // not authenticated
+      backups = loaded;
+    } catch(e) {
+      return; // can't read, don't risk overwriting
+    }
+
+    const lastTs = backups.length ? backups[backups.length - 1].timestamp : 0;
+    if (Date.now() - lastTs < BACKUP_INTERVAL_MS) return;
+
+    backups.push({
+      timestamp: Date.now(),
+      tasks:     tasks.filter(t => !t.recurringKey),
+      recurring: tasks.filter(t =>  t.recurringKey),
+      log:       completionLog,
+    });
+    if (backups.length > BACKUP_KEEP) backups = backups.slice(-BACKUP_KEEP);
+
+    try {
+      await window._fbSaveBackups(backups);
+    } catch(e) {
+      try { localStorage.setItem('focus-backups', JSON.stringify(backups)); } catch(_) {}
+    }
+  }
+
+  // Console helpers for inspecting and restoring weekly backups.
+  // Run `await _listBackups()` to see snapshots. To restore one,
+  // call `await _restoreBackup(<timestamp>)` and reload the page.
+  window._listBackups = async () => {
+    const backups = (await window._fbLoadBackups()) || [];
+    return backups.map(b => ({
+      timestamp: b.timestamp,
+      date:      new Date(b.timestamp).toLocaleString(),
+      tasks:     b.tasks.length,
+      recurring: b.recurring.length,
+      log:       b.log.length,
+    }));
+  };
+  window._restoreBackup = async (timestamp) => {
+    const backups = (await window._fbLoadBackups()) || [];
+    const snap = backups.find(b => b.timestamp === timestamp);
+    if (!snap) throw new Error('Backup not found for timestamp ' + timestamp);
+    await window._fbSaveTasks(snap.tasks);
+    await window._fbSaveRecurring(snap.recurring);
+    await window._fbSaveLog(snap.log);
+    return 'Restored snapshot from ' + new Date(timestamp).toLocaleString() + '. Reload to see the data.';
+  };
 
   function save() {
     clearTimeout(saveTimeout);
@@ -3401,6 +3476,14 @@ onAuthStateChanged(auth, user => {
   }
 
   async function handleSignOut() {
+    // Cancel any pending debounced save and disarm write gates so an
+    // in-flight 400ms timer can't fire after we clear tasks and write
+    // an empty array back to cloud, wiping the user's data.
+    clearTimeout(saveTimeout);
+    saveTimeout = null;
+    mainTasksReadOk = false;
+    recurringReadOk = false;
+    logReadOk = false;
     tasks = [];
     completionLog = [];
     await window._fbSignOut();
@@ -5999,9 +6082,13 @@ onAuthStateChanged(auth, user => {
   let chartDataHash = null; // dirty flag: only rebuild chart when data changes
 
   async function loadLog() {
+    logReadOk = false;
     try {
       const loaded = await window._fbLoadLog();
-      if (loaded !== null) completionLog = loaded;
+      if (loaded !== null) {
+        completionLog = loaded;
+        logReadOk = true;
+      }
     } catch(e) {
       const l = localStorage.getItem('focus-completion-log');
       if (l) completionLog = JSON.parse(l);
