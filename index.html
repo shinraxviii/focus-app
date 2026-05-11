@@ -2779,6 +2779,15 @@ window._fbSaveTasks = async (tasks) => {
   if (!currentUser) return;
   await setDoc(doc(db, 'users', currentUser.uid, 'data', 'tasks'), { tasks: JSON.stringify(tasks) });
 };
+window._fbSaveRecurring = async (recurring) => {
+  if (!currentUser) return;
+  await setDoc(doc(db, 'users', currentUser.uid, 'data', 'recurring'), { recurring: JSON.stringify(recurring) });
+};
+window._fbLoadRecurring = async () => {
+  if (!currentUser) return null;
+  const snap = await getDoc(doc(db, 'users', currentUser.uid, 'data', 'recurring'));
+  return snap.exists() ? JSON.parse(snap.data().recurring) : [];
+};
 window._fbSaveLog = async (log) => {
   if (!currentUser) return;
   await setDoc(doc(db, 'users', currentUser.uid, 'data', 'log'), { log: JSON.stringify(log) });
@@ -3269,6 +3278,14 @@ onAuthStateChanged(auth, user => {
   let saveTimeout = null;
 
   // --- Firebase Storage ---
+  // Tasks live in two Firestore docs:
+  //   - 'tasks'     : user-created tasks (no recurringKey)
+  //   - 'recurring' : auto-generated weekly tasks (recurringKey set)
+  // In memory they're a single tasks[] array; saves split by recurringKey.
+  // Each doc is only written back when its load this session succeeded,
+  // so a transient read failure can't overwrite cloud with stale data.
+  let mainTasksReadOk = false;
+  let recurringReadOk = false;
   let syncTimer = null;
   function showSync(msg, duration = 1500) {
     const el = document.getElementById('sync-status');
@@ -3281,39 +3298,70 @@ onAuthStateChanged(auth, user => {
 
   async function saveToCloud() {
     showSync('Saving...');
+    const mainTasks      = tasks.filter(t => !t.recurringKey);
+    const recurringTasks = tasks.filter(t =>  t.recurringKey);
     try {
-      await window._fbSaveTasks(tasks);
-      showSync('Saved ✓');
+      const writes = [];
+      if (mainTasksReadOk) writes.push(window._fbSaveTasks(mainTasks));
+      if (recurringReadOk) writes.push(window._fbSaveRecurring(recurringTasks));
+      if (writes.length) await Promise.all(writes);
+      // Mirror to localStorage for any doc we didn't write to cloud this session.
+      if (!mainTasksReadOk) localStorage.setItem('focus-tasks', JSON.stringify(mainTasks));
+      if (!recurringReadOk) localStorage.setItem('focus-recurring', JSON.stringify(recurringTasks));
+      showSync(writes.length ? 'Saved ✓' : 'Saved locally');
     } catch(e) {
-      localStorage.setItem('focus-tasks', JSON.stringify(tasks));
+      localStorage.setItem('focus-tasks', JSON.stringify(mainTasks));
+      localStorage.setItem('focus-recurring', JSON.stringify(recurringTasks));
       showSync('Saved locally');
     }
   }
 
   async function loadFromCloud() {
-    let cloudReadOk = false;
+    mainTasksReadOk = false;
+    recurringReadOk = false;
+    let mainDoc = [];
+    let recurringDoc = [];
     try {
       const loaded = await window._fbLoadTasks();
       if (loaded !== null) {
-        tasks = loaded;
-        cloudReadOk = true;
-      } else {
-        tasks = [];
+        mainDoc = loaded;
+        mainTasksReadOk = true;
       }
     } catch(e) {
       const local = localStorage.getItem('focus-tasks');
-      try { tasks = local ? JSON.parse(local) : []; } catch(_) { tasks = []; }
+      try { mainDoc = local ? JSON.parse(local) : []; } catch(_) { mainDoc = []; }
     }
+    try {
+      const loaded = await window._fbLoadRecurring();
+      if (loaded !== null) {
+        recurringDoc = loaded;
+        recurringReadOk = true;
+      }
+    } catch(e) {
+      const local = localStorage.getItem('focus-recurring');
+      try { recurringDoc = local ? JSON.parse(local) : []; } catch(_) { recurringDoc = []; }
+    }
+    // Merge: main doc (non-recurring) + recurring doc.
+    // If the main doc still carries legacy recurring entries (pre-split data),
+    // surface them only if not already in the recurring doc, so the next save
+    // migrates them cleanly without losing in-flight progress.
+    const mainRegular = mainDoc.filter(t => !t.recurringKey);
+    const recurringIds = new Set(recurringDoc.map(t => t.id));
+    const legacyRecurring = mainDoc.filter(t => t.recurringKey && !recurringIds.has(t.id));
+    tasks = mainRegular.concat(recurringDoc, legacyRecurring);
+    const needsMigration = mainDoc.some(t => t.recurringKey);
+
     await loadLog();
     // Migrate old color names to new palette
     const colorMap = { rose: 'flame', amber: 'solar', sage: 'neon', slate: 'electric', lavender: 'plasma', sand: 'cyber' };
     let migrated = false;
     tasks.forEach(t => { if (colorMap[t.color]) { t.color = colorMap[t.color]; migrated = true; } });
     if (migrated) save();
-    // Only generate weekly recurring tasks when we have a confirmed cloud
-    // read — otherwise the post-add save() would overwrite cloud data with
-    // stale localStorage contents.
-    if (cloudReadOk && ensureWeeklyRecurringTasks()) save();
+    // Only generate weekly recurring tasks when the recurring doc loaded.
+    // The main tasks doc is never touched by recurring logic, so even a
+    // bug here can't wipe user-created tasks.
+    if (recurringReadOk && ensureWeeklyRecurringTasks()) save();
+    else if (needsMigration && mainTasksReadOk && recurringReadOk) save();
     render();
     applyMobileLayout();
   }
