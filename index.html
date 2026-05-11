@@ -3291,10 +3291,12 @@ onAuthStateChanged(auth, user => {
   }
 
   async function loadFromCloud() {
+    let cloudReadOk = false;
     try {
       const loaded = await window._fbLoadTasks();
       if (loaded !== null) {
         tasks = loaded;
+        cloudReadOk = true;
       } else {
         tasks = [];
       }
@@ -3308,7 +3310,10 @@ onAuthStateChanged(auth, user => {
     let migrated = false;
     tasks.forEach(t => { if (colorMap[t.color]) { t.color = colorMap[t.color]; migrated = true; } });
     if (migrated) save();
-    if (ensureWeeklyRecurringTasks()) save();
+    // Only generate weekly recurring tasks when we have a confirmed cloud
+    // read — otherwise the post-add save() would overwrite cloud data with
+    // stale localStorage contents.
+    if (cloudReadOk && ensureWeeklyRecurringTasks()) save();
     render();
     applyMobileLayout();
   }
