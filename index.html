@@ -5244,40 +5244,55 @@ onAuthStateChanged(auth, user => {
     }
 
     // MTG prices via Scryfall (free, no key, no tokens)
-    // Scryfall rate limit: ~10 req/sec — fetch sequentially with 100ms delay
+    // Use the batch /cards/collection endpoint: one request for every card
+    // instead of many individual lookups. This is Scryfall's recommended way
+    // to fetch multiple cards and avoids the per-request rate limit (HTTP 429)
+    // that previously made some cards come back with no price.
     if (!cachedMTG) {
       mtgEl.innerHTML = '<span class="digest-loading">Loading MTG prices...</span>';
       try {
+        // 1) Batch lookup keyed by name+set.
+        const found = {};
+        try {
+          const ids = MTG_CARDS.map(function(c) {
+            return c.setCode ? { name: c.name, set: c.setCode } : { name: c.name };
+          });
+          const rc = await fetchWithTimeout('https://api.scryfall.com/cards/collection', TIMEOUT_MEDIUM, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ identifiers: ids })
+          });
+          if (rc.ok) {
+            const dc = await rc.json();
+            (dc.data || []).forEach(function(cd) { found[cd.name.toLowerCase()] = cd; });
+          }
+        } catch(batchErr) { /* fall through to per-card lookup below */ }
+
+        // 2) Resolve each card from the batch result; fuzzy-fetch only the
+        //    ones the batch missed (few enough to stay under the rate limit).
         const results = [];
         for (const card of MTG_CARDS) {
-          const base = 'https://api.scryfall.com/cards/named?fuzzy=' + encodeURIComponent(card.name);
-          const url  = card.setCode ? base + '&set=' + card.setCode : base;
-          try {
-            const r = await fetchWithTimeout(url, TIMEOUT_DEFAULT);
-            if (!r.ok) {
-              if (card.setCode) {
-                const r2 = await fetchWithTimeout(base, TIMEOUT_DEFAULT);
-                if (r2.ok) {
-                  const d2 = await r2.json();
-                  results.push({ name: d2.name, set: d2.set_name, usd: d2.prices?.usd || null, usd_foil: d2.prices?.usd_foil || null, scryfallUrl: d2.scryfall_uri });
-                } else {
-                  results.push({ name: card.name, set: card.set, usd: null, usd_foil: null, scryfallUrl: null });
-                }
-              } else {
-                results.push({ name: card.name, set: card.set, usd: null, usd_foil: null, scryfallUrl: null });
-              }
-            } else {
-              const d = await r.json();
-              results.push({
-                name: d.name, set: d.set_name,
-                usd: d.prices?.usd || null, usd_foil: d.prices?.usd_foil || null,
-                scryfallUrl: d.scryfall_uri
-              });
-            }
-          } catch(cardErr) {
-            results.push({ name: card.name, set: card.set, usd: null, usd_foil: null, scryfallUrl: null });
+          const hit = found[card.name.toLowerCase()];
+          if (hit) {
+            results.push({ name: hit.name, set: hit.set_name, usd: hit.prices?.usd || null, usd_foil: hit.prices?.usd_foil || null, scryfallUrl: hit.scryfall_uri });
+            continue;
           }
-          // Rate limit delay between requests
+          const base = 'https://api.scryfall.com/cards/named?fuzzy=' + encodeURIComponent(card.name);
+          let pushed = false;
+          for (const attempt of [card.setCode ? base + '&set=' + card.setCode : base, card.setCode ? base : null]) {
+            if (!attempt) break;
+            try {
+              const r = await fetchWithTimeout(attempt, TIMEOUT_DEFAULT, { headers: { 'Accept': 'application/json' } });
+              if (r.ok) {
+                const d = await r.json();
+                results.push({ name: d.name, set: d.set_name, usd: d.prices?.usd || null, usd_foil: d.prices?.usd_foil || null, scryfallUrl: d.scryfall_uri });
+                pushed = true;
+                break;
+              }
+            } catch(cardErr) { /* try next attempt */ }
+            await new Promise(resolve => setTimeout(resolve, SCRYFALL_RATE_DELAY));
+          }
+          if (!pushed) results.push({ name: card.name, set: card.set, usd: null, usd_foil: null, scryfallUrl: null });
           await new Promise(resolve => setTimeout(resolve, SCRYFALL_RATE_DELAY));
         }
         results.sort(function(a, b) { return (parseFloat(b.usd) || 0) - (parseFloat(a.usd) || 0); });
@@ -5348,7 +5363,7 @@ onAuthStateChanged(auth, user => {
 
   // ── MTG CARDS ───────────────────────────────────────────────
   const MTG_CARDS = [
-    { name: "Gaia's Cradle",              set: "Urza's Saga",        setCode: 'usg' },
+    { name: "Gaea's Cradle",              set: "Urza's Saga",        setCode: 'usg' },
     { name: "Bazaar of Baghdad",          set: "Arabian Nights",     setCode: 'arn' },
     { name: "The One Ring",               set: "Lord of the Rings",  setCode: 'ltr' },
     { name: "Wheel of Fortune",           set: "Revised Edition",    setCode: '3ed' },
