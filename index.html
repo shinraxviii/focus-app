@@ -5663,8 +5663,8 @@ onAuthStateChanged(auth, user => {
     if (hasCard) viewer.style.opacity = '0';
 
     try {
-      const resp = await fetchWithTimeout('https://api.scryfall.com/cards/random?q=-is%3Adigital+-is%3Afunny', TIMEOUT_MEDIUM);
-      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const resp = await scryfallFetch('https://api.scryfall.com/cards/random?q=-is%3Adigital+-is%3Afunny');
+      if (!resp || !resp.ok) throw new Error(resp ? 'HTTP ' + resp.status : 'fetch failed');
       const card = await resp.json();
       _mtgCurrentCard = card;
 
