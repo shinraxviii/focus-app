@@ -4386,12 +4386,33 @@ onAuthStateChanged(auth, user => {
     }));
   }
 
+  // Scryfall GET with retry/backoff. Retries on 429 (rate limit), 5xx, and
+  // network/timeout errors, honoring the Retry-After header when present.
+  // Returns the Response (which may be a non-retryable status like 404), or
+  // null if every attempt failed.
+  async function scryfallFetch(url, attempts) {
+    const max = attempts || 4;
+    for (let i = 0; i < max; i++) {
+      let r = null;
+      try {
+        r = await fetchWithTimeout(url, TIMEOUT_DEFAULT, { headers: { 'Accept': 'application/json' } });
+      } catch(e) { /* network/timeout — fall through to backoff */ }
+      if (r && r.status !== 429 && r.status < 500) return r;
+      if (i < max - 1) {
+        const ra = r ? parseFloat(r.headers.get('retry-after')) : NaN;
+        const wait = ra > 0 ? ra * 1000 : SCRYFALL_RATE_DELAY * Math.pow(2, i + 1);
+        await new Promise(function(res) { setTimeout(res, wait); });
+      }
+    }
+    return null;
+  }
+
   // ── ANIMATION / TIMING CONSTANTS ──────────────────────────────
   const SAVE_DEBOUNCE_MS     = 400;
   const COMPLETE_ANIM_DELAY  = 480;
   const PARTICLE_COUNT_BASE  = 48;
   const PARTICLE_COUNT_RANGE = 16;
-  const SCRYFALL_RATE_DELAY  = 100;
+  const SCRYFALL_RATE_DELAY  = 150;
 
   const SEALED_PRODUCTS = [
     { id: 5941, name: 'Special Edition Collector Booster Display', set: 'Lord of the Rings', fallbackPrice: 485 },
@@ -5172,7 +5193,12 @@ onAuthStateChanged(auth, user => {
 
   // ── DAILY DATA: MTG + Fever Events ── 24hr cache ──
   async function loadDailyData() {
-    const cachedMTG   = cacheGet('mtg',   24 * 60 * 60 * 1000);
+    let cachedMTG     = cacheGet('mtg',   24 * 60 * 60 * 1000);
+    // A cached render missing any price is short-lived (1h) so it re-fetches
+    // soon instead of showing placeholders for a full day.
+    if (cachedMTG && cachedMTG.data && cachedMTG.data.indexOf('card-price">—<') !== -1) {
+      cachedMTG = cacheGet('mtg', 60 * 60 * 1000);
+    }
     const cachedFever = cacheGet('fever5', 7 * 24 * 60 * 60 * 1000);
     const cachedSand  = cacheGet('sanderson', 24 * 60 * 60 * 1000);
     // Use shorter TTL (2h) for fallback data so we retry the proxy sooner
@@ -5281,20 +5307,21 @@ onAuthStateChanged(auth, user => {
           let pushed = false;
           for (const attempt of [card.setCode ? base + '&set=' + card.setCode : base, card.setCode ? base : null]) {
             if (!attempt) break;
-            try {
-              const r = await fetchWithTimeout(attempt, TIMEOUT_DEFAULT, { headers: { 'Accept': 'application/json' } });
-              if (r.ok) {
-                const d = await r.json();
-                results.push({ name: d.name, set: d.set_name, usd: d.prices?.usd || null, usd_foil: d.prices?.usd_foil || null, scryfallUrl: d.scryfall_uri });
-                pushed = true;
-                break;
-              }
-            } catch(cardErr) { /* try next attempt */ }
+            const r = await scryfallFetch(attempt);
+            if (r && r.ok) {
+              const d = await r.json();
+              results.push({ name: d.name, set: d.set_name, usd: d.prices?.usd || null, usd_foil: d.prices?.usd_foil || null, scryfallUrl: d.scryfall_uri });
+              pushed = true;
+              break;
+            }
             await new Promise(resolve => setTimeout(resolve, SCRYFALL_RATE_DELAY));
           }
           if (!pushed) results.push({ name: card.name, set: card.set, usd: null, usd_foil: null, scryfallUrl: null });
           await new Promise(resolve => setTimeout(resolve, SCRYFALL_RATE_DELAY));
         }
+        // If nothing resolved, treat as a failed load (show stale instead of
+        // caching a wall of placeholders for 24h).
+        if (!results.some(function(c) { return c.usd; })) throw new Error('No MTG prices returned');
         results.sort(function(a, b) { return (parseFloat(b.usd) || 0) - (parseFloat(a.usd) || 0); });
         mtgEl.innerHTML = results.map(function(c) {
           const displayName = c.name.includes(' // ') ? c.name.split(' // ')[0] : c.name;
@@ -5636,8 +5663,8 @@ onAuthStateChanged(auth, user => {
     if (hasCard) viewer.style.opacity = '0';
 
     try {
-      const resp = await fetchWithTimeout('https://api.scryfall.com/cards/random?q=-is%3Adigital+-is%3Afunny', TIMEOUT_MEDIUM);
-      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const resp = await scryfallFetch('https://api.scryfall.com/cards/random?q=-is%3Adigital+-is%3Afunny');
+      if (!resp || !resp.ok) throw new Error(resp ? 'HTTP ' + resp.status : 'fetch failed');
       const card = await resp.json();
       _mtgCurrentCard = card;
 
