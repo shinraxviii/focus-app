@@ -5856,6 +5856,26 @@ onAuthStateChanged(auth, user => {
   }
 
   // ── SEALED PRODUCT PRICES (MTGStocks) ─────────────────────────
+  // The proxy's price series has shown up in a few shapes: a plain number
+  // array, an array of { date, price } objects, or [timestamp, price] tuples.
+  // Coerce whatever we get into a clean array of positive numbers so the
+  // sparkline and delta always have usable data.
+  function normalizeHistory(raw) {
+    if (!Array.isArray(raw)) return [];
+    const out = [];
+    for (let i = 0; i < raw.length; i++) {
+      const v = raw[i];
+      let n;
+      if (typeof v === 'number') n = v;
+      else if (Array.isArray(v)) n = v[v.length - 1];
+      else if (v && typeof v === 'object') n = v.price ?? v.avg ?? v.value ?? v.close ?? v.market ?? v.market_price ?? v.y;
+      else n = v;
+      n = Number(n);
+      if (isFinite(n) && n > 0) out.push(n);
+    }
+    return out;
+  }
+
   function drawSparkline(prices, w, h) {
     if (!prices || prices.length < 2) return '';
     let min = Infinity, max = -Infinity;
@@ -5884,7 +5904,7 @@ onAuthStateChanged(auth, user => {
       const p = SEALED_PRODUCTS[i];
       const d = data[p.id] || {};
       const price = d.price || p.fallbackPrice;
-      const prices = d.history || [];
+      const prices = normalizeHistory(d.history);
       let delta = 0;
       if (prices.length >= 2) {
         const old = prices[0];
@@ -5936,7 +5956,7 @@ onAuthStateChanged(auth, user => {
         if (item && (item.price != null || item.present_price != null)) {
           return {
             price: item.price || item.present_price || p.fallbackPrice,
-            history: item.history || []
+            history: item.history || item.prices || item.price_history || item.chart || item.data || item.graph || []
           };
         }
       } catch (e) { /* fall through to placeholder below */ }
