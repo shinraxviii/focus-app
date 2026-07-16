@@ -4370,6 +4370,7 @@ onAuthStateChanged(auth, user => {
   const REDDIT_PROXY_URL   = 'https://focus-proxy.vercel.app/api/reddit';
   const MTGSTOCKS_PROXY_URL  = 'https://focus-proxy.vercel.app/api/mtgstocks';
   const TMDB_PROXY_URL       = 'https://focus-proxy.vercel.app/api/tmdb';
+  const BOOKS_PROXY_URL      = 'https://focus-proxy.vercel.app/api/books';
 
   // ── TIMEOUT CONSTANTS ─────────────────────────────────────────
   const TIMEOUT_SHORT   = 4000;  // individual ticker fetches
@@ -5747,26 +5748,18 @@ onAuthStateChanged(auth, user => {
 
     let b;
     try {
-      const q = 'intitle:' + encodeURIComponent('"' + pick.title + '"')
-        + '+inauthor:' + encodeURIComponent('"' + pick.author + '"');
       const r = await fetchWithTimeout(
-        'https://www.googleapis.com/books/v1/volumes?q=' + q + '&maxResults=1&country=US',
+        BOOKS_PROXY_URL + '?title=' + encodeURIComponent(pick.title) + '&author=' + encodeURIComponent(pick.author),
         TIMEOUT_MEDIUM);
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      const data = await r.json();
-      const vi = (data.items && data.items[0] && data.items[0].volumeInfo) || {};
-      let cover = '';
-      if (vi.imageLinks) {
-        cover = (vi.imageLinks.thumbnail || vi.imageLinks.smallThumbnail || '')
-          .replace(/^http:/, 'https:').replace('&edge=curl', '');
-      }
+      const d = await r.json();
       b = {
         title: pick.title,
         author: pick.author,
-        year: vi.publishedDate ? String(vi.publishedDate).slice(0, 4) : '',
-        blurb: _bookStripHtml(vi.description, 260),
-        cover: cover,
-        link: vi.infoLink || searchUrl,
+        year: d.year || '',
+        blurb: _bookStripHtml(d.blurb, 260),
+        cover: d.cover || '',
+        link: d.link || searchUrl,
       };
       cacheSet('shelf-book', b, asOfNow());
     } catch (e) {
