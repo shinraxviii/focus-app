@@ -4420,8 +4420,8 @@ onAuthStateChanged(auth, user => {
     { id: 8894, name: 'Collector Booster Display', set: 'Universes Beyond: Final Fantasy', fallbackPrice: 260 },
     { id: 4496, name: 'Collector Booster Display', set: 'Phyrexia: All Will Be One', fallbackPrice: 165 },
     { id: 7199, name: 'Collector Booster Display', set: 'Bloomburrow', fallbackPrice: 185 },
-    { id: 7760, name: 'Collector Booster Display', set: 'Foundations', fallbackPrice: 230 },
-    { id: 8919, name: 'Collector Booster Display', set: 'Edge of Eternities', fallbackPrice: 250 },
+    { id: 7760, name: 'Collector Booster Display', set: 'Foundations', fallbackPrice: 745 },
+    { id: 8919, name: 'Collector Booster Display', set: 'Edge of Eternities', fallbackPrice: 800 },
     { id: 6042, name: 'Collector Booster Display', set: 'The Lost Caverns of Ixalan', fallbackPrice: 200 },
     { id: 5389, name: 'Collector Booster Display', set: 'Wilds of Eldraine', fallbackPrice: 215 },
     { id: 4827, name: 'Collector Booster Display', set: 'March of the Machine', fallbackPrice: 180 },
@@ -5916,39 +5916,55 @@ onAuthStateChanged(auth, user => {
     }
     // Try stale cache for instant display
     const stale = cacheGetStale('sealed-prices');
+    const staleData = (stale && stale.data) || {};
     if (stale) {
       renderSealedPrices(stale.data);
     }
-    // Fetch from proxy
-    try {
-      const ids = SEALED_PRODUCTS.map(function(p) { return p.id; }).join(',');
-      const r = await fetchWithTimeout(MTGSTOCKS_PROXY_URL + '?ids=' + ids, TIMEOUT_LONG);
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const json = await r.json();
-      // Expect: { "5941": { price: 485, history: [p1, p2, ...] }, ... }
-      const data = {};
-      for (let i = 0; i < SEALED_PRODUCTS.length; i++) {
-        const p = SEALED_PRODUCTS[i];
+    // Fetch each product in its own request. Bundling every id into a single
+    // ?ids=a,b,c,... call made the proxy scrape all products within one
+    // (time-limited) serverless invocation; once the list grew past ~5 items
+    // the later products timed out and were dropped, so newly-added sets fell
+    // back to their stale placeholder price with no sparkline history. One
+    // request per id gives each product its own fetch budget.
+    const results = await Promise.all(SEALED_PRODUCTS.map(async function(p) {
+      try {
+        const r = await fetchWithTimeout(MTGSTOCKS_PROXY_URL + '?ids=' + p.id, TIMEOUT_LONG);
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const json = await r.json();
+        // Expect: { "7760": { price: 745, history: [p1, p2, ...] }, ... }
         const item = json[String(p.id)] || json[p.id];
-        if (item) {
-          data[p.id] = {
+        if (item && (item.price != null || item.present_price != null)) {
+          return {
             price: item.price || item.present_price || p.fallbackPrice,
             history: item.history || []
           };
         }
+      } catch (e) { /* fall through to placeholder below */ }
+      return null;
+    }));
+
+    const data = {};
+    let liveCount = 0;
+    for (let i = 0; i < SEALED_PRODUCTS.length; i++) {
+      const p = SEALED_PRODUCTS[i];
+      if (results[i]) {
+        data[p.id] = results[i];
+        liveCount++;
+      } else {
+        // Keep any previously-cached history so the sparkline survives a miss.
+        const prev = staleData[p.id] || {};
+        data[p.id] = { price: prev.price || p.fallbackPrice, history: prev.history || [] };
       }
+    }
+
+    if (liveCount > 0) {
       cacheSet('sealed-prices', data, asOfNow());
       renderSealedPrices(data);
       if (statusEl) statusEl.textContent = asOfNow();
-    } catch (e) {
-      // Sealed prices fetch failed — using fallback
-      const fallback = {};
-      for (let i = 0; i < SEALED_PRODUCTS.length; i++) {
-        const p = SEALED_PRODUCTS[i];
-        fallback[p.id] = { price: p.fallbackPrice, history: [] };
-      }
-      cacheSet('sealed-prices', fallback, 'fallback');
-      renderSealedPrices(fallback);
+    } else {
+      // Nothing came back live — show placeholders but don't cache them, so the
+      // next load retries instead of being stuck on fallback for the 6h TTL.
+      renderSealedPrices(data);
       if (statusEl) statusEl.textContent = 'using fallback';
     }
   }
