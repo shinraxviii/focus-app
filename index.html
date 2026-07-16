@@ -1504,6 +1504,22 @@
     letter-spacing: 0.5px;
     margin-top: 4px;
   }
+  .book-blurb {
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    margin-top: 10px;
+    text-align: left;
+    max-width: 340px;
+  }
+  .book-nocover {
+    align-items: center;
+    justify-content: center;
+    color: var(--text-dim);
+    font-size: 11px;
+    width: 100%;
+    height: 100%;
+  }
   .sorcery-new-btn {
     margin-top: 14px;
     background: var(--surface2);
@@ -2895,6 +2911,17 @@ onAuthStateChanged(auth, user => {
         <div class="deals-list" id="deals-container">
           <span class="digest-loading">Loading...</span>
         </div>
+      </div>
+    </div>
+
+    <!-- FROM THE SHELF -->
+    <div class="digest-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title">From the Shelf</span>
+        <span class="digest-card-updated" id="book-updated">via Google Books</span>
+      </div>
+      <div class="sorcery-viewer" id="book-viewer">
+        <span class="digest-loading">Loading...</span>
       </div>
     </div>
   </div>
@@ -5549,6 +5576,182 @@ onAuthStateChanged(auth, user => {
     }
   }
 
+  // ── FROM THE SHELF (Google Books) ─────────────────────────────
+  // Curated flagship titles from favorite authors. Metadata (cover, blurb,
+  // year) is fetched live from Google Books; this list only controls which
+  // books can appear, so results stay high-quality (no box sets / study guides).
+  const BOOK_AUTHOR_PICKS = [
+    { title: "Jurassic Park", author: "Michael Crichton" },
+    { title: "The Andromeda Strain", author: "Michael Crichton" },
+    { title: "Sphere", author: "Michael Crichton" },
+    { title: "The Way of Kings", author: "Brandon Sanderson" },
+    { title: "Mistborn: The Final Empire", author: "Brandon Sanderson" },
+    { title: "Warbreaker", author: "Brandon Sanderson" },
+    { title: "Hyperion", author: "Dan Simmons" },
+    { title: "The Fall of Hyperion", author: "Dan Simmons" },
+    { title: "The Terror", author: "Dan Simmons" },
+    { title: "Annihilation", author: "Jeff VanderMeer" },
+    { title: "Authority", author: "Jeff VanderMeer" },
+    { title: "Borne", author: "Jeff VanderMeer" },
+    { title: "The Three-Body Problem", author: "Cixin Liu" },
+    { title: "The Dark Forest", author: "Cixin Liu" },
+    { title: "Death's End", author: "Cixin Liu" },
+    { title: "Outliers", author: "Malcolm Gladwell" },
+    { title: "The Tipping Point", author: "Malcolm Gladwell" },
+    { title: "Blink", author: "Malcolm Gladwell" },
+    { title: "Dune", author: "Frank Herbert" },
+    { title: "Dune Messiah", author: "Frank Herbert" },
+    { title: "Children of Dune", author: "Frank Herbert" },
+    { title: "A Game of Thrones", author: "George R. R. Martin" },
+    { title: "A Clash of Kings", author: "George R. R. Martin" },
+    { title: "A Storm of Swords", author: "George R. R. Martin" },
+    { title: "Wool", author: "Hugh Howey" },
+    { title: "Shift", author: "Hugh Howey" },
+    { title: "Dust", author: "Hugh Howey" },
+    { title: "The Hitchhiker's Guide to the Galaxy", author: "Douglas Adams" },
+    { title: "The Restaurant at the End of the Universe", author: "Douglas Adams" },
+    { title: "Life, the Universe and Everything", author: "Douglas Adams" },
+    { title: "The Eye of the World", author: "Robert Jordan" },
+    { title: "The Great Hunt", author: "Robert Jordan" },
+    { title: "The Dragon Reborn", author: "Robert Jordan" },
+    { title: "The Name of the Wind", author: "Patrick Rothfuss" },
+    { title: "The Wise Man's Fear", author: "Patrick Rothfuss" },
+    { title: "The Slow Regard of Silent Things", author: "Patrick Rothfuss" },
+    { title: "Foundation", author: "Isaac Asimov" },
+    { title: "I, Robot", author: "Isaac Asimov" },
+    { title: "The Caves of Steel", author: "Isaac Asimov" },
+    { title: "Leviathan Wakes", author: "James S. A. Corey" },
+    { title: "Caliban's War", author: "James S. A. Corey" },
+    { title: "Abaddon's Gate", author: "James S. A. Corey" },
+    { title: "Dungeon Crawler Carl", author: "Matt Dinniman" },
+    { title: "Carl's Doomsday Scenario", author: "Matt Dinniman" },
+    { title: "The Dungeon Anarchist's Cookbook", author: "Matt Dinniman" },
+    { title: "Assassin's Apprentice", author: "Robin Hobb" },
+    { title: "Royal Assassin", author: "Robin Hobb" },
+    { title: "Ship of Magic", author: "Robin Hobb" },
+    { title: "Monster Hunter International", author: "Larry Correia" },
+    { title: "Hard Magic", author: "Larry Correia" },
+    { title: "Son of the Black Sword", author: "Larry Correia" },
+    { title: "Red Rising", author: "Pierce Brown" },
+    { title: "Golden Son", author: "Pierce Brown" },
+    { title: "Morning Star", author: "Pierce Brown" },
+    { title: "The Martian", author: "Andy Weir" },
+    { title: "Project Hail Mary", author: "Andy Weir" },
+    { title: "Artemis", author: "Andy Weir" },
+    { title: "Snow Crash", author: "Neal Stephenson" },
+    { title: "Cryptonomicon", author: "Neal Stephenson" },
+    { title: "Seveneves", author: "Neal Stephenson" },
+    { title: "Perdido Street Station", author: "China Miéville" },
+    { title: "The City & the City", author: "China Miéville" },
+    { title: "The Scar", author: "China Miéville" },
+    { title: "Red Mars", author: "Kim Stanley Robinson" },
+    { title: "The Ministry for the Future", author: "Kim Stanley Robinson" },
+    { title: "2312", author: "Kim Stanley Robinson" },
+    { title: "Children of Time", author: "Adrian Tchaikovsky" },
+    { title: "Children of Ruin", author: "Adrian Tchaikovsky" },
+    { title: "Shards of Earth", author: "Adrian Tchaikovsky" },
+    { title: "The Hobbit", author: "J. R. R. Tolkien" },
+    { title: "The Fellowship of the Ring", author: "J. R. R. Tolkien" },
+    { title: "The Silmarillion", author: "J. R. R. Tolkien" },
+    { title: "Slaughterhouse-Five", author: "Kurt Vonnegut" },
+    { title: "Cat's Cradle", author: "Kurt Vonnegut" },
+    { title: "Breakfast of Champions", author: "Kurt Vonnegut" },
+    { title: "Guns, Germs, and Steel", author: "Jared Diamond" },
+    { title: "Collapse", author: "Jared Diamond" },
+    { title: "The Third Chimpanzee", author: "Jared Diamond" },
+  ];
+
+  function _bookStripHtml(s, n) {
+    s = String(s || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+    return s.length > n ? s.slice(0, n).replace(/\s+\S*$/, '') + '…' : s;
+  }
+
+  function _renderBook(viewer, b, status) {
+    const cover = b.cover || '';
+    const yr = b.year ? ' · ' + b.year : '';
+    const img = cover
+      ? '<img class="sorcery-card-img" src="' + esc(cover) + '" alt="' + esc(b.title) + '"'
+        + ' onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'
+      : '';
+    viewer.innerHTML =
+      '<a class="sorcery-img-wrap" href="' + escUrl(b.link) + '" target="_blank" rel="noopener">'
+      + img
+      + '<div class="book-nocover" style="display:' + (cover ? 'none' : 'flex') + ';">No cover art</div>'
+      + '</a>'
+      + '<div class="sorcery-card-info">'
+      + '<div class="sorcery-card-name">' + esc(b.title) + '</div>'
+      + '<div class="sorcery-card-type">' + esc(b.author) + yr + '</div>'
+      + (b.blurb ? '<div class="book-blurb">' + esc(b.blurb) + '</div>' : '')
+      + '</div>'
+      + '<button class="sorcery-new-btn" id="book-new-btn">New Book</button>';
+    viewer.style.opacity = '1';
+    const btn = document.getElementById('book-new-btn');
+    if (btn) btn.addEventListener('click', showRandomBook);
+    if (status) status.textContent = (b.label || asOfNow());
+  }
+
+  async function showRandomBook() {
+    const viewer = document.getElementById('book-viewer');
+    const status = document.getElementById('book-updated');
+    if (!viewer) return;
+
+    const hasBook = viewer.querySelector('.sorcery-card-img');
+    if (hasBook) viewer.style.opacity = '0';
+
+    const pick = BOOK_AUTHOR_PICKS[Math.floor(Math.random() * BOOK_AUTHOR_PICKS.length)];
+    const searchUrl = 'https://www.google.com/search?tbm=bks&q='
+      + encodeURIComponent(pick.title + ' ' + pick.author);
+
+    let b;
+    try {
+      const q = 'intitle:' + encodeURIComponent('"' + pick.title + '"')
+        + '+inauthor:' + encodeURIComponent('"' + pick.author + '"');
+      const r = await fetchWithTimeout(
+        'https://www.googleapis.com/books/v1/volumes?q=' + q + '&maxResults=1&country=US',
+        TIMEOUT_MEDIUM);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const data = await r.json();
+      const vi = (data.items && data.items[0] && data.items[0].volumeInfo) || {};
+      let cover = '';
+      if (vi.imageLinks) {
+        cover = (vi.imageLinks.thumbnail || vi.imageLinks.smallThumbnail || '')
+          .replace(/^http:/, 'https:').replace('&edge=curl', '');
+      }
+      b = {
+        title: pick.title,
+        author: pick.author,
+        year: vi.publishedDate ? String(vi.publishedDate).slice(0, 4) : '',
+        blurb: _bookStripHtml(vi.description, 260),
+        cover: cover,
+        link: vi.infoLink || searchUrl,
+      };
+      cacheSet('shelf-book', b, asOfNow());
+    } catch (e) {
+      // Metadata fetch failed — show title/author with a link out
+      b = { title: pick.title, author: pick.author, year: '', blurb: '', cover: '', link: searchUrl };
+    }
+
+    if (hasBook) {
+      setTimeout(function() { _renderBook(viewer, b, status); }, 150);
+    } else {
+      _renderBook(viewer, b, status);
+    }
+  }
+
+  function loadShelfBook() {
+    const viewer = document.getElementById('book-viewer');
+    const status = document.getElementById('book-updated');
+    if (!viewer) return;
+    // Show the cached book instantly; only hit the API once per 12h on load.
+    const cached = cacheGet('shelf-book', 12 * 60 * 60 * 1000);
+    if (cached && cached.data) {
+      const b = Object.assign({}, cached.data, { label: cached.label });
+      _renderBook(viewer, b, status);
+    } else {
+      showRandomBook();
+    }
+  }
+
   // ── SEALED PRODUCT PRICES (MTGStocks) ─────────────────────────
   function drawSparkline(prices, w, h) {
     if (!prices || prices.length < 2) return '';
@@ -7085,6 +7288,9 @@ onAuthStateChanged(auth, user => {
 
   // ── MTG RANDOM CARD INIT ─────────────────────────────────
   showRandomMtgCard();
+
+  // ── FROM THE SHELF INIT ─────────────────────────────────────
+  loadShelfBook();
 
   // ── SEALED PRICES INIT ──────────────────────────────────────
   loadSealedPrices();
