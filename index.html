@@ -4753,29 +4753,44 @@ onAuthStateChanged(auth, user => {
     return REDDIT_ACCENT_COLORS[idx % REDDIT_ACCENT_COLORS.length];
   }
 
+  const REDDIT_MAX_PER_SUB = 4;   // never show more than this many posts from one subreddit
+  const REDDIT_MAX_TOTAL   = 12;  // overall cap on the feed length
+
   function renderReddit(posts) {
     const subs = getRedditSubs();
 
-    // Group posts by subreddit
-    const groups = {};
-    const groupOrder = [];
-    posts.slice(0, 12).forEach(function(p) {
-      const sub = p.sub;
-      if (!groups[sub]) {
-        groups[sub] = [];
-        groupOrder.push(sub);
-      }
-      groups[sub].push(p);
+    // Bucket posts by subreddit, preserving the proxy's order within each sub
+    const buckets = {};
+    const bucketOrder = [];
+    posts.forEach(function(p) {
+      if (!buckets[p.sub]) { buckets[p.sub] = []; bucketOrder.push(p.sub); }
+      buckets[p.sub].push(p);
     });
 
-    // Sort groups to match user's sub order
-    groupOrder.sort(function(a, b) {
+    // Order subs to match the user's configured order
+    bucketOrder.sort(function(a, b) {
       let ai = subs.indexOf(a.replace('r/', ''));
       let bi = subs.indexOf(b.replace('r/', ''));
       if (ai === -1) ai = 999;
       if (bi === -1) bi = 999;
       return ai - bi;
     });
+
+    // Round-robin pick: one post per sub per round, so no single subreddit
+    // dominates and every sub is represented, up to the per-sub / total caps.
+    const groups = {};
+    const groupOrder = [];
+    let total = 0;
+    for (let round = 0; round < REDDIT_MAX_PER_SUB && total < REDDIT_MAX_TOTAL; round++) {
+      for (let s = 0; s < bucketOrder.length && total < REDDIT_MAX_TOTAL; s++) {
+        const sub = bucketOrder[s];
+        const post = buckets[sub][round];
+        if (!post) continue;
+        if (!groups[sub]) { groups[sub] = []; groupOrder.push(sub); }
+        groups[sub].push(post);
+        total++;
+      }
+    }
 
     return groupOrder.map(function(sub) {
       const color = getSubColor(sub, subs);
