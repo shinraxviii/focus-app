@@ -4899,28 +4899,57 @@ onAuthStateChanged(auth, user => {
     }).join('');
   }
 
+  // Fetch a single subreddit's posts through the proxy. Returns [] on any
+  // failure (throttle, timeout, bad JSON) so callers can retry.
+  async function fetchOneSub(sub) {
+    try {
+      const r = await fetchWithTimeout(REDDIT_PROXY_URL + '?subs=' + encodeURIComponent(sub), TIMEOUT_LONG);
+      if (!r.ok) return [];
+      const arr = await r.json();
+      return Array.isArray(arr) ? arr : [];
+    } catch (e) { return []; }
+  }
+
   async function fetchReddit() {
     const redditEl = document.getElementById('reddit-feed');
     const subs = getRedditSubs();
     redditEl.innerHTML = '<span class="digest-loading">Loading reddit...</span>';
     try {
-      // Fetch each subreddit as its own proxy request. Reddit throttles the
-      // 2nd+ request made from the proxy's IP within a single serverless
-      // invocation, so a batched ?subs=a,b,c call only ever returned the first
-      // sub's posts. One request per sub means each runs in its own invocation
-      // making a single Reddit fetch — the case that reliably succeeds.
-      const results = await Promise.all(subs.map(async function(sub) {
-        try {
-          const r = await fetchWithTimeout(REDDIT_PROXY_URL + '?subs=' + encodeURIComponent(sub), TIMEOUT_LONG);
-          if (!r.ok) return [];
-          const arr = await r.json();
-          return Array.isArray(arr) ? arr : [];
-        } catch (e) { return []; }
+      // Each subreddit is fetched as its own proxy request: Reddit throttles the
+      // 2nd+ request from the proxy's IP within a single serverless invocation,
+      // so a batched call only returned the first sub's posts. One request per
+      // sub means each runs in its own invocation making a single Reddit fetch.
+      //
+      // Even so, a parallel burst can share an egress IP and get some subs
+      // throttled to empty. To guarantee every chosen sub is represented, retry
+      // the ones that came back empty — one at a time, spaced out, so each retry
+      // is a lone request in a fresh invocation with a new shot at an
+      // unthrottled IP.
+      const bySub = {};
+
+      // Round 1: try all subs at once (fast path for the ones that get through).
+      const round1 = await Promise.all(subs.map(function(sub) {
+        return fetchOneSub(sub).then(function(arr) { return { sub: sub, arr: arr }; });
       }));
-      const posts = [];
-      for (let i = 0; i < results.length; i++) {
-        for (let j = 0; j < results[i].length; j++) posts.push(results[i][j]);
+      round1.forEach(function(x) { if (x.arr.length) bySub[x.sub] = x.arr; });
+
+      // Retry rounds: sequentially re-fetch any sub still missing, with a small
+      // gap between requests to avoid re-colliding on the same IP.
+      const MAX_RETRY_ROUNDS = 4;
+      for (let round = 0; round < MAX_RETRY_ROUNDS; round++) {
+        const missing = subs.filter(function(s) { return !bySub[s]; });
+        if (!missing.length) break;
+        for (let i = 0; i < missing.length; i++) {
+          const arr = await fetchOneSub(missing[i]);
+          if (arr.length) bySub[missing[i]] = arr;
+          await new Promise(function(res) { setTimeout(res, 450); });
+        }
       }
+
+      const posts = [];
+      subs.forEach(function(s) {
+        if (bySub[s]) for (let j = 0; j < bySub[s].length; j++) posts.push(bySub[s][j]);
+      });
       if (!posts.length) throw new Error('No posts returned');
       redditEl.innerHTML = renderReddit(posts);
       const statusLabel = asOfNow();
