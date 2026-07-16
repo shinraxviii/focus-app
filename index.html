@@ -2827,7 +2827,7 @@ onAuthStateChanged(auth, user => {
     <button class="digest-sub-tab active" data-subtab="frontpage">Front Page</button>
     <button class="digest-sub-tab" data-subtab="hobbies">Hobbies</button>
     <button class="digest-sub-tab" data-subtab="gaming">TCG</button>
-    <button class="digest-sub-tab" data-subtab="motivation">Motivation</button>
+    <button class="digest-sub-tab" data-subtab="motivation">Quotes</button>
   </div>
 
   <!-- FRONT PAGE -->
@@ -7394,49 +7394,147 @@ onAuthStateChanged(auth, user => {
     });
   });
 
-  // ── MOTIVATION QUOTES ──────────────────────────────────────
+  // ── QUOTES ─────────────────────────────────────────────────
+  // Lines drawn from the books in the "From the Shelf" list. Fiction shows the
+  // character (or narrator) + book; non-fiction shows the author + book.
+  // `character` omitted -> attribution falls back to the author's name.
   (function initMotivation() {
     const quotes = [
-      { text: 'The only way to do great work is to love what you do.', author: 'Steve Jobs' },
-      { text: 'It does not matter how slowly you go as long as you do not stop.', author: 'Confucius' },
-      { text: 'Everything you can imagine is real.', author: 'Pablo Picasso' },
-      { text: 'The best time to plant a tree was 20 years ago. The second best time is now.', author: 'Chinese Proverb' },
-      { text: 'What you get by achieving your goals is not as important as what you become by achieving your goals.', author: 'Zig Ziglar' },
-      { text: 'Hardships often prepare ordinary people for an extraordinary destiny.', author: 'C.S. Lewis' },
-      { text: 'You are never too old to set another goal or to dream a new dream.', author: 'C.S. Lewis' },
-      { text: 'Do what you can, with what you have, where you are.', author: 'Theodore Roosevelt' },
-      { text: 'Act as if what you do makes a difference. It does.', author: 'William James' },
-      { text: 'Success is not final, failure is not fatal: it is the courage to continue that counts.', author: 'Winston Churchill' },
-      { text: 'Believe you can and you\'re halfway there.', author: 'Theodore Roosevelt' },
-      { text: 'The future belongs to those who believe in the beauty of their dreams.', author: 'Eleanor Roosevelt' },
-      { text: 'In the middle of every difficulty lies opportunity.', author: 'Albert Einstein' },
-      { text: 'It always seems impossible until it\'s done.', author: 'Nelson Mandela' },
-      { text: 'Start where you are. Use what you have. Do what you can.', author: 'Arthur Ashe' },
-      { text: 'The secret of getting ahead is getting started.', author: 'Mark Twain' },
-      { text: 'Don\'t watch the clock; do what it does. Keep going.', author: 'Sam Levenson' },
-      { text: 'Everything has beauty, but not everyone sees it.', author: 'Confucius' },
-      { text: 'What lies behind us and what lies before us are tiny matters compared to what lies within us.', author: 'Ralph Waldo Emerson' },
-      { text: 'The mind is everything. What you think you become.', author: 'Buddha' },
-      { text: 'Strive not to be a success, but rather to be of value.', author: 'Albert Einstein' },
-      { text: 'You miss 100% of the shots you don\'t take.', author: 'Wayne Gretzky' },
-      { text: 'The only impossible journey is the one you never begin.', author: 'Tony Robbins' },
-      { text: 'Your time is limited, don\'t waste it living someone else\'s life.', author: 'Steve Jobs' },
-      { text: 'If you want to lift yourself up, lift up someone else.', author: 'Booker T. Washington' },
-      { text: 'We become what we think about most of the time.', author: 'Earl Nightingale' },
-      { text: 'Life is what happens when you\'re busy making other plans.', author: 'John Lennon' },
-      { text: 'Turn your wounds into wisdom.', author: 'Oprah Winfrey' },
-      { text: 'The best revenge is massive success.', author: 'Frank Sinatra' },
-      { text: 'If opportunity doesn\'t knock, build a door.', author: 'Milton Berle' },
+      // Michael Crichton
+      { text: 'Life breaks free. Life expands to new territories. Painfully, perhaps even dangerously. But life finds a way.', character: 'Ian Malcolm', author: 'Michael Crichton', book: 'Jurassic Park' },
+      { text: 'Scientists are actually preoccupied with accomplishment. So they are focused on whether they can do something. They never stop to ask if they should do something.', character: 'Ian Malcolm', author: 'Michael Crichton', book: 'Jurassic Park' },
+      { text: 'Do you want to understand how to swim, or do you want to jump in and start swimming? Only people who are afraid of the water want to understand it. Other people jump in and get wet.', character: 'Dr. Stein', author: 'Michael Crichton', book: 'Sphere' },
+      { text: 'There were times when he envied the laboratory rats he worked with; their brains were so simple. Certainly they did not have the intelligence to destroy themselves; that was a peculiar invention of man.', author: 'Michael Crichton', book: 'The Andromeda Strain' },
+      { text: 'We don\'t like to be reminded of how frail we are — how delicate the balances are inside our own bodies, how short our stay on Earth, and how easily it is ended.', author: 'Michael Crichton', book: 'Sphere' },
+      // Brandon Sanderson
+      { text: 'Life before death. Strength before weakness. Journey before destination.', character: 'The First Ideal of the Knights Radiant', author: 'Brandon Sanderson', book: 'The Way of Kings' },
+      { text: 'I will protect those who cannot protect themselves.', character: 'Kaladin', author: 'Brandon Sanderson', book: 'The Way of Kings' },
+      { text: 'The purpose of a storyteller is not to tell you how to think, but to give you questions to think upon.', character: 'Hoid', author: 'Brandon Sanderson', book: 'The Way of Kings' },
+      { text: 'There\'s always another secret.', character: 'Kelsier', author: 'Brandon Sanderson', book: 'Mistborn: The Final Empire' },
+      { text: 'Sometimes our conversations remind me of a broken sword. Sharp as hell, but lacking a point.', character: 'Lightsong', author: 'Brandon Sanderson', book: 'Warbreaker' },
+      // Dan Simmons
+      { text: 'Words are the only bullets in truth\'s bandolier. And poets are the snipers.', character: 'Martin Silenus', author: 'Dan Simmons', book: 'Hyperion' },
+      { text: 'In the beginning was the Word. Then came the fucking word processor. Then came the thought processor. Then came the death of literature.', character: 'Martin Silenus', author: 'Dan Simmons', book: 'Hyperion' },
+      { text: 'In the end — when all else is dust — loyalty to those we love is all we can carry with us to the grave. Faith — true faith — was trusting in that love.', character: 'Sol Weintraub', author: 'Dan Simmons', book: 'The Fall of Hyperion' },
+      { text: 'Life is solitary, poor, nasty, brutish, and short. It has no plan, no point, no hidden mysteries that make up for the oh-so-obvious miseries and banalities.', character: 'Francis Crozier', author: 'Dan Simmons', book: 'The Terror' },
+      // Jeff VanderMeer
+      { text: 'That\'s how the madness of the world tries to colonize you: from the outside in, forcing you to live in its reality.', character: 'the biologist', author: 'Jeff VanderMeer', book: 'Annihilation' },
+      { text: 'Some questions will ruin you if you are denied the answer long enough.', character: 'the biologist', author: 'Jeff VanderMeer', book: 'Annihilation' },
+      { text: 'We live in a universe driven by chance, but the bullshit artists all want causality.', author: 'Jeff VanderMeer', book: 'Authority' },
+      { text: 'You are a person. But like a person, you can be a weapon, too.', character: 'Rachel', author: 'Jeff VanderMeer', book: 'Borne' },
+      { text: 'Minds find ways to protect themselves, build fortifications, and some of those walls become traps.', character: 'Rachel', author: 'Jeff VanderMeer', book: 'Borne' },
+      // Cixin Liu
+      { text: 'The universe is a dark forest. Every civilization is an armed hunter stalking through the trees like a ghost.', character: 'Luo Ji', author: 'Cixin Liu', book: 'The Dark Forest' },
+      { text: 'Weakness and ignorance are not barriers to survival, but arrogance is.', author: 'Cixin Liu', book: 'Death\'s End' },
+      { text: 'The universe was an empty palace, and humankind the only ant in the entire palace.', character: 'Ye Wenjie', author: 'Cixin Liu', book: 'The Three-Body Problem' },
+      { text: 'Make time for civilization, for civilization won\'t make time.', author: 'Cixin Liu', book: 'The Dark Forest' },
+      // Malcolm Gladwell (non-fiction)
+      { text: 'The name given to that one dramatic moment in an epidemic when everything can change all at once is the Tipping Point.', author: 'Malcolm Gladwell', book: 'The Tipping Point' },
+      { text: 'Truly successful decision making relies on a balance between deliberate and instinctive thinking.', author: 'Malcolm Gladwell', book: 'Blink' },
+      { text: 'Researchers have settled on what they believe is the magic number for true expertise: ten thousand hours.', author: 'Malcolm Gladwell', book: 'Outliers' },
+      { text: 'Outliers are those who have been given opportunities — and who have had the strength and presence of mind to seize them.', author: 'Malcolm Gladwell', book: 'Outliers' },
+      { text: 'Practice isn\'t the thing you do once you\'re good. It\'s the thing you do that makes you good.', author: 'Malcolm Gladwell', book: 'Outliers' },
+      // Frank Herbert
+      { text: 'I must not fear. Fear is the mind-killer. Fear is the little-death that brings total obliteration.', character: 'Paul Atreides', author: 'Frank Herbert', book: 'Dune' },
+      { text: 'A beginning is the time for taking the most delicate care that the balances are correct.', character: 'Princess Irulan', author: 'Frank Herbert', book: 'Dune' },
+      { text: 'One uses power by grasping it lightly. To grasp too strongly is to be taken over by power, and thus to become its victim.', character: 'Lady Jessica', author: 'Frank Herbert', book: 'Children of Dune' },
+      { text: 'Empires do not suffer emptiness of purpose at the time of their creation. It is when they have become established that aims are lost and replaced by vague ritual.', character: 'Princess Irulan', author: 'Frank Herbert', book: 'Dune Messiah' },
+      // George R. R. Martin
+      { text: 'When you play the game of thrones, you win or you die. There is no middle ground.', character: 'Cersei Lannister', author: 'George R. R. Martin', book: 'A Game of Thrones' },
+      { text: 'The man who passes the sentence should swing the sword.', character: 'Eddard Stark', author: 'George R. R. Martin', book: 'A Game of Thrones' },
+      { text: 'Never forget what you are, for surely the world will not. Make it your strength. Then it can never be your weakness. Armor yourself in it, and it will never be used to hurt you.', character: 'Tyrion Lannister', author: 'George R. R. Martin', book: 'A Game of Thrones' },
+      { text: 'Fear cuts deeper than swords.', character: 'Syrio Forel', author: 'George R. R. Martin', book: 'A Game of Thrones' },
+      { text: 'A mind needs books as a sword needs a whetstone, if it is to keep its edge.', character: 'Tyrion Lannister', author: 'George R. R. Martin', book: 'A Game of Thrones' },
+      // Hugh Howey
+      { text: 'The children were playing while Holston climbed to his death; he could hear them squealing as only happy children do.', author: 'Hugh Howey', book: 'Wool' },
+      { text: 'When there\'s only God to blame, we forgive him. When it\'s our fellow man, we destroy him.', author: 'Hugh Howey', book: 'Shift' },
+      { text: 'That\'s the problem with the truth. Liars and honest men both claim to have it.', character: 'Darcy', author: 'Hugh Howey', book: 'Dust' },
+      { text: 'Heroes didn\'t win. The heroes were whoever happened to win. History told their story — the dead didn\'t say a word.', author: 'Hugh Howey', book: 'Dust' },
+      // Douglas Adams
+      { text: 'The ships hung in the sky in much the same way that bricks don\'t.', author: 'Douglas Adams', book: 'The Hitchhiker\'s Guide to the Galaxy' },
+      { text: 'Time is an illusion. Lunchtime doubly so.', character: 'Ford Prefect', author: 'Douglas Adams', book: 'The Hitchhiker\'s Guide to the Galaxy' },
+      { text: 'For a moment, nothing happened. Then, after a second or so, nothing continued to happen.', author: 'Douglas Adams', book: 'The Hitchhiker\'s Guide to the Galaxy' },
+      { text: 'In the beginning the Universe was created. This has made a lot of people very angry and been widely regarded as a bad move.', author: 'Douglas Adams', book: 'The Restaurant at the End of the Universe' },
+      { text: 'There is an art to flying, or rather a knack. The knack lies in learning how to throw yourself at the ground and miss.', author: 'Douglas Adams', book: 'Life, the Universe and Everything' },
+      // Robert Jordan
+      { text: 'The Wheel of Time turns, and Ages come and pass, leaving memories that become legend. Legend fades to myth, and even myth is long forgotten when the Age that gave it birth comes again.', author: 'Robert Jordan', book: 'The Eye of the World' },
+      { text: 'The Wheel weaves as the Wheel wills.', character: 'Moiraine', author: 'Robert Jordan', book: 'The Eye of the World' },
+      { text: 'Death is lighter than a feather, duty heavier than a mountain.', character: 'Ingtar', author: 'Robert Jordan', book: 'The Great Hunt' },
+      { text: 'Men forget, but never forgive; women forgive, but never forget.', character: 'Thom Merrilin', author: 'Robert Jordan', book: 'The Dragon Reborn' },
+      // Patrick Rothfuss
+      { text: 'There are three things all wise men fear: the sea in storm, a night with no moon, and the anger of a gentle man.', character: 'Kvothe', author: 'Patrick Rothfuss', book: 'The Wise Man\'s Fear' },
+      { text: 'I have stolen princesses back from sleeping barrow kings.', character: 'Kvothe', author: 'Patrick Rothfuss', book: 'The Name of the Wind' },
+      { text: 'Words are pale shadows of forgotten names. As names have power, words have power.', character: 'Kvothe', author: 'Patrick Rothfuss', book: 'The Name of the Wind' },
+      { text: 'Cruelty never helped the turning of the world.', author: 'Patrick Rothfuss', book: 'The Slow Regard of Silent Things' },
+      // Isaac Asimov
+      { text: 'Violence is the last refuge of the incompetent.', character: 'Salvor Hardin', author: 'Isaac Asimov', book: 'Foundation' },
+      { text: 'Never let your sense of morals prevent you from doing what is right.', character: 'Salvor Hardin', author: 'Isaac Asimov', book: 'Foundation' },
+      { text: 'It pays to be obvious, especially if you have a reputation for subtlety.', character: 'Salvor Hardin', author: 'Isaac Asimov', book: 'Foundation' },
+      { text: 'A robot may not injure a human being or, through inaction, allow a human being to come to harm.', character: 'The First Law of Robotics', author: 'Isaac Asimov', book: 'I, Robot' },
+      { text: 'Justice is that which exists when all the laws are enforced.', character: 'R. Daneel Olivaw', author: 'Isaac Asimov', book: 'The Caves of Steel' },
+      // James S. A. Corey
+      { text: 'You don\'t have a right thing, friend. You\'ve got a whole plateful of maybe a little less wrong.', character: 'Miller', author: 'James S. A. Corey', book: 'Leviathan Wakes' },
+      { text: 'Good, because I don\'t use sex as a weapon. I use weapons as weapons.', character: 'Bobbie Draper', author: 'James S. A. Corey', book: 'Caliban\'s War' },
+      { text: 'They\'re all fucking men. The generals. They\'re all fucking men.', character: 'Chrisjen Avasarala', author: 'James S. A. Corey', book: 'Caliban\'s War' },
+      { text: 'I think it is entirely possible to go so far into the red you can\'t ever balance the books.', character: 'Bull', author: 'James S. A. Corey', book: 'Abaddon\'s Gate' },
+      // Matt Dinniman
+      { text: 'Question: What\'s the only thing standing between an innocent child and a happy, fulfilling life? Answer: You. The answer is you.', character: 'the System', author: 'Matt Dinniman', book: 'Dungeon Crawler Carl' },
+      { text: 'Did we really just start a meth war between the goblins and the llamas?', character: 'Princess Donut', author: 'Matt Dinniman', book: 'Dungeon Crawler Carl' },
+      { text: 'I\'m a cat. Cats don\'t wear pants.', character: 'Princess Donut', author: 'Matt Dinniman', book: 'Dungeon Crawler Carl' },
+      // Robin Hobb
+      { text: 'When you cut pieces out of the truth to avoid looking like a fool, you end up looking like a moron instead.', character: 'Burrich', author: 'Robin Hobb', book: 'Assassin\'s Apprentice' },
+      { text: 'Nothing takes the heart out of a man more than the expectation of failure.', character: 'Burrich', author: 'Robin Hobb', book: 'Assassin\'s Apprentice' },
+      { text: 'You create possibilities. While you exist, the future can be steered.', character: 'the Fool', author: 'Robin Hobb', book: 'Royal Assassin' },
+      { text: 'Somehow, you have confused profitable and not profitable for right and wrong. I, however, have not.', character: 'Amber', author: 'Robin Hobb', book: 'Ship of Magic' },
+      { text: 'It is the nature of humans that we tend to pass our pain along, as if we could get rid of it by inflicting an equal hurt on someone else.', character: 'Wintrow Vestrit', author: 'Robin Hobb', book: 'Ship of Magic' },
+      // Larry Correia
+      { text: 'On one otherwise normal Tuesday evening I had the chance to live the American dream. I was able to throw my incompetent jackass of a boss from a fourteenth-story window.', character: 'Owen Zastava Pitt', author: 'Larry Correia', book: 'Monster Hunter International' },
+      { text: 'You\'re the modern versions of Beowulf, of St. George, of Odysseus. You\'re Van Helsing with firepower. You\'re Jack and the Beanstalk with automatic weapons.', character: 'Earl Harbinger', author: 'Larry Correia', book: 'Monster Hunter International' },
+      { text: 'There are three kinds of people in the world: people who can\'t believe anything, suckers who believe everything, and a few of us who can face the truth.', author: 'Larry Correia', book: 'Monster Hunter International' },
+      { text: 'Everybody thought they were in the right. The evilest bastards he had ever met had still thought of themselves as the good guys.', author: 'Larry Correia', book: 'Hard Magic' },
+      { text: 'No one has freedom; everyone has a place within the law.', character: 'Ashok Vadal', author: 'Larry Correia', book: 'Son of the Black Sword' },
+      // Pierce Brown
+      { text: 'I would have lived in peace. But my enemies brought me war.', character: 'Darrow', author: 'Pierce Brown', book: 'Red Rising' },
+      { text: 'Break the chains, my love.', character: 'Eo', author: 'Pierce Brown', book: 'Red Rising' },
+      { text: 'I will die. You will die. We will all die and the universe will carry on without care. All that we have is that shout into the wind — how we live. How we go. And how we stand before we fall.', character: 'Lorn au Arcos', author: 'Pierce Brown', book: 'Golden Son' },
+      { text: 'I\'m Gold, bitch. What\'d you expect? Warm milk and cookies just because I\'m pocket-sized?', character: 'Darrow', author: 'Pierce Brown', book: 'Golden Son' },
+      { text: 'I am the Reaper. I know how to suffer.', character: 'Darrow', author: 'Pierce Brown', book: 'Morning Star' },
+      // Andy Weir
+      { text: 'I\'m pretty much fucked. That\'s my considered opinion.', character: 'Mark Watney', author: 'Andy Weir', book: 'The Martian' },
+      { text: 'In the face of overwhelming odds, I\'m left with only one option. I\'m going to have to science the shit out of this.', character: 'Mark Watney', author: 'Andy Weir', book: 'The Martian' },
+      { text: 'Yes, of course duct tape works in a near-vacuum. Duct tape works anywhere. Duct tape is magic and should be worshiped.', character: 'Mark Watney', author: 'Andy Weir', book: 'The Martian' },
+      { text: 'I guess you could call it a \'failure,\' but I prefer the term \'learning experience.\'', character: 'Mark Watney', author: 'Andy Weir', book: 'The Martian' },
+      { text: 'They say once you grow crops somewhere, you have officially \'colonized\' it. So technically, I colonized Mars. In your face, Neil Armstrong!', character: 'Mark Watney', author: 'Andy Weir', book: 'The Martian' },
     ];
     const quoteEl = document.getElementById('motivation-quote');
     const authorEl = document.getElementById('motivation-author');
     const refreshBtn = document.getElementById('motivation-refresh');
     if (!quoteEl) return;
 
+    // Shuffle-bag: cycle through every quote in random order before repeating,
+    // and never show the same quote twice in a row across reshuffles.
+    let bag = [];
+    let last = -1;
+    function refill() {
+      bag = quotes.map(function(_, i) { return i; });
+      for (let i = bag.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const t = bag[i]; bag[i] = bag[j]; bag[j] = t;
+      }
+      // The next draw is bag.pop() (the last element) \u2014 make sure it isn't a repeat.
+      if (bag.length > 1 && bag[bag.length - 1] === last) {
+        const t = bag[0]; bag[0] = bag[bag.length - 1]; bag[bag.length - 1] = t;
+      }
+    }
+
     function showQuote() {
-      const q = quotes[Math.floor(Math.random() * quotes.length)];
+      if (!bag.length) refill();
+      const idx = bag.pop();
+      last = idx;
+      const q = quotes[idx];
       quoteEl.textContent = '\u201C' + q.text + '\u201D';
-      authorEl.textContent = '\u2014 ' + q.author;
+      const who = (q.character && q.character.trim()) ? q.character : q.author;
+      authorEl.innerHTML = '\u2014 ' + esc(who) + ', <em>' + esc(q.book) + '</em>';
     }
 
     showQuote();
