@@ -1520,6 +1520,37 @@
     width: 100%;
     height: 100%;
   }
+  /* Upcoming Movies */
+  .movie-row {
+    display: flex;
+    gap: 12px;
+    padding: 10px 4px;
+    align-items: flex-start;
+    text-decoration: none;
+    color: inherit;
+    border-radius: 6px;
+    transition: background 0.12s;
+  }
+  .movie-row:hover { background: var(--surface2); }
+  .movie-row + .movie-row { border-top: 1px solid var(--border); }
+  .movie-poster {
+    width: 48px;
+    height: 72px;
+    object-fit: cover;
+    border-radius: 4px;
+    flex-shrink: 0;
+    background: var(--surface2);
+  }
+  .movie-info { flex: 1; min-width: 0; }
+  .movie-title { font-size: 12px; color: var(--text); font-weight: 500; line-height: 1.3; }
+  .movie-meta {
+    font-size: 9px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 3px;
+  }
+  .movie-overview { font-size: 10px; color: var(--text-dim); line-height: 1.5; margin-top: 5px; }
   .sorcery-new-btn {
     margin-top: 14px;
     background: var(--surface2);
@@ -2921,6 +2952,17 @@ onAuthStateChanged(auth, user => {
         <span class="digest-card-updated" id="book-updated">via Google Books</span>
       </div>
       <div class="sorcery-viewer" id="book-viewer">
+        <span class="digest-loading">Loading...</span>
+      </div>
+    </div>
+
+    <!-- UPCOMING MOVIES -->
+    <div class="digest-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title">Upcoming Movies</span>
+        <span class="digest-card-updated" id="movies-updated">via TMDB</span>
+      </div>
+      <div id="movies-list">
         <span class="digest-loading">Loading...</span>
       </div>
     </div>
@@ -4327,6 +4369,7 @@ onAuthStateChanged(auth, user => {
   const DEALS_PROXY_URL    = 'https://focus-proxy.vercel.app/api/deals';
   const REDDIT_PROXY_URL   = 'https://focus-proxy.vercel.app/api/reddit';
   const MTGSTOCKS_PROXY_URL  = 'https://focus-proxy.vercel.app/api/mtgstocks';
+  const TMDB_PROXY_URL       = 'https://focus-proxy.vercel.app/api/tmdb';
 
   // ── TIMEOUT CONSTANTS ─────────────────────────────────────────
   const TIMEOUT_SHORT   = 4000;  // individual ticker fetches
@@ -5749,6 +5792,73 @@ onAuthStateChanged(auth, user => {
       _renderBook(viewer, b, status);
     } else {
       showRandomBook();
+    }
+  }
+
+  // ── UPCOMING MOVIES (TMDB) ────────────────────────────────────
+  function _fmtRelease(s) {
+    const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const p = String(s || '').split('-');
+    if (p.length < 3) return s || '';
+    const mi = parseInt(p[1], 10) - 1;
+    if (mi < 0 || mi > 11) return s;
+    return mo[mi] + ' ' + parseInt(p[2], 10) + ', ' + p[0];
+  }
+
+  function renderUpcomingMovies(data) {
+    const el = document.getElementById('movies-list');
+    if (!el) return;
+    const movies = (data && data.movies) || [];
+    if (!movies.length) {
+      el.innerHTML = '<div class="empty-state">No upcoming movies</div>';
+      return;
+    }
+    el.innerHTML = movies.map(function(m) {
+      const poster = m.poster
+        ? '<img class="movie-poster" src="' + esc(m.poster) + '" alt="' + esc(m.title) + '" loading="lazy"'
+          + ' onerror="this.style.visibility=\'hidden\'">'
+        : '<div class="movie-poster"></div>';
+      const meta = [_fmtRelease(m.release), m.genre, (m.rating ? '★ ' + m.rating : '')]
+        .filter(Boolean).join('  ·  ');
+      return '<a class="movie-row" href="' + escUrl(m.link) + '" target="_blank" rel="noopener">'
+        + poster
+        + '<div class="movie-info">'
+        + '<div class="movie-title">' + esc(m.title) + '</div>'
+        + '<div class="movie-meta">' + esc(meta) + '</div>'
+        + (m.overview ? '<div class="movie-overview">' + esc(_bookStripHtml(m.overview, 150)) + '</div>' : '')
+        + '</div>'
+        + '</a>';
+    }).join('');
+  }
+
+  async function loadUpcomingMovies() {
+    const el = document.getElementById('movies-list');
+    const status = document.getElementById('movies-updated');
+    if (!el) return;
+    const cached = cacheGet('upcoming-movies', 12 * 60 * 60 * 1000);
+    if (cached && cached.data) {
+      renderUpcomingMovies(cached.data);
+      if (status && cached.label) status.textContent = cached.label;
+      return;
+    }
+    el.innerHTML = '<span class="digest-loading">Loading movies...</span>';
+    try {
+      const r = await fetchWithTimeout(TMDB_PROXY_URL, TIMEOUT_LONG);
+      if (!r.ok) throw new Error('TMDB proxy ' + r.status);
+      const data = await r.json();
+      if (!data.movies || !data.movies.length) throw new Error('no movies');
+      renderUpcomingMovies(data);
+      const lbl = asOfNow();
+      if (status) status.textContent = lbl;
+      cacheSet('upcoming-movies', data, lbl);
+    } catch (e) {
+      const stale = cacheGetStale('upcoming-movies');
+      if (stale && stale.data) {
+        renderUpcomingMovies(stale.data);
+        if (status) status.textContent = 'stale';
+      } else {
+        el.innerHTML = '<div class="empty-state">Movies unavailable</div>';
+      }
     }
   }
 
@@ -7291,6 +7401,9 @@ onAuthStateChanged(auth, user => {
 
   // ── FROM THE SHELF INIT ─────────────────────────────────────
   loadShelfBook();
+
+  // ── UPCOMING MOVIES INIT ────────────────────────────────────
+  loadUpcomingMovies();
 
   // ── SEALED PRICES INIT ──────────────────────────────────────
   loadSealedPrices();
