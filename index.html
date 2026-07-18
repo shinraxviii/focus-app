@@ -2993,7 +2993,7 @@ onAuthStateChanged(auth, user => {
     <!-- SEALED PRODUCT PRICES -->
     <div class="digest-card">
       <div class="digest-card-header">
-        <span class="digest-card-title">Magic: The Gathering Sealed</span>
+        <span class="digest-card-title">Sealed</span>
         <span class="digest-card-updated" id="sealed-updated">via MTGStocks</span>
       </div>
       <div id="sealed-list">
@@ -3004,7 +3004,7 @@ onAuthStateChanged(auth, user => {
     <!-- MTG CARDS -->
     <div class="digest-card">
       <div class="digest-card-header">
-        <span class="digest-card-title">Magic: The Gathering Singles</span>
+        <span class="digest-card-title">Singles</span>
         <span class="digest-card-updated" id="mtg-updated">via Scryfall</span>
       </div>
       <div class="card-list" id="mtg-list">
@@ -5409,8 +5409,6 @@ onAuthStateChanged(auth, user => {
     { name: "The One Ring",               set: "Lord of the Rings",  setCode: 'ltr' },
     { name: "Wheel of Fortune",           set: "Revised Edition",    setCode: '3ed' },
     { name: "Sheoldred, the Apocalypse",  set: "Dominaria United",   setCode: 'dmu' },
-    { name: "Mana Vault",                 set: "Fourth Edition",     setCode: '4ed' },
-    { name: "Sephiroth, Fabled SOLDIER",  set: "Final Fantasy",      setCode: 'fin' },
     { name: "Bayou",                      set: "Revised Edition",    setCode: '3ed' },
     { name: "Volcanic Island",            set: "Revised Edition",    setCode: '3ed' },
     { name: "Underground Sea",            set: "Revised Edition",    setCode: '3ed' },
@@ -5934,7 +5932,7 @@ onAuthStateChanged(auth, user => {
       }
       const deltaClass = delta >= 0 ? 'up' : 'down';
       const deltaStr = (delta >= 0 ? '+' : '') + delta.toFixed(1) + '%';
-      const spark = drawSparkline(prices, 60, 24);
+      const spark = drawSparkline(prices.slice(-30), 60, 24);
       html += '<a class="sealed-row" href="https://www.mtgstocks.com/sealed/' + p.id + '" target="_blank" rel="noopener">'
         + '<div class="sealed-info"><div class="sealed-name">' + esc(p.set) + '</div>'
         + '<div class="sealed-set">' + esc(p.name) + '</div></div>'
