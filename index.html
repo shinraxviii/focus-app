@@ -1758,6 +1758,11 @@
   }
   .reddit-sub-input::placeholder { color: var(--text-muted); }
 
+  /* EDHREC Commander Recs */
+  .edhrec-row { text-decoration: none; color: inherit; }
+  .edhrec-syn.up { color: #22c55e; }
+  .edhrec-syn.down { color: #ef4444; }
+
   /* Fever Events */
   .fever-list {
     display: flex;
@@ -2968,6 +2973,20 @@ onAuthStateChanged(auth, user => {
 
   <!-- GAMING -->
   <div class="digest-grid digest-subtab-content" id="subtab-gaming" style="display:none;">
+    <!-- EDHREC COMMANDER RECOMMENDATIONS -->
+    <div class="digest-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title">Commander Recs</span>
+        <span class="digest-card-updated" id="edhrec-updated">via EDHREC</span>
+      </div>
+      <div class="reddit-add-row">
+        <input type="text" id="edhrec-input" placeholder="Commander name (e.g. Atraxa, Praetors' Voice)" class="reddit-sub-input">
+      </div>
+      <div class="card-list" id="edhrec-list">
+        <span class="digest-loading">Enter a commander above</span>
+      </div>
+    </div>
+
     <!-- SORCERY: CONTESTED REALM -->
     <div class="digest-card">
       <div class="digest-card-header">
@@ -6010,6 +6029,117 @@ onAuthStateChanged(auth, user => {
       if (statusEl) statusEl.textContent = 'using fallback';
     }
   }
+
+  // ── EDHREC COMMANDER RECOMMENDATIONS ──────────────────────────
+  // EDHREC exposes a public JSON API at json.edhrec.com with permissive CORS,
+  // so the commander pages can be queried straight from the browser — no proxy
+  // route needed. Given a commander name we surface its "New Cards" section:
+  // the most recently printed cards the site now recommends for that deck.
+  const EDHREC_JSON_URL = 'https://json.edhrec.com/pages/commanders/';
+  const EDHREC_DEFAULT  = "Atraxa, Praetors' Voice";
+
+  // Convert a commander name into an EDHREC url slug: lowercase, strip accents
+  // and apostrophes, and turn every other run of non-alphanumerics into a
+  // hyphen. "Atraxa, Praetors' Voice" -> "atraxa-praetors-voice".
+  function edhrecSlug(name) {
+    return String(name).toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // strip accents
+      .replace(/['\u2018\u2019]/g, '')            // drop apostrophes
+      .replace(/[^a-z0-9]+/g, '-')                      // other -> hyphen
+      .replace(/^-+|-+$/g, '');
+  }
+
+  function renderEdhrec(cards) {
+    const el = document.getElementById('edhrec-list');
+    if (!el) return;
+    if (!cards || !cards.length) {
+      el.innerHTML = '<span class="digest-loading">No recommendations found.</span>';
+      return;
+    }
+    let html = '';
+    for (let i = 0; i < cards.length; i++) {
+      const c = cards[i];
+      const num = (c.num_decks != null) ? c.num_decks : c.inclusion;
+      const pot = c.potential_decks;
+      let big = '', sub = '';
+      if (num != null && pot) {
+        big = Math.round((num / pot) * 100) + '%';
+        sub = 'of ' + Number(pot).toLocaleString() + ' decks';
+      } else if (num != null) {
+        big = Number(num).toLocaleString();
+        sub = 'decks';
+      }
+      const syn = (typeof c.synergy === 'number') ? c.synergy : null;
+      let synHtml = '';
+      if (syn != null) {
+        const synClass = syn >= 0 ? 'up' : 'down';
+        synHtml = '<div class="card-set edhrec-syn ' + synClass + '">'
+          + (syn >= 0 ? '+' : '') + Math.round(syn * 100) + '% synergy</div>';
+      }
+      const href = 'https://edhrec.com' + (c.url || ('/cards/' + (c.sanitized || edhrecSlug(c.name))));
+      html += '<a class="card-row edhrec-row" href="' + escUrl(href) + '" target="_blank" rel="noopener">'
+        + '<div class="card-name">' + esc(c.name) + synHtml + '</div>'
+        + '<div style="text-align:right"><div class="card-price">' + esc(big) + '</div>'
+        + (sub ? '<div class="card-price-sub">' + esc(sub) + '</div>' : '') + '</div>'
+        + '</a>';
+    }
+    el.innerHTML = html;
+  }
+
+  async function loadEdhrec(name, opts) {
+    const statusEl = document.getElementById('edhrec-updated');
+    const listEl = document.getElementById('edhrec-list');
+    const slug = edhrecSlug(name);
+    if (!slug) return;
+    const cacheKey = 'edhrec-' + slug;
+    const force = opts && opts.force;
+    // Cache each commander for 24h so re-typing a recent one is instant.
+    const cached = !force && cacheGet(cacheKey, 24 * 60 * 60 * 1000);
+    if (cached && cached.data) {
+      renderEdhrec(cached.data.cards);
+      if (statusEl && cached.label) statusEl.textContent = cached.label;
+      return;
+    }
+    if (listEl) listEl.innerHTML = '<span class="digest-loading">Loading ' + esc(name) + '…</span>';
+    if (statusEl) statusEl.textContent = 'loading…';
+    try {
+      const r = await fetchWithTimeout(EDHREC_JSON_URL + slug + '.json', TIMEOUT_MEDIUM);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const json = await r.json();
+      const dict = (json.container && json.container.json_dict) || {};
+      const lists = dict.cardlists || [];
+      const pick = function(tag) { return lists.find(function(l) { return l.tag === tag; }); };
+      // Prefer the recently-printed "New Cards"; fall back to high-synergy,
+      // then top cards, then whatever the first section is.
+      const section = pick('newcards') || pick('highsynergycards') || pick('topcards') || lists[0];
+      const cards = ((section && section.cardviews) || []).slice(0, 12);
+      if (!cards.length) throw new Error('no cards');
+      const header = (section && section.header) || 'Recommendations';
+      const label = header + ' · via EDHREC';
+      cacheSet(cacheKey, { cards: cards, header: header }, label);
+      renderEdhrec(cards);
+      if (statusEl) statusEl.textContent = label;
+      localStorage.setItem('focus-digest-edhrec-last', name);
+    } catch (e) {
+      if (listEl) listEl.innerHTML = '<span class="digest-loading">Couldn\'t find "'
+        + esc(name) + '" on EDHREC — check the spelling (include commas and the full name).</span>';
+      if (statusEl) statusEl.textContent = 'via EDHREC';
+    }
+  }
+
+  (function initEdhrec() {
+    const input = document.getElementById('edhrec-input');
+    if (!input) return;
+    input.addEventListener('keydown', function(e) {
+      if (e.key !== 'Enter') return;
+      const name = input.value.trim();
+      if (!name) return;
+      loadEdhrec(name, { force: true });
+    });
+    const last = localStorage.getItem('focus-digest-edhrec-last') || EDHREC_DEFAULT;
+    input.value = last;
+    loadEdhrec(last);
+  })();
 
   // ── FEVER LA EVENTS ───────────────────────────────────────
   // Static fallback data (updated Feb 2026)
