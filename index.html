@@ -5924,15 +5924,18 @@ onAuthStateChanged(auth, user => {
       const d = data[p.id] || {};
       const price = d.price || p.fallbackPrice;
       const prices = d.history || [];
+      // Percentage reflects the change over the last 30 days (matching the
+      // sparkline window), not the full all-time history.
+      const window = prices.slice(-30);
       let delta = 0;
-      if (prices.length >= 2) {
-        const old = prices[0];
-        const cur = prices[prices.length - 1];
+      if (window.length >= 2) {
+        const old = window[0];
+        const cur = window[window.length - 1];
         delta = old > 0 ? ((cur - old) / old) * 100 : 0;
       }
       const deltaClass = delta >= 0 ? 'up' : 'down';
       const deltaStr = (delta >= 0 ? '+' : '') + delta.toFixed(1) + '%';
-      const spark = drawSparkline(prices.slice(-30), 60, 24);
+      const spark = drawSparkline(window, 60, 24);
       html += '<a class="sealed-row" href="https://www.mtgstocks.com/sealed/' + p.id + '" target="_blank" rel="noopener">'
         + '<div class="sealed-info"><div class="sealed-name">' + esc(p.set) + '</div>'
         + '<div class="sealed-set">' + esc(p.name) + '</div></div>'
