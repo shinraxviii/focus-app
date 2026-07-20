@@ -3020,6 +3020,28 @@ onAuthStateChanged(auth, user => {
 
   <!-- GAMING -->
   <div class="digest-grid digest-subtab-content" id="subtab-gaming" style="display:none;">
+    <!-- MTG RANDOM CARD -->
+    <div class="digest-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title">Magic: The Gathering</span>
+        <span class="digest-card-updated" id="mtg-random-updated">via Scryfall</span>
+      </div>
+      <div class="sorcery-viewer" id="mtg-random-viewer">
+        <span class="digest-loading">Loading...</span>
+      </div>
+    </div>
+
+    <!-- SORCERY: CONTESTED REALM -->
+    <div class="digest-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title">Sorcery: Contested Realm</span>
+        <span class="digest-card-updated" id="sorcery-updated">via Curiosa</span>
+      </div>
+      <div class="sorcery-viewer" id="sorcery-viewer">
+        <span class="digest-loading">Loading...</span>
+      </div>
+    </div>
+
     <!-- EDHREC COMMANDER RECOMMENDATIONS -->
     <div class="digest-card">
       <div class="digest-card-header">
@@ -3036,28 +3058,6 @@ onAuthStateChanged(auth, user => {
       </div>
       <div class="card-list" id="edhrec-list">
         <span class="digest-loading">Enter a commander above</span>
-      </div>
-    </div>
-
-    <!-- SORCERY: CONTESTED REALM -->
-    <div class="digest-card">
-      <div class="digest-card-header">
-        <span class="digest-card-title">Sorcery: Contested Realm</span>
-        <span class="digest-card-updated" id="sorcery-updated">via Curiosa</span>
-      </div>
-      <div class="sorcery-viewer" id="sorcery-viewer">
-        <span class="digest-loading">Loading...</span>
-      </div>
-    </div>
-
-    <!-- MTG RANDOM CARD -->
-    <div class="digest-card">
-      <div class="digest-card-header">
-        <span class="digest-card-title">Magic: The Gathering</span>
-        <span class="digest-card-updated" id="mtg-random-updated">via Scryfall</span>
-      </div>
-      <div class="sorcery-viewer" id="mtg-random-viewer">
-        <span class="digest-loading">Loading...</span>
       </div>
     </div>
 
@@ -6146,25 +6146,38 @@ onAuthStateChanged(auth, user => {
       const c = cards[i];
       const num = (c.num_decks != null) ? c.num_decks : c.inclusion;
       const pot = c.potential_decks;
-      let big = '', sub = '';
-      if (num != null && pot) {
+      // Inclusion = share of this commander's decks that run the card. It goes
+      // on the muted line under the name, not the headline.
+      let inclStr = '';
+      if (num != null && pot) inclStr = Math.round((num / pot) * 100) + '% of decks';
+      else if (num != null) inclStr = 'in ' + Number(num).toLocaleString() + ' decks';
+
+      const syn = (typeof c.synergy === 'number') ? c.synergy : null;
+      // The headline number is the synergy %. Only fall back to the inclusion
+      // figure when a card has no synergy score at all.
+      let big, bigClass, sub, subLine = '';
+      if (syn != null) {
+        big = (syn >= 0 ? '+' : '') + Math.round(syn * 100) + '%';
+        bigClass = 'card-price edhrec-syn ' + (syn >= 0 ? 'up' : 'down');
+        sub = 'synergy';
+        if (inclStr) subLine = '<div class="card-set">' + esc(inclStr) + '</div>';
+      } else if (num != null && pot) {
         big = Math.round((num / pot) * 100) + '%';
-        sub = 'of ' + Number(pot).toLocaleString() + ' decks';
+        bigClass = 'card-price';
+        sub = 'of decks';
       } else if (num != null) {
         big = Number(num).toLocaleString();
+        bigClass = 'card-price';
         sub = 'decks';
-      }
-      const syn = (typeof c.synergy === 'number') ? c.synergy : null;
-      let synHtml = '';
-      if (syn != null) {
-        const synClass = syn >= 0 ? 'up' : 'down';
-        synHtml = '<div class="card-set edhrec-syn ' + synClass + '">'
-          + (syn >= 0 ? '+' : '') + Math.round(syn * 100) + '% synergy</div>';
+      } else {
+        big = '—';
+        bigClass = 'card-price';
+        sub = '';
       }
       const href = 'https://edhrec.com' + (c.url || ('/cards/' + (c.sanitized || edhrecSlug(c.name))));
       html += '<a class="card-row edhrec-row" href="' + escUrl(href) + '" target="_blank" rel="noopener">'
-        + '<div class="card-name">' + esc(c.name) + synHtml + '</div>'
-        + '<div style="text-align:right"><div class="card-price">' + esc(big) + '</div>'
+        + '<div class="card-name">' + esc(c.name) + subLine + '</div>'
+        + '<div style="text-align:right"><div class="' + bigClass + '">' + esc(big) + '</div>'
         + (sub ? '<div class="card-price-sub">' + esc(sub) + '</div>' : '') + '</div>'
         + '</a>';
     }
