@@ -2320,44 +2320,48 @@
   }
   .signout-btn:hover { color: var(--text); border-color: var(--text-dim); }
   /* ── ANALYTICS ─────────────────────────────────── */
+  /* Folder-tab nav: a full-width baseline rule with tabs sitting on it. */
   .nav-toggle {
-    display: flex;
-    gap: 6px;
-    align-items: center;
     margin-bottom: 32px;
+    position: relative;
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-inner {
+    display: flex;
+    gap: 4px;
+    align-items: flex-end;
     position: relative;
   }
   .nav-btn {
     background: transparent;
-    border: none;
-    border-radius: 6px;
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    margin-bottom: -1px; /* overlap the baseline so the active tab breaks it */
     color: var(--text-muted);
     font-family: 'DM Mono', monospace;
     font-size: 10px;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    padding: 7px 14px;
+    padding: 8px 14px;
     cursor: pointer;
-    transition: color 0.25s;
+    transition: color 0.2s, background 0.2s, border-color 0.2s;
     position: relative;
     z-index: 1;
     user-select: none;
   }
-  .nav-btn.active { color: var(--text); }
-  .nav-btn:hover  { color: var(--text); }
-
-  .nav-pill {
-    position: absolute;
-    top: 0; left: 0;
-    height: 100%;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    pointer-events: none;
-    z-index: 0;
-    transition: left 0.32s cubic-bezier(0.4,0,0.2,1),
-                width 0.32s cubic-bezier(0.4,0,0.2,1);
+  .nav-btn:hover:not(.active) {
+    color: var(--text);
+    background: color-mix(in srgb, var(--text) 6%, transparent);
   }
+  .nav-btn.active {
+    color: var(--text);
+    background: var(--surface);
+    border-color: var(--border);
+  }
+
+  /* Sliding pill retired in favor of per-tab folder styling. */
+  .nav-pill { display: none; }
 
   /* Page slider */
   #page-slider-wrap {
@@ -2729,13 +2733,15 @@
      the sub-tabs and cards below.
      Placed at the end of the sheet so it wins over the base rules. */
   @media (min-width: 701px) {
-    .nav-toggle,
+    .nav-inner,
     .digest-sub-tabs,
     .digest-subtab-content {
       max-width: 1200px;
       margin-left: auto;
       margin-right: auto;
     }
+    /* roomier folder tabs on desktop; compact base keeps them fitting on phones */
+    .nav-btn { padding: 10px 20px; }
   }
 
 </style>
@@ -2876,11 +2882,13 @@ onAuthStateChanged(auth, user => {
 <div id="sync-status">Saving...</div>
 
 <div class="nav-toggle" id="nav-toggle">
-  <div class="nav-pill" id="nav-pill"></div>
-  <button class="nav-btn" id="btn-digest" onclick="showPage('digest')">Digest</button>
-  <button class="nav-btn active" id="btn-personal" onclick="showPage('personal')">Personal</button>
-  <button class="nav-btn" id="btn-work" onclick="showPage('work')">Work</button>
-  <button class="nav-btn" id="btn-analytics" onclick="showPage('analytics')">Analytics</button>
+  <div class="nav-inner">
+    <div class="nav-pill" id="nav-pill"></div>
+    <button class="nav-btn" id="btn-digest" onclick="showPage('digest')">Digest</button>
+    <button class="nav-btn active" id="btn-personal" onclick="showPage('personal')">Personal</button>
+    <button class="nav-btn" id="btn-work" onclick="showPage('work')">Work</button>
+    <button class="nav-btn" id="btn-analytics" onclick="showPage('analytics')">Analytics</button>
+  </div>
 </div>
 
 <div id="page-slider-wrap">
