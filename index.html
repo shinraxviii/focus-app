@@ -2725,8 +2725,11 @@
   /* ── DESKTOP: keep the digest cards tight instead of stretched ──
      On web, cap the digest content width and center it so wide screens
      get whitespace on both sides. Mobile (≤700px) stays full-width.
+     The top nav bar shares the same centered column so it lines up with
+     the sub-tabs and cards below.
      Placed at the end of the sheet so it wins over the base rules. */
   @media (min-width: 701px) {
+    .nav-toggle,
     .digest-sub-tabs,
     .digest-subtab-content {
       max-width: 1200px;
