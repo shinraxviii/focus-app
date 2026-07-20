@@ -1762,6 +1762,53 @@
   .edhrec-row { text-decoration: none; color: inherit; }
   .edhrec-syn.up { color: #22c55e; }
   .edhrec-syn.down { color: #ef4444; }
+  .edhrec-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 4px 14px 10px;
+  }
+  .edhrec-chip {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    background: var(--btn-bg);
+    border: 1px solid var(--btn-border);
+    border-radius: 999px;
+    padding: 5px 9px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+  }
+  .edhrec-chip:hover { color: var(--text); border-color: var(--btn-icon); }
+  .edhrec-chip.active {
+    color: var(--text);
+    background: var(--surface2);
+    border-color: var(--btn-icon);
+  }
+  .edhrec-tabs {
+    display: flex;
+    gap: 6px;
+    padding: 0 14px 10px;
+  }
+  .edhrec-tab {
+    flex: 1;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    background: transparent;
+    border: 1px solid var(--btn-border);
+    border-radius: 6px;
+    padding: 7px 10px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+  }
+  .edhrec-tab:hover { color: var(--text); border-color: var(--btn-icon); }
+  .edhrec-tab[aria-selected="true"] {
+    color: var(--text);
+    background: var(--surface2);
+    border-color: var(--btn-icon);
+  }
 
   /* Fever Events */
   .fever-list {
@@ -2979,8 +3026,13 @@ onAuthStateChanged(auth, user => {
         <span class="digest-card-title">Commander Recs</span>
         <span class="digest-card-updated" id="edhrec-updated">via EDHREC</span>
       </div>
+      <div class="edhrec-chips" id="edhrec-chips"></div>
       <div class="reddit-add-row">
-        <input type="text" id="edhrec-input" placeholder="Commander name (e.g. Atraxa, Praetors' Voice)" class="reddit-sub-input">
+        <input type="text" id="edhrec-input" placeholder="Commander name (e.g. Zur the Enchanter)" class="reddit-sub-input">
+      </div>
+      <div class="edhrec-tabs" id="edhrec-tabs">
+        <button type="button" class="edhrec-tab" data-section="newcards" aria-selected="true">New Cards</button>
+        <button type="button" class="edhrec-tab" data-section="highsynergycards" aria-selected="false">High Synergy</button>
       </div>
       <div class="card-list" id="edhrec-list">
         <span class="digest-loading">Enter a commander above</span>
@@ -6033,10 +6085,22 @@ onAuthStateChanged(auth, user => {
   // ── EDHREC COMMANDER RECOMMENDATIONS ──────────────────────────
   // EDHREC exposes a public JSON API at json.edhrec.com with permissive CORS,
   // so the commander pages can be queried straight from the browser — no proxy
-  // route needed. Given a commander name we surface its "New Cards" section:
-  // the most recently printed cards the site now recommends for that deck.
+  // route needed. For a given commander we pull two of its sections — "New
+  // Cards" (recently printed cards now recommended) and "High Synergy" (the
+  // signature build-arounds) — and let a tab toggle switch between them.
   const EDHREC_JSON_URL = 'https://json.edhrec.com/pages/commanders/';
-  const EDHREC_DEFAULT  = "Atraxa, Praetors' Voice";
+  // Quick-pick commanders (the user's decks). Edit this list to change chips.
+  const EDHREC_COMMANDERS = [
+    'Maha, Its Feathers Night',
+    'Sephiroth, Fabled Soldier',
+    'Gargos, Vicious Watcher',
+    'Zur the Enchanter',
+    'Valgavoth, Harrower of Souls'
+  ];
+  const EDHREC_DEFAULT = EDHREC_COMMANDERS[0];
+  const EDHREC_SECTION_LABEL = { newcards: 'New Cards', highsynergycards: 'High Synergy' };
+  // Active view: the loaded commander's data + which section tab is showing.
+  const edhrecState = { data: null, section: 'newcards' };
 
   // Convert a commander name into an EDHREC url slug: lowercase, strip accents
   // and apostrophes, and turn every other run of non-alphanumerics into a
@@ -6049,11 +6113,32 @@ onAuthStateChanged(auth, user => {
       .replace(/^-+|-+$/g, '');
   }
 
-  function renderEdhrec(cards) {
+  // Highlight whichever quick-pick chip matches the active commander (if any).
+  function setEdhrecActiveChip(name) {
+    const slug = edhrecSlug(name);
+    const chips = document.querySelectorAll('#edhrec-chips .edhrec-chip');
+    for (let i = 0; i < chips.length; i++) {
+      chips[i].classList.toggle('active', chips[i].dataset.slug === slug);
+    }
+  }
+
+  // Render the currently-selected section (edhrecState.section) of the loaded
+  // commander (edhrecState.data). Also syncs the tab highlight + status label.
+  function renderEdhrecList() {
     const el = document.getElementById('edhrec-list');
+    const statusEl = document.getElementById('edhrec-updated');
     if (!el) return;
-    if (!cards || !cards.length) {
-      el.innerHTML = '<span class="digest-loading">No recommendations found.</span>';
+    const tabs = document.querySelectorAll('#edhrec-tabs .edhrec-tab');
+    for (let i = 0; i < tabs.length; i++) {
+      tabs[i].setAttribute('aria-selected', tabs[i].dataset.section === edhrecState.section ? 'true' : 'false');
+    }
+    const data = edhrecState.data;
+    if (!data) return;
+    if (statusEl) statusEl.textContent = (EDHREC_SECTION_LABEL[edhrecState.section] || 'Cards') + ' · via EDHREC';
+    const cards = data[edhrecState.section] || [];
+    if (!cards.length) {
+      el.innerHTML = '<span class="digest-loading">No ' + (EDHREC_SECTION_LABEL[edhrecState.section] || 'cards')
+        + ' listed for this commander.</span>';
       return;
     }
     let html = '';
@@ -6091,13 +6176,16 @@ onAuthStateChanged(auth, user => {
     const listEl = document.getElementById('edhrec-list');
     const slug = edhrecSlug(name);
     if (!slug) return;
-    const cacheKey = 'edhrec-' + slug;
+    setEdhrecActiveChip(name);
+    // Bumped to edhrec2- so entries cached by the older single-section version
+    // (which stored {cards}) are treated as a miss and refetched.
+    const cacheKey = 'edhrec2-' + slug;
     const force = opts && opts.force;
-    // Cache each commander for 24h so re-typing a recent one is instant.
+    // Cache each commander for 24h so re-picking a recent one is instant.
     const cached = !force && cacheGet(cacheKey, 24 * 60 * 60 * 1000);
-    if (cached && cached.data) {
-      renderEdhrec(cached.data.cards);
-      if (statusEl && cached.label) statusEl.textContent = cached.label;
+    if (cached && cached.data && (cached.data.newcards || cached.data.highsynergycards)) {
+      edhrecState.data = cached.data;
+      renderEdhrecList();
       return;
     }
     if (listEl) listEl.innerHTML = '<span class="digest-loading">Loading ' + esc(name) + '…</span>';
@@ -6108,19 +6196,29 @@ onAuthStateChanged(auth, user => {
       const json = await r.json();
       const dict = (json.container && json.container.json_dict) || {};
       const lists = dict.cardlists || [];
-      const pick = function(tag) { return lists.find(function(l) { return l.tag === tag; }); };
-      // Prefer the recently-printed "New Cards"; fall back to high-synergy,
-      // then top cards, then whatever the first section is.
-      const section = pick('newcards') || pick('highsynergycards') || pick('topcards') || lists[0];
-      const cards = ((section && section.cardviews) || []).slice(0, 12);
-      if (!cards.length) throw new Error('no cards');
-      const header = (section && section.header) || 'Recommendations';
-      const label = header + ' · via EDHREC';
-      cacheSet(cacheKey, { cards: cards, header: header }, label);
-      renderEdhrec(cards);
-      if (statusEl) statusEl.textContent = label;
+      // Grab the first 12 cardviews of the first section matching a predicate.
+      // We match on both the machine `tag` and the human `header` so a change to
+      // EDHREC's tag naming still resolves the right section by its title.
+      const findList = function(pred) {
+        const l = lists.find(pred);
+        return (l && l.cardviews) ? l.cardviews.slice(0, 12) : [];
+      };
+      const data = {
+        name: name,
+        newcards: findList(function(l) {
+          return l.tag === 'newcards' || /new cards/i.test(l.header || '');
+        }),
+        highsynergycards: findList(function(l) {
+          return l.tag === 'highsynergycards' || /high.?synergy/i.test(l.header || '');
+        })
+      };
+      if (!data.newcards.length && !data.highsynergycards.length) throw new Error('no cards');
+      cacheSet(cacheKey, data, name);
+      edhrecState.data = data;
+      renderEdhrecList();
       localStorage.setItem('focus-digest-edhrec-last', name);
     } catch (e) {
+      edhrecState.data = null;
       if (listEl) listEl.innerHTML = '<span class="digest-loading">Couldn\'t find "'
         + esc(name) + '" on EDHREC — check the spelling (include commas and the full name).</span>';
       if (statusEl) statusEl.textContent = 'via EDHREC';
@@ -6129,7 +6227,28 @@ onAuthStateChanged(auth, user => {
 
   (function initEdhrec() {
     const input = document.getElementById('edhrec-input');
-    if (!input) return;
+    const chipsEl = document.getElementById('edhrec-chips');
+    const tabsEl = document.getElementById('edhrec-tabs');
+    if (!input || !chipsEl || !tabsEl) return;
+    // Build a quick-pick chip per preloaded commander (label = name before comma).
+    EDHREC_COMMANDERS.forEach(function(name) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'edhrec-chip';
+      b.dataset.slug = edhrecSlug(name);
+      b.textContent = name.split(',')[0];
+      b.title = name;
+      b.addEventListener('click', function() { input.value = name; loadEdhrec(name); });
+      chipsEl.appendChild(b);
+    });
+    // Section tabs just flip which stored list renders — no refetch.
+    const tabs = tabsEl.querySelectorAll('.edhrec-tab');
+    for (let i = 0; i < tabs.length; i++) {
+      tabs[i].addEventListener('click', function() {
+        edhrecState.section = this.dataset.section;
+        renderEdhrecList();
+      });
+    }
     input.addEventListener('keydown', function(e) {
       if (e.key !== 'Enter') return;
       const name = input.value.trim();
