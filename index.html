@@ -1264,6 +1264,7 @@
   .stock-grid-col {
     display: flex;
     flex-direction: column;
+    min-width: 0; /* let the 1fr grid tracks shrink instead of overflowing */
   }
 
   .stock-group-label {
@@ -1315,6 +1316,7 @@
     color: var(--text);
     margin-left: 14px;
     flex: 1;
+    min-width: 0; /* required so the name can ellipsis-truncate in a flex row */
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
