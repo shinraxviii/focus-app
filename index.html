@@ -5794,7 +5794,10 @@ onAuthStateChanged(auth, user => {
     for (let attempt = 0; attempt < MTG_MAX_ATTEMPTS; attempt++) {
       let card = null;
       try {
-        const resp = await scryfallFetch('https://api.scryfall.com/cards/random?q=-is%3Adigital+-is%3Afunny');
+        // Cap internal retries at 2 — this loop is itself the retry, so each
+        // attempt should fail fast and grab a fresh random card rather than
+        // stacking four 7s timeouts on a single unlucky request.
+        const resp = await scryfallFetch('https://api.scryfall.com/cards/random?q=-is%3Adigital+-is%3Afunny', 2);
         if (myToken !== _mtgReqToken) return;   // superseded by a newer request
         if (resp && resp.ok) card = await resp.json();
       } catch(e) { /* fall through and retry with another card */ }
