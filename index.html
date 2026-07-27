@@ -5712,6 +5712,7 @@ onAuthStateChanged(auth, user => {
   let _mtgCurrentCard = null;
   let _mtgReqToken = 0;              // discards out-of-order / superseded responses
   const MTG_MAX_ATTEMPTS = 4;        // covers failed fetches AND broken card images
+  const MTG_FETCH_TIMEOUT = 6000;    // per-attempt cap so failures surface fast
   const MTG_IMG_TIMEOUT  = 6000;     // stop *waiting* on a slow image (we still render it)
   const MTG_CACHE_KEY    = 'focus-mtg-random-card';
 
@@ -5784,10 +5785,11 @@ onAuthStateChanged(auth, user => {
     if (status) status.textContent = asOfNow();
   }
 
-  function _mtgShowError(viewer) {
+  function _mtgShowError(viewer, detail) {
     viewer.style.opacity = '1';
     viewer.innerHTML =
-      '<div style="color:var(--text-dim);font-size:11px;padding:40px 0;text-align:center;">Could not load card</div>'
+      '<div style="color:var(--text-dim);font-size:11px;padding:32px 0 6px;text-align:center;">Could not reach Scryfall</div>'
+      + (detail ? '<div style="color:var(--text-dim);opacity:0.7;font-size:10px;padding:0 0 24px;text-align:center;">' + esc(detail) + '</div>' : '')
       + '<button class="sorcery-new-btn" id="mtg-random-new-btn">Try Again</button>';
     document.getElementById('mtg-random-new-btn').addEventListener('click', showRandomMtgCard);
   }
@@ -5823,23 +5825,33 @@ onAuthStateChanged(auth, user => {
     // image, just grab another one. A slow-but-loading image is NOT discarded —
     // we render the card and let the browser finish the image in place, so slow
     // connections still get a card instead of spinning forever.
+    // Each attempt fails within MTG_FETCH_TIMEOUT so the whole loop surfaces a
+    // diagnosable error in seconds rather than a minute-long mute spinner.
+    let lastErr = '';
     for (let attempt = 0; attempt < MTG_MAX_ATTEMPTS; attempt++) {
       let card = null;
       try {
-        // Cap internal retries at 2 — this loop is itself the retry, so each
-        // attempt fails fast and grabs a fresh random card rather than stacking
-        // four 7s timeouts on a single unlucky request.
-        const resp = await scryfallFetch('https://api.scryfall.com/cards/random?q=-is%3Adigital+-is%3Afunny', 2);
+        const resp = await fetchWithTimeout(
+          'https://api.scryfall.com/cards/random?q=-is%3Adigital+-is%3Afunny',
+          MTG_FETCH_TIMEOUT, { headers: { 'Accept': 'application/json' } });
         if (myToken !== _mtgReqToken) return;   // superseded by a newer request
-        if (resp && resp.ok) card = await resp.json();
-      } catch(e) { /* fall through and retry with another card */ }
+        if (resp.ok) {
+          card = await resp.json();
+        } else {
+          lastErr = 'HTTP ' + resp.status;
+          if (resp.status === 429) await new Promise(function(r){ setTimeout(r, 500); });
+        }
+      } catch(e) {
+        // TypeError "Failed to fetch" = blocked/CORS/offline; AbortError = timeout.
+        lastErr = (e && e.name ? e.name : 'Error') + (e && e.message ? ': ' + e.message : '');
+      }
       if (myToken !== _mtgReqToken) return;
       if (!card) continue;
 
       const imgUrl = _mtgImgUrl(card);
       const imgState = await _mtgPreloadImage(imgUrl);
       if (myToken !== _mtgReqToken) return;
-      if (imgState === 'error') continue;       // broken image — try another card
+      if (imgState === 'error') { lastErr = 'image blocked/broken'; continue; }
 
       // 'ok'/'timeout' → show the image (timeout keeps loading in the DOM);
       // 'none' → the card genuinely has no art, render the placeholder.
@@ -5851,12 +5863,13 @@ onAuthStateChanged(auth, user => {
     }
 
     if (myToken !== _mtgReqToken) return;
+    if (typeof console !== 'undefined') console.warn('[MTG] card load failed:', lastErr);
     // Every attempt failed. Keep whatever card is already shown (cached/previous)
     // rather than wiping it; only surface an error if there's nothing to show.
     if (viewer.querySelector('.sorcery-card-img')) {
       viewer.style.opacity = '1';
     } else {
-      _mtgShowError(viewer);
+      _mtgShowError(viewer, lastErr);
     }
   }
 
