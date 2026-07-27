@@ -5712,7 +5712,26 @@ onAuthStateChanged(auth, user => {
   let _mtgCurrentCard = null;
   let _mtgReqToken = 0;              // discards out-of-order / superseded responses
   const MTG_MAX_ATTEMPTS = 4;        // covers failed fetches AND broken card images
-  const MTG_IMG_TIMEOUT  = 6000;     // stop waiting on a slow image and try another
+  const MTG_IMG_TIMEOUT  = 6000;     // stop *waiting* on a slow image (we still render it)
+  const MTG_CACHE_KEY    = 'focus-mtg-random-card';
+
+  // Persist the last good card so repeat loads paint instantly and survive a
+  // slow or unreachable Scryfall. Stores only the fields the renderer needs.
+  function _mtgCacheSet(card, imgUrl) {
+    try {
+      localStorage.setItem(MTG_CACHE_KEY, JSON.stringify({
+        imgUrl: imgUrl || '',
+        name: card.name, type_line: card.type_line,
+        set_name: card.set_name, released_at: card.released_at
+      }));
+    } catch(e) { /* storage full / disabled — non-fatal */ }
+  }
+  function _mtgCacheGet() {
+    try {
+      const raw = localStorage.getItem(MTG_CACHE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch(e) { return null; }
+  }
 
   // Pick the best available image for a card, handling double-faced cards.
   function _mtgImgUrl(card) {
@@ -5722,23 +5741,24 @@ onAuthStateChanged(auth, user => {
     return uris.normal || uris.large || uris.small || '';
   }
 
-  // Load an image off-DOM so the card only swaps in once it's actually ready.
-  // Resolves true on load, false on error/timeout — never rejects.
+  // Preload an image off-DOM so the card doesn't swap in over a blank box.
+  // Resolves 'ok' (loaded), 'timeout' (slow — but not broken), 'error'
+  // (definitively broken), or 'none' (no URL). Never rejects.
   function _mtgPreloadImage(url) {
     return new Promise(function(resolve) {
-      if (!url) { resolve(false); return; }
+      if (!url) { resolve('none'); return; }
       const img = new Image();
       let settled = false;
-      const finish = function(ok) {
+      const finish = function(state) {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
         img.onload = img.onerror = null;
-        resolve(ok);
+        resolve(state);
       };
-      const timer = setTimeout(function() { finish(false); }, MTG_IMG_TIMEOUT);
-      img.onload  = function() { finish(true); };
-      img.onerror = function() { finish(false); };
+      const timer = setTimeout(function() { finish('timeout'); }, MTG_IMG_TIMEOUT);
+      img.onload  = function() { finish('ok'); };
+      img.onerror = function() { finish('error'); };
       img.src = url;
     });
   }
@@ -5778,9 +5798,20 @@ onAuthStateChanged(auth, user => {
     if (!viewer) return;
 
     const myToken = ++_mtgReqToken;
-    const hasCard = !!viewer.querySelector('.sorcery-card-img');
+    let hasCard = !!viewer.querySelector('.sorcery-card-img');
 
-    // Give immediate feedback: dim the current card, or show a spinner on first load.
+    // First load: paint the last cached card immediately instead of a spinner,
+    // so the widget is never blank while a fresh card is fetched in the
+    // background. If Scryfall is down, the cached card simply stays.
+    if (!hasCard) {
+      const cached = _mtgCacheGet();
+      if (cached && cached.name) {
+        _renderMtgCard(viewer, cached, cached.imgUrl || '', status);
+        hasCard = true;
+      }
+    }
+
+    // Feedback: dim the current/cached card, or spin if we have nothing yet.
     if (hasCard) {
       viewer.style.opacity = '0.4';
     } else {
@@ -5788,15 +5819,16 @@ onAuthStateChanged(auth, user => {
       viewer.innerHTML = '<div class="sorcery-img-wrap"><span class="mtg-spinner"></span></div>';
     }
 
-    // A random card is disposable: if the fetch fails or its image is broken,
-    // just grab another one instead of surfacing an error. Preloading the image
-    // off-DOM means the card only swaps in once it's ready — no blank flash.
+    // A random card is disposable: on a failed fetch or a definitively broken
+    // image, just grab another one. A slow-but-loading image is NOT discarded —
+    // we render the card and let the browser finish the image in place, so slow
+    // connections still get a card instead of spinning forever.
     for (let attempt = 0; attempt < MTG_MAX_ATTEMPTS; attempt++) {
       let card = null;
       try {
         // Cap internal retries at 2 — this loop is itself the retry, so each
-        // attempt should fail fast and grab a fresh random card rather than
-        // stacking four 7s timeouts on a single unlucky request.
+        // attempt fails fast and grabs a fresh random card rather than stacking
+        // four 7s timeouts on a single unlucky request.
         const resp = await scryfallFetch('https://api.scryfall.com/cards/random?q=-is%3Adigital+-is%3Afunny', 2);
         if (myToken !== _mtgReqToken) return;   // superseded by a newer request
         if (resp && resp.ok) card = await resp.json();
@@ -5805,17 +5837,27 @@ onAuthStateChanged(auth, user => {
       if (!card) continue;
 
       const imgUrl = _mtgImgUrl(card);
-      const imgOk = await _mtgPreloadImage(imgUrl);
+      const imgState = await _mtgPreloadImage(imgUrl);
       if (myToken !== _mtgReqToken) return;
-      if (imgUrl && !imgOk) continue;           // broken/slow image — try another card
+      if (imgState === 'error') continue;       // broken image — try another card
 
+      // 'ok'/'timeout' → show the image (timeout keeps loading in the DOM);
+      // 'none' → the card genuinely has no art, render the placeholder.
+      const finalUrl = imgState === 'none' ? '' : imgUrl;
       _mtgCurrentCard = card;
-      _renderMtgCard(viewer, card, imgOk ? imgUrl : '', status);
+      _renderMtgCard(viewer, card, finalUrl, status);
+      _mtgCacheSet(card, finalUrl);
       return;
     }
 
     if (myToken !== _mtgReqToken) return;
-    _mtgShowError(viewer);
+    // Every attempt failed. Keep whatever card is already shown (cached/previous)
+    // rather than wiping it; only surface an error if there's nothing to show.
+    if (viewer.querySelector('.sorcery-card-img')) {
+      viewer.style.opacity = '1';
+    } else {
+      _mtgShowError(viewer);
+    }
   }
 
   // ── FROM THE SHELF (Google Books) ─────────────────────────────
