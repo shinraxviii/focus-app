@@ -1326,6 +1326,16 @@
     text-overflow: ellipsis;
   }
 
+  .stock-mktcap {
+    font-size: 11px;
+    color: var(--text-dim);
+    width: 60px;
+    min-width: 60px;
+    text-align: right;
+    font-family: 'DM Mono', monospace;
+    margin-left: 12px;
+  }
+
   .stock-price {
     font-family: 'DM Serif Display', serif;
     font-size: 16px;
@@ -2229,6 +2239,7 @@
     .digest-card.full-width { grid-column: 1; }
     .stock-grid { grid-template-columns: 1fr; gap: 0; }
     .stock-name { display: none; }
+    .stock-mktcap { display: none; }
     .stock-ticker-badge { width: 70px; min-width: 70px; font-size: 10px; }
     .stock-price { width: 70px; min-width: 70px; font-size: 14px; margin-left: 12px; }
     .stock-change-val { width: 60px; min-width: 60px; font-size: 10px; }
@@ -5204,6 +5215,15 @@ onAuthStateChanged(auth, user => {
         const byLabel = {};
         stocks.forEach(function(s) { byLabel[s.label] = s; });
 
+        function fmtCap(n) {
+          n = parseFloat(n);
+          if (!isFinite(n) || n <= 0) return '';
+          if (n >= 1e12) return '$' + (n / 1e12).toFixed(n >= 1e13 ? 1 : 2) + 'T';
+          if (n >= 1e9)  return '$' + (n / 1e9).toFixed(n >= 1e11 ? 0 : 1) + 'B';
+          if (n >= 1e6)  return '$' + (n / 1e6).toFixed(0) + 'M';
+          return '$' + Math.round(n).toLocaleString();
+        }
+
         function renderRow(s) {
           const dir = s.changePct > 0 ? 'up' : s.changePct < 0 ? 'down' : 'flat';
           const price = parseFloat(s.price);
@@ -5221,11 +5241,13 @@ onAuthStateChanged(auth, user => {
             : changeSign + '$' + change.toFixed(2);
           const arrow = s.changePct > 0 ? '&#8593; ' : s.changePct < 0 ? '&#8595; ' : '';
           const name = s.name || s.label;
+          const capStr = fmtCap(s.marketCap);
           const yahooTicker = s.ticker || s.label;
           const yahooUrl = 'https://finance.yahoo.com/quote/' + encodeURIComponent(yahooTicker);
           return '<a class="stock-row" href="' + yahooUrl + '" target="_blank" rel="noopener">'
             + '<span class="stock-ticker-badge ' + dir + '">' + esc(s.label) + '</span>'
             + '<span class="stock-name">' + esc(name) + '</span>'
+            + '<span class="stock-mktcap">' + esc(capStr) + '</span>'
             + '<span class="stock-price">' + esc(priceStr) + '</span>'
             + '<span class="stock-change-val ' + dir + '">' + esc(changeStr) + '</span>'
             + '<span class="stock-pct-badge ' + dir + '">' + arrow + Math.abs(s.changePct).toFixed(2) + '%</span>'
@@ -5322,7 +5344,7 @@ onAuthStateChanged(auth, user => {
       // Tier 3: Claude fallback (uses tokens but works when everything else fails)
       if (!stocksLoaded) {
         try {
-          const clean = await claudeSearch('Current prices and 1-day % change for: APP, U, LFTO, AAPL, TSLA, META, GOOG, NVDA, S&P 500, Nasdaq, BTC, ETH, SOL, Gold, Silver, Platinum, Oil (WTI Crude). Return ONLY a JSON array: [{"label":"APP","price":100.00,"changePct":1.5}]', 550);
+          const clean = await claudeSearch('Current prices, 1-day % change, and market cap (in USD, as a raw number) for: APP, U, LFTO, AAPL, TSLA, META, GOOG, NVDA, S&P 500, Nasdaq, BTC, ETH, SOL, Gold, Silver, Platinum, Oil (WTI Crude). For indices and commodities set marketCap to null. Return ONLY a JSON array: [{"label":"APP","price":100.00,"changePct":1.5,"marketCap":35000000000}]', 700);
           const stocks = JSON.parse(clean);
           if (Array.isArray(stocks) && stocks.length) { renderStocks(stocks, 'via Claude'); stocksLoaded = true; }
         } catch(e) {
