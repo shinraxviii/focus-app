@@ -4475,6 +4475,7 @@ onAuthStateChanged(auth, user => {
   // Vercel proxy URLs (all API keys stay server-side)
   const PROXY_URL        = 'https://focus-proxy.vercel.app/api/claude';
   const STOCKS_PROXY_URL = 'https://focus-proxy.vercel.app/api/stocks';
+  const EARNINGS_PROXY_URL = 'https://focus-proxy.vercel.app/api/earnings';
   const FEVER_PROXY_URL    = 'https://focus-proxy.vercel.app/api/fever';
   const SANDERSON_PROXY_URL = 'https://focus-proxy.vercel.app/api/sanderson';
   const DEALS_PROXY_URL    = 'https://focus-proxy.vercel.app/api/deals';
@@ -5112,7 +5113,7 @@ onAuthStateChanged(auth, user => {
       { label: 'NVDA', name: 'NVIDIA',          date: '2026-05-27', lastEps: '$1.62',  beat: true, beatPct: '+8.0%' },
     ];
 
-    (function renderEarnings() {
+    function renderEarnings(data) {
       const el = document.getElementById('earnings-section');
       if (!el) return;
       const now = new Date();
@@ -5139,27 +5140,50 @@ onAuthStateChanged(auth, user => {
         }
 
         const dateLabel = earningsDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        const beatClass = e.beat ? 'earnings-beat' : 'earnings-miss';
-        const beatLabel = e.beat ? 'Beat' : 'Miss';
         const yahooUrl = 'https://finance.yahoo.com/quote/' + encodeURIComponent(e.label);
+
+        // lastEps/beat may be absent when the source has no prior-quarter data.
+        let lastHtml = '';
+        if (e.lastEps) {
+          const beatClass = e.beat ? 'earnings-beat' : 'earnings-miss';
+          const beatLabel = e.beat ? 'Beat' : 'Miss';
+          const beatHtml = (e.beat === undefined)
+            ? ''
+            : ' <span class="' + beatClass + '">' + beatLabel + '</span>';
+          lastHtml = '<span class="earnings-last">' + e.lastEps + beatHtml + '</span>';
+        }
 
         return '<a class="stock-row" href="' + yahooUrl + '" target="_blank" rel="noopener">'
           + '<span class="stock-ticker-badge neutral">' + e.label + '</span>'
           + '<span class="stock-name">' + e.name + '</span>'
           + '<span class="earnings-date">' + dateLabel + '</span>'
-          + '<span class="earnings-last">' + e.lastEps + ' <span class="' + beatClass + '">' + beatLabel + '</span></span>'
+          + lastHtml
           + '<span class="earnings-countdown' + (countdownClass ? ' ' + countdownClass : '') + '">' + countdownText + '</span>'
           + '</a>';
       }
 
-      const mid = Math.ceil(EARNINGS_DATA.length / 2);
-      const leftRows = EARNINGS_DATA.slice(0, mid).map(makeRow).join('');
-      const rightRows = EARNINGS_DATA.slice(mid).map(makeRow).join('');
+      const mid = Math.ceil(data.length / 2);
+      const leftRows = data.slice(0, mid).map(makeRow).join('');
+      const rightRows = data.slice(mid).map(makeRow).join('');
 
       el.innerHTML = '<div class="stock-grid">'
         + '<div class="stock-grid-col"><div class="stock-group-label">Upcoming Earnings</div>' + leftRows + '</div>'
         + '<div class="stock-grid-col"><div class="stock-group-label">&nbsp;</div>' + rightRows + '</div>'
         + '</div>';
+    }
+
+    // Render the hardcoded list immediately, then upgrade to live data from the
+    // proxy (Yahoo earnings calendar) when it arrives. Falls back silently.
+    renderEarnings(EARNINGS_DATA);
+    (async function fetchLiveEarnings() {
+      try {
+        const r = await fetchWithTimeout(EARNINGS_PROXY_URL, TIMEOUT_DEFAULT);
+        if (!r.ok) return;
+        const live = await r.json();
+        if (Array.isArray(live) && live.length) renderEarnings(live);
+      } catch (e) {
+        // Live earnings fetch failed — keeping the hardcoded list.
+      }
     })();
 
     // Stocks: 3-tier fetch
