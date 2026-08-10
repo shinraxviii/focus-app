@@ -5615,6 +5615,16 @@ onAuthStateChanged(auth, user => {
     { name: '13 Treasures of Britain', type: 'Spell', element: 'Earth', set: 'Arthurian Legends', imgId: null, slug: 'art/13_treasures_of_britain_b_s' },
   ];
 
+  // Build a Curiosa CDN slug (e.g. "art/king_arthur_b_s") from an API card so
+  // we can use the proven Curiosa image CDN, which serves the full card pool.
+  function _curiosaSlug(setCode, name) {
+    const set = (setCode || '').toLowerCase();
+    if (!set) return null;
+    const nameSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    if (!nameSlug) return null;
+    return set + '/' + nameSlug + '_b_s';
+  }
+
   // Normalize API card to our internal format, keeping only one printing per unique card name
   function _normalizeFourCoresCards(apiCards) {
     const seen = {};
@@ -5636,7 +5646,7 @@ onAuthStateChanged(auth, user => {
         element: element,
         set: setName,
         imgId: c.id || null,
-        slug: null
+        slug: _curiosaSlug(c.setCode, c.name)
       });
     }
     return result;
@@ -5647,7 +5657,9 @@ onAuthStateChanged(auth, user => {
 
   // Fetch full card list from FourCores API, cache in localStorage for 24h
   async function loadSorceryCards() {
-    const CACHE_KEY = 'focus-sorcery-cards';
+    // v2: cards now carry a derived Curiosa slug for reliable images; the key
+    // bump discards v1 cache entries that only had a FourCores imgId.
+    const CACHE_KEY = 'focus-sorcery-cards-v2';
     const CACHE_TTL = 24 * 60 * 60 * 1000;
     try {
       const cached = localStorage.getItem(CACHE_KEY);
@@ -5708,24 +5720,28 @@ onAuthStateChanged(auth, user => {
     return _sorceryDeck.pop();
   }
 
-  function _sorceryImgUrl(card) {
-    // Prefer FourCores image CDN if we have an imgId from the API
-    if (card.imgId) {
-      return FOURCORES_IMG + card.imgId + (card.type === 'Site' ? '_hor' : '') + '.png';
-    }
-    // Fallback to Curiosa CDN with slug
+  // Curiosa CDN image (portrait; Sites need CSS rotation to display landscape)
+  function _curiosaImgUrl(card) {
     return 'https://d27a44hjr9gen3.cloudfront.net/' + card.slug + '.png';
+  }
+  // FourCores image CDN (Sites use the pre-rotated "_hor" landscape image)
+  function _fourcoresImgUrl(card) {
+    return FOURCORES_IMG + card.imgId + (card.type === 'Site' ? '_hor' : '') + '.png';
+  }
+
+  // Ordered image sources to try. Curiosa is proven reliable and covers the
+  // full card pool, so it goes first; FourCores is a fallback.
+  function _sorceryImgSources(card) {
+    const sources = [];
+    if (card.slug)  sources.push({ url: _curiosaImgUrl(card),   rotate: card.type === 'Site' });
+    if (card.imgId) sources.push({ url: _fourcoresImgUrl(card), rotate: false });
+    return sources;
   }
 
   function _renderSorceryCard(viewer, card, status) {
-    const imgUrl = _sorceryImgUrl(card);
-    // Only apply CSS rotation for fallback CDN images (FourCores _hor images are already landscape)
-    const needsRotation = card.type === 'Site' && !card.imgId;
-    const imgClass = 'sorcery-card-img' + (needsRotation ? ' site-card' : '');
     viewer.innerHTML =
       '<div class="sorcery-img-wrap">'
-      + '<img class="' + imgClass + '" src="' + esc(imgUrl) + '" alt="' + esc(card.name) + '"'
-      + ' onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'">'
+      + '<img class="sorcery-card-img" alt="' + esc(card.name) + '">'
       + '<div style="display:none;color:var(--text-dim);font-size:11px;padding:40px 0;">Image unavailable</div>'
       + '</div>'
       + '<div class="sorcery-card-info">'
@@ -5734,6 +5750,25 @@ onAuthStateChanged(auth, user => {
       + '<div class="sorcery-card-type">' + esc(card.set) + '</div>'
       + '</div>'
       + '<button class="sorcery-new-btn" id="sorcery-new-btn">New Card</button>';
+
+    // Try each image source in order; show the placeholder only if all fail.
+    const img = viewer.querySelector('.sorcery-card-img');
+    const placeholder = img.nextElementSibling;
+    const sources = _sorceryImgSources(card);
+    let idx = 0;
+    function tryNext() {
+      if (idx >= sources.length) {
+        img.style.display = 'none';
+        placeholder.style.display = 'block';
+        return;
+      }
+      const s = sources[idx++];
+      img.classList.toggle('site-card', !!s.rotate);
+      img.src = s.url;
+    }
+    img.onerror = tryNext;
+    tryNext();
+
     viewer.style.opacity = '1';
     document.getElementById('sorcery-new-btn').addEventListener('click', showRandomSorceryCard);
     if (status) status.textContent = asOfNow();
