@@ -5577,17 +5577,12 @@ onAuthStateChanged(auth, user => {
   ];
 
   // ── SORCERY: CONTESTED REALM ────────────────────────────────
-  // FourCores API for full card database + image CDN
-  const FOURCORES_API = 'https://fourcores.xyz/api/cards';
-  const FOURCORES_IMG = 'https://fourcores-home.netlify.app/images/cards/';
-
-  // Set code → display name mapping
-  const SORCERY_SET_NAMES = {
-    ALP: 'Alpha', BET: 'Beta', ART: 'Arthurian Legends', GOT: 'Gothic'
-  };
-
-  // Fallback cards used when API is unavailable (small subset)
-  const SORCERY_FALLBACK = [
+  // Curated pool. Every card here has a verified Curiosa CDN image slug so the
+  // image always loads. (A FourCores API pool of ~600 cards was tried, but its
+  // cards' images 404 on every CDN we could build a URL for — both the
+  // FourCores host and derived Curiosa slugs — so refreshing showed "Image
+  // unavailable". We stick to this hand-checked set instead.)
+  const SORCERY_CARDS = [
     { name: 'King Arthur',          type: 'Avatar',  element: 'Earth', set: 'Arthurian Legends', imgId: null, slug: 'art/king_arthur_b_s' },
     { name: 'Merlin',               type: 'Avatar',  element: 'Air',   set: 'Arthurian Legends', imgId: null, slug: 'art/merlin_b_s' },
     { name: 'Excalibur',            type: 'Relic',   element: 'Earth', set: 'Arthurian Legends', imgId: null, slug: 'art/excalibur_b_s' },
@@ -5614,82 +5609,6 @@ onAuthStateChanged(auth, user => {
     { name: 'River of Flame',       type: 'Site',    element: 'Fire',  set: 'Beta',   imgId: null, slug: 'bet/river_of_flame_b_s' },
     { name: '13 Treasures of Britain', type: 'Spell', element: 'Earth', set: 'Arthurian Legends', imgId: null, slug: 'art/13_treasures_of_britain_b_s' },
   ];
-
-  // Build a Curiosa CDN slug (e.g. "art/king_arthur_b_s") from an API card so
-  // we can use the proven Curiosa image CDN, which serves the full card pool.
-  function _curiosaSlug(setCode, name) {
-    const set = (setCode || '').toLowerCase();
-    if (!set) return null;
-    const nameSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-    if (!nameSlug) return null;
-    return set + '/' + nameSlug + '_b_s';
-  }
-
-  // Normalize API card to our internal format, keeping only one printing per unique card name
-  function _normalizeFourCoresCards(apiCards) {
-    const seen = {};
-    const result = [];
-    for (let i = 0; i < apiCards.length; i++) {
-      const c = apiCards[i];
-      if (!c.name || seen[c.name]) continue;
-      seen[c.name] = true;
-      const category = (c.category || '').toLowerCase();
-      const type = category.charAt(0).toUpperCase() + category.slice(1);
-      const elements = c.elements || [];
-      const element = elements.length > 0
-        ? elements.map(function(e) { return e.charAt(0).toUpperCase() + e.slice(1).toLowerCase(); }).join('/')
-        : '';
-      const setName = SORCERY_SET_NAMES[(c.setCode || '').toUpperCase()] || c.setCode || '';
-      result.push({
-        name: c.name,
-        type: type,
-        element: element,
-        set: setName,
-        imgId: c.id || null,
-        slug: _curiosaSlug(c.setCode, c.name)
-      });
-    }
-    return result;
-  }
-
-  // Active card pool (populated by API fetch or fallback)
-  let SORCERY_CARDS = SORCERY_FALLBACK;
-
-  // Fetch full card list from FourCores API, cache in localStorage for 24h
-  async function loadSorceryCards() {
-    // v2: cards now carry a derived Curiosa slug for reliable images; the key
-    // bump discards v1 cache entries that only had a FourCores imgId.
-    const CACHE_KEY = 'focus-sorcery-cards-v2';
-    const CACHE_TTL = 24 * 60 * 60 * 1000;
-    try {
-      const cached = localStorage.getItem(CACHE_KEY);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (parsed._ts && Date.now() - parsed._ts < CACHE_TTL && parsed.cards && parsed.cards.length > 50) {
-          SORCERY_CARDS = parsed.cards;
-          _sorceryDeck = [];
-          return;
-        }
-      }
-    } catch(_) {}
-    try {
-      const resp = await fetchWithTimeout(FOURCORES_API, TIMEOUT_MEDIUM);
-      if (!resp.ok) throw new Error('HTTP ' + resp.status);
-      const apiCards = await resp.json();
-      if (apiCards && apiCards.length > 50) {
-        const normalized = _normalizeFourCoresCards(apiCards);
-        if (normalized.length > 50) {
-          SORCERY_CARDS = normalized;
-          _sorceryDeck = [];
-          try {
-            localStorage.setItem(CACHE_KEY, JSON.stringify({ _ts: Date.now(), cards: normalized }));
-          } catch(_) {}
-        }
-      }
-    } catch(_) {
-      // API unavailable — keep using fallback or cached data
-    }
-  }
 
   // Cryptographically random integer in [0, max)
   function _cryptoRand(max) {
@@ -5724,17 +5643,11 @@ onAuthStateChanged(auth, user => {
   function _curiosaImgUrl(card) {
     return 'https://d27a44hjr9gen3.cloudfront.net/' + card.slug + '.png';
   }
-  // FourCores image CDN (Sites use the pre-rotated "_hor" landscape image)
-  function _fourcoresImgUrl(card) {
-    return FOURCORES_IMG + card.imgId + (card.type === 'Site' ? '_hor' : '') + '.png';
-  }
 
-  // Ordered image sources to try. Curiosa is proven reliable and covers the
-  // full card pool, so it goes first; FourCores is a fallback.
+  // Ordered image sources to try; the placeholder shows only if all fail.
   function _sorceryImgSources(card) {
     const sources = [];
-    if (card.slug)  sources.push({ url: _curiosaImgUrl(card),   rotate: card.type === 'Site' });
-    if (card.imgId) sources.push({ url: _fourcoresImgUrl(card), rotate: false });
+    if (card.slug) sources.push({ url: _curiosaImgUrl(card), rotate: card.type === 'Site' });
     return sources;
   }
 
@@ -8029,8 +7942,6 @@ onAuthStateChanged(auth, user => {
 
   // ── SORCERY CARD INIT ──────────────────────────────────────
   showRandomSorceryCard();
-  // Load full card pool from API (upgrades from 26 fallback cards to ~600+)
-  loadSorceryCards();
 
   // ── MTG RANDOM CARD INIT ─────────────────────────────────
   showRandomMtgCard();
