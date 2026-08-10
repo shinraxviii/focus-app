@@ -5577,12 +5577,23 @@ onAuthStateChanged(auth, user => {
   ];
 
   // ── SORCERY: CONTESTED REALM ────────────────────────────────
-  // Curated pool. Every card here has a verified Curiosa CDN image slug so the
-  // image always loads. (A FourCores API pool of ~600 cards was tried, but its
-  // cards' images 404 on every CDN we could build a URL for — both the
-  // FourCores host and derived Curiosa slugs — so refreshing showed "Image
-  // unavailable". We stick to this hand-checked set instead.)
-  const SORCERY_CARDS = [
+  // The FourCores API supplies the full ~600-card pool (names/types/elements)
+  // but no image URL. Each card does carry TCGPlayer product IDs, so we build
+  // images from the TCGPlayer product-image CDN (stable, keyed on that ID),
+  // with a derived Curiosa slug as a secondary fallback.
+  const FOURCORES_API  = 'https://fourcores.xyz/api/cards';
+  const TCGPLAYER_IMG  = 'https://product-images.tcgplayer.com/fit-in/400x560/';
+  const CURIOSA_CDN    = 'https://d27a44hjr9gen3.cloudfront.net/';
+
+  // Set code → display name (falls back to the raw code for unlisted sets)
+  const SORCERY_SET_NAMES = {
+    ALP: 'Alpha', BET: 'Beta', ALE: 'Arthurian Legends', GOT: 'Gothic',
+    DRL: 'Dragonlord', APC: 'Alpha', ABT: 'Alpha', APP: 'Alpha'
+  };
+
+  // Fallback cards (with verified Curiosa slugs) shown before the API loads or
+  // if it is unavailable.
+  const SORCERY_FALLBACK = [
     { name: 'King Arthur',          type: 'Avatar',  element: 'Earth', set: 'Arthurian Legends', imgId: null, slug: 'art/king_arthur_b_s' },
     { name: 'Merlin',               type: 'Avatar',  element: 'Air',   set: 'Arthurian Legends', imgId: null, slug: 'art/merlin_b_s' },
     { name: 'Excalibur',            type: 'Relic',   element: 'Earth', set: 'Arthurian Legends', imgId: null, slug: 'art/excalibur_b_s' },
@@ -5609,6 +5620,115 @@ onAuthStateChanged(auth, user => {
     { name: 'River of Flame',       type: 'Site',    element: 'Fire',  set: 'Beta',   imgId: null, slug: 'bet/river_of_flame_b_s' },
     { name: '13 Treasures of Britain', type: 'Spell', element: 'Earth', set: 'Arthurian Legends', imgId: null, slug: 'art/13_treasures_of_britain_b_s' },
   ];
+
+  // Build a Curiosa CDN slug (e.g. "art/king_arthur_b_s") — used as a secondary
+  // image source for API cards.
+  function _curiosaSlug(setCode, name) {
+    const set = (setCode || '').toLowerCase();
+    if (!set) return null;
+    const nameSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    if (!nameSlug) return null;
+    return set + '/' + nameSlug + '_b_s';
+  }
+
+  // Pick a usable TCGPlayer product id from a printing's finishes (prefer nonfoil).
+  function _sorceryTcgId(finishes) {
+    if (!finishes) return null;
+    let nonfoil = null, any = null;
+    for (let i = 0; i < finishes.length; i++) {
+      const f = finishes[i];
+      if (f && f.tcgPlayerId) {
+        if (f.type === 'NONFOIL' && nonfoil == null) nonfoil = f.tcgPlayerId;
+        if (any == null) any = f.tcgPlayerId;
+      }
+    }
+    return nonfoil || any;
+  }
+
+  // Normalize API cards to our internal format, keeping one printing per unique
+  // name — preferring a printing that actually has a TCGPlayer image.
+  function _normalizeFourCoresCards(apiCards) {
+    const byName = {};
+    const order = [];
+    for (let i = 0; i < apiCards.length; i++) {
+      const c = apiCards[i];
+      if (!c.name) continue;
+      const tcgId = _sorceryTcgId(c.finishes);
+      const existing = byName[c.name];
+      if (existing) {
+        // Upgrade to a printing that has an image if the kept one lacks one.
+        if (!existing.tcgId && tcgId) byName[c.name] = _makeSorceryCard(c, tcgId);
+        continue;
+      }
+      byName[c.name] = _makeSorceryCard(c, tcgId);
+      order.push(c.name);
+    }
+    return order.map(function(n) { return byName[n]; });
+  }
+
+  function _makeSorceryCard(c, tcgId) {
+    const cat = (c.category || '').toUpperCase();
+    const types = c.types || [];
+    let type;
+    if (cat === 'SITE') type = 'Site';
+    else if (cat === 'AVATAR') type = 'Avatar';
+    else if (types.length) type = types[0].charAt(0).toUpperCase() + types[0].slice(1).toLowerCase();
+    else type = 'Spell';
+    const elements = c.elements || [];
+    const element = elements.length > 0
+      ? elements.map(function(e) { return e.charAt(0).toUpperCase() + e.slice(1).toLowerCase(); }).join('/')
+      : '';
+    const setName = SORCERY_SET_NAMES[(c.setCode || '').toUpperCase()] || c.setCode || '';
+    return {
+      name: c.name,
+      type: type,
+      element: element,
+      set: setName,
+      tcgId: tcgId || null,
+      slug: _curiosaSlug(c.setCode, c.name)
+    };
+  }
+
+  // Active card pool (populated by API fetch or fallback)
+  let SORCERY_CARDS = SORCERY_FALLBACK;
+
+  // Fetch the full card list from FourCores, cache in localStorage for 24h.
+  async function loadSorceryCards() {
+    // v3: cards now carry a TCGPlayer image id; the key bump discards older
+    // cache entries that used a different image scheme.
+    const CACHE_KEY = 'focus-sorcery-cards-v3';
+    const CACHE_TTL = 24 * 60 * 60 * 1000;
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed._ts && Date.now() - parsed._ts < CACHE_TTL && parsed.cards && parsed.cards.length > 50) {
+          SORCERY_CARDS = parsed.cards;
+          _sorceryDeck = [];
+          return;
+        }
+      }
+    } catch(_) {}
+    try {
+      const resp = await fetchWithTimeout(FOURCORES_API, TIMEOUT_MEDIUM);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const apiCards = await resp.json();
+      if (apiCards && apiCards.length > 50) {
+        const normalized = _normalizeFourCoresCards(apiCards);
+        // Only adopt the pool if most cards have an image to show.
+        const withImg = normalized.filter(function(c) { return c.tcgId; }).length;
+        if (normalized.length > 50 && withImg > normalized.length * 0.75) {
+          SORCERY_CARDS = normalized;
+          _sorceryDeck = [];
+          try {
+            localStorage.setItem(CACHE_KEY, JSON.stringify({ _ts: Date.now(), cards: normalized }));
+          } catch(_) {}
+        }
+      }
+    } catch(_) {
+      // API unavailable — keep using fallback or cached data
+    }
+  }
 
   // Cryptographically random integer in [0, max)
   function _cryptoRand(max) {
@@ -5639,15 +5759,21 @@ onAuthStateChanged(auth, user => {
     return _sorceryDeck.pop();
   }
 
+  // TCGPlayer product image (pre-oriented card scans — no CSS rotation needed)
+  function _tcgImgUrl(card) {
+    return TCGPLAYER_IMG + card.tcgId + '.jpg';
+  }
   // Curiosa CDN image (portrait; Sites need CSS rotation to display landscape)
   function _curiosaImgUrl(card) {
-    return 'https://d27a44hjr9gen3.cloudfront.net/' + card.slug + '.png';
+    return CURIOSA_CDN + card.slug + '.png';
   }
 
   // Ordered image sources to try; the placeholder shows only if all fail.
+  // TCGPlayer first (covers the full pool), Curiosa as a secondary fallback.
   function _sorceryImgSources(card) {
     const sources = [];
-    if (card.slug) sources.push({ url: _curiosaImgUrl(card), rotate: card.type === 'Site' });
+    if (card.tcgId) sources.push({ url: _tcgImgUrl(card),     rotate: false });
+    if (card.slug)  sources.push({ url: _curiosaImgUrl(card), rotate: card.type === 'Site' });
     return sources;
   }
 
@@ -7942,6 +8068,8 @@ onAuthStateChanged(auth, user => {
 
   // ── SORCERY CARD INIT ──────────────────────────────────────
   showRandomSorceryCard();
+  // Upgrade from the ~26 fallback cards to the full ~600-card FourCores pool.
+  loadSorceryCards();
 
   // ── MTG RANDOM CARD INIT ─────────────────────────────────
   showRandomMtgCard();
