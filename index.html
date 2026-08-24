@@ -7758,9 +7758,12 @@ onAuthStateChanged(auth, user => {
     const list = document.getElementById('list-' + listName + '-' + sec);
     if (!list) return;
     let secTasks = tasks.filter(t => taskList(t) === listName && t.section === sec);
-    // Completed: show only last 10, most recent first
+    // Completed: most recently completed first, capped at 10
     const totalCompleted = sec === 'completed' ? secTasks.length : 0;
-    if (sec === 'completed') secTasks = secTasks.slice(-10).reverse();
+    if (sec === 'completed') {
+      secTasks.sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
+      secTasks = secTasks.slice(0, 10);
+    }
     list.innerHTML = '';
     if (secTasks.length === 0) {
       const empty = document.createElement('div');
@@ -7856,8 +7859,14 @@ onAuthStateChanged(auth, user => {
     // list's slide, but set it explicitly for safety)
     task.section = targetSection;
     task.list = targetList;
-    if (targetSection === 'completed') task.done = true;
-    else task.done = false;
+    if (targetSection === 'completed') {
+      task.done = true;
+      // Stamp a completion time so the section can sort most-recent-first
+      if (!task.completedAt) task.completedAt = Date.now();
+    } else {
+      task.done = false;
+      delete task.completedAt;
+    }
 
     // Reorder within (targetList, targetSection)
     const afterEl = getDragAfterElement(list, e.clientY);
