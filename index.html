@@ -1813,6 +1813,61 @@
     background: var(--color-electric);
     border-color: var(--color-electric);
   }
+  /* Commander name autocomplete dropdown */
+  .edhrec-search { position: relative; }
+  .edhrec-suggest {
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    top: calc(100% - 6px);
+    z-index: 40;
+    max-height: 248px;
+    overflow-y: auto;
+    background: var(--surface2);
+    border: 1px solid var(--btn-border);
+    border-radius: 6px;
+    box-shadow: 0 8px 22px rgba(0,0,0,0.30);
+  }
+  .edhrec-suggest[hidden] { display: none; }
+  .edhrec-suggest-item {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    text-align: left;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    line-height: 1.35;
+    color: var(--text);
+    background: transparent;
+    border: 0;
+    padding: 7px 10px;
+    cursor: pointer;
+  }
+  .edhrec-suggest-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .edhrec-suggest-item:hover,
+  .edhrec-suggest-item.active {
+    background: color-mix(in srgb, var(--color-electric) 18%, transparent);
+  }
+  .edhrec-suggest-item b { color: var(--color-electric); font-weight: 600; }
+  .edhrec-suggest-tag {
+    flex: none;
+    font-size: 9px;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+  }
+  .edhrec-suggest-note {
+    padding: 7px 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+
   .edhrec-tabs {
     display: flex;
     gap: 6px;
@@ -3102,8 +3157,11 @@ onAuthStateChanged(auth, user => {
         <span class="digest-card-updated" id="edhrec-updated">via EDHREC</span>
       </div>
       <div class="edhrec-chips" id="edhrec-chips"></div>
-      <div class="reddit-add-row">
-        <input type="text" id="edhrec-input" placeholder="Commander name (e.g. Zur the Enchanter)" class="reddit-sub-input">
+      <div class="reddit-add-row edhrec-search">
+        <input type="text" id="edhrec-input" placeholder="Commander name (e.g. Zur the Enchanter)" class="reddit-sub-input"
+               autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false"
+               aria-autocomplete="list" aria-controls="edhrec-suggest">
+        <div class="edhrec-suggest" id="edhrec-suggest" role="listbox" hidden></div>
       </div>
       <div class="edhrec-tabs" id="edhrec-tabs">
         <button type="button" class="edhrec-tab" data-section="newcards" aria-selected="true">New Cards</button>
@@ -6502,6 +6560,140 @@ onAuthStateChanged(auth, user => {
     }
   }
 
+  // ── COMMANDER NAME AUTOCOMPLETE ───────────────────────────────
+  // Typing a custom name suggests real card names, so the exact spelling EDHREC
+  // wants (commas, epithets and all) doesn't have to be recalled. Names come
+  // from Scryfall's catalog autocomplete — a small names-only payload with
+  // permissive CORS — merged behind any matching quick-pick so the user's own
+  // decks rank first and appear with zero latency.
+  const EDHREC_AC_URL      = 'https://api.scryfall.com/cards/autocomplete?q=';
+  const EDHREC_AC_MIN      = 2;    // characters typed before we hit the network
+  const EDHREC_AC_MAX      = 8;    // suggestions rendered
+  const EDHREC_AC_DEBOUNCE = 180;  // ms of quiet before the request goes out
+  const edhrecAcCache = new Map(); // lowercased query -> string[] of card names
+  // items: what's currently listed; index: keyboard cursor (-1 = nothing picked);
+  // seq: guards against a slow response for an old query clobbering a newer one.
+  const edhrecAc = { items: [], index: -1, seq: 0, timer: null };
+
+  // Hide the dropdown and forget the current suggestions. In-flight requests are
+  // left alone — the seq guard in updateEdhrecAc decides what may still render.
+  function hideEdhrecAc() {
+    edhrecAc.items = [];
+    edhrecAc.index = -1;
+    const box = document.getElementById('edhrec-suggest');
+    const input = document.getElementById('edhrec-input');
+    if (box) { box.hidden = true; box.innerHTML = ''; }
+    if (input) input.setAttribute('aria-expanded', 'false');
+  }
+
+  // Hide *and* invalidate anything still in flight (escape, cleared field,
+  // click-away, or a pick that already resolved the query).
+  function closeEdhrecAc() {
+    edhrecAc.seq++;
+    if (edhrecAc.timer) { clearTimeout(edhrecAc.timer); edhrecAc.timer = null; }
+    hideEdhrecAc();
+  }
+
+  // Bold the typed run inside a suggestion so the match is obvious.
+  function edhrecAcMark(name, q) {
+    const i = q ? name.toLowerCase().indexOf(q.toLowerCase()) : -1;
+    if (i < 0) return esc(name);
+    return esc(name.slice(0, i)) + '<b>' + esc(name.slice(i, i + q.length)) + '</b>'
+         + esc(name.slice(i + q.length));
+  }
+
+  function renderEdhrecAc(q) {
+    const box = document.getElementById('edhrec-suggest');
+    const input = document.getElementById('edhrec-input');
+    if (!box || !input) return;
+    if (!edhrecAc.items.length) { hideEdhrecAc(); return; }
+    let html = '';
+    edhrecAc.items.forEach(function(it, i) {
+      html += '<button type="button" role="option" data-index="' + i + '"'
+        + ' class="edhrec-suggest-item' + (i === edhrecAc.index ? ' active' : '') + '"'
+        + ' aria-selected="' + (i === edhrecAc.index ? 'true' : 'false') + '">'
+        + '<span class="edhrec-suggest-name">' + edhrecAcMark(it.name, q) + '</span>'
+        + (it.deck ? '<span class="edhrec-suggest-tag">my deck</span>' : '')
+        + '</button>';
+    });
+    box.innerHTML = html;
+    box.hidden = false;
+    input.setAttribute('aria-expanded', 'true');
+  }
+
+  // Move the keyboard cursor, wrapping at both ends, and keep it in view.
+  function moveEdhrecAc(delta) {
+    const n = edhrecAc.items.length;
+    if (!n) return;
+    edhrecAc.index = (edhrecAc.index + delta + n) % n;
+    const nodes = document.querySelectorAll('#edhrec-suggest .edhrec-suggest-item');
+    for (let i = 0; i < nodes.length; i++) {
+      const on = i === edhrecAc.index;
+      nodes[i].classList.toggle('active', on);
+      nodes[i].setAttribute('aria-selected', on ? 'true' : 'false');
+      if (on && nodes[i].scrollIntoView) nodes[i].scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  // Quick-picks that match, in list order — always commanders, always instant.
+  function edhrecAcLocal(q) {
+    const needle = q.toLowerCase();
+    return EDHREC_COMMANDERS.filter(function(name) {
+      return name.toLowerCase().indexOf(needle) !== -1;
+    }).map(function(name) { return { name: name, deck: true }; });
+  }
+
+  // Scryfall returns up to 20 names for a partial. Failures resolve to an empty
+  // list (and are cached as such) so a flaky network degrades to quick-picks
+  // only rather than blocking the field.
+  async function fetchEdhrecAc(q) {
+    const key = q.toLowerCase();
+    if (edhrecAcCache.has(key)) return edhrecAcCache.get(key);
+    let names = [];
+    try {
+      const r = await fetchWithTimeout(EDHREC_AC_URL + encodeURIComponent(q), TIMEOUT_SHORT,
+                                       { headers: { 'Accept': 'application/json' } });
+      if (r.ok) {
+        const json = await r.json();
+        if (Array.isArray(json.data)) names = json.data;
+      }
+    } catch (e) { /* offline, timeout or rate-limited — quick-picks still show */ }
+    edhrecAcCache.set(key, names);
+    return names;
+  }
+
+  async function updateEdhrecAc(q) {
+    const seq = ++edhrecAc.seq;
+    const local = edhrecAcLocal(q);
+    // Paint the local hits right away, then fold in Scryfall's when they land.
+    edhrecAc.items = local.slice(0, EDHREC_AC_MAX);
+    edhrecAc.index = -1;
+    renderEdhrecAc(q);
+    if (q.length < EDHREC_AC_MIN) return;
+    const remote = await fetchEdhrecAc(q);
+    if (seq !== edhrecAc.seq) return; // a newer keystroke (or a close) already won
+    const seen = new Set(local.map(function(it) { return it.name.toLowerCase(); }));
+    const merged = local.slice();
+    remote.forEach(function(name) {
+      if (seen.has(name.toLowerCase())) return;
+      seen.add(name.toLowerCase());
+      merged.push({ name: name, deck: false });
+    });
+    edhrecAc.items = merged.slice(0, EDHREC_AC_MAX);
+    edhrecAc.index = -1;
+    renderEdhrecAc(q);
+  }
+
+  // Accept a suggestion: fill the field and load it.
+  function pickEdhrecAc(i) {
+    const it = edhrecAc.items[i];
+    const input = document.getElementById('edhrec-input');
+    if (!it || !input) return;
+    input.value = it.name;
+    closeEdhrecAc();
+    loadEdhrec(it.name, { force: true });
+  }
+
   (function initEdhrec() {
     const input = document.getElementById('edhrec-input');
     const chipsEl = document.getElementById('edhrec-chips');
@@ -6526,11 +6718,57 @@ onAuthStateChanged(auth, user => {
         renderEdhrecList();
       });
     }
+    // Suggest as the user types (debounced); an empty field closes the list.
+    input.addEventListener('input', function() {
+      const q = input.value.trim();
+      if (edhrecAc.timer) { clearTimeout(edhrecAc.timer); edhrecAc.timer = null; }
+      if (!q) { closeEdhrecAc(); return; }
+      edhrecAc.timer = setTimeout(function() {
+        edhrecAc.timer = null;
+        updateEdhrecAc(q);
+      }, EDHREC_AC_DEBOUNCE);
+    });
     input.addEventListener('keydown', function(e) {
+      const open = edhrecAc.items.length > 0;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        // Arrowing into a closed-but-filled field re-opens the suggestions.
+        if (open) moveEdhrecAc(e.key === 'ArrowDown' ? 1 : -1);
+        else if (input.value.trim()) updateEdhrecAc(input.value.trim());
+        return;
+      }
+      if (e.key === 'Escape') {
+        if (open) { e.preventDefault(); closeEdhrecAc(); }
+        return;
+      }
+      if (e.key === 'Tab') {
+        // Complete the field but let focus move along as usual.
+        if (open && edhrecAc.index >= 0) input.value = edhrecAc.items[edhrecAc.index].name;
+        closeEdhrecAc();
+        return;
+      }
       if (e.key !== 'Enter') return;
+      e.preventDefault();
+      if (open && edhrecAc.index >= 0) { pickEdhrecAc(edhrecAc.index); return; }
       const name = input.value.trim();
       if (!name) return;
+      closeEdhrecAc();
       loadEdhrec(name, { force: true });
+    });
+    const suggestBox = document.getElementById('edhrec-suggest');
+    if (suggestBox) {
+      // mousedown keeps the caret in the field; the click does the work.
+      suggestBox.addEventListener('mousedown', function(e) { e.preventDefault(); });
+      suggestBox.addEventListener('click', function(e) {
+        const btn = e.target.closest('.edhrec-suggest-item');
+        if (btn) pickEdhrecAc(parseInt(btn.dataset.index, 10));
+      });
+    }
+    // Clicking anywhere outside the field dismisses the suggestions.
+    document.addEventListener('click', function(e) {
+      if (!edhrecAc.items.length) return;
+      if (e.target.closest && e.target.closest('.edhrec-search')) return;
+      closeEdhrecAc();
     });
     const last = localStorage.getItem('focus-digest-edhrec-last') || EDHREC_DEFAULT;
     input.value = last;
