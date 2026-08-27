@@ -6341,11 +6341,20 @@ onAuthStateChanged(auth, user => {
     el.innerHTML = html;
   }
 
+  // A cached payload written before a product was added to SEALED_PRODUCTS has
+  // no entry for it, and renderSealedPrices would then show that product at its
+  // placeholder price with no sparkline for the rest of the 6h TTL. Treat such a
+  // cache as a miss so adding a product refreshes instead of waiting out the TTL.
+  function sealedCacheCoversAll(data) {
+    if (!data) return false;
+    return SEALED_PRODUCTS.every(function(p) { return !!data[p.id]; });
+  }
+
   async function loadSealedPrices() {
     const statusEl = document.getElementById('sealed-updated');
     // Try cache first
     const cached = cacheGet('sealed-prices', 6 * 60 * 60 * 1000);
-    if (cached) {
+    if (cached && sealedCacheCoversAll(cached.data)) {
       renderSealedPrices(cached.data);
       if (statusEl && cached.label) statusEl.textContent = cached.label;
       return;
