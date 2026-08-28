@@ -6341,13 +6341,20 @@ onAuthStateChanged(auth, user => {
     el.innerHTML = html;
   }
 
-  // A cached payload written before a product was added to SEALED_PRODUCTS has
-  // no entry for it, and renderSealedPrices would then show that product at its
-  // placeholder price with no sparkline for the rest of the 6h TTL. Treat such a
-  // cache as a miss so adding a product refreshes instead of waiting out the TTL.
+  // Only serve a cached payload that holds real data for every current product.
+  // Two ways it can fall short: it predates a product being added (no entry at
+  // all), or a product's fetch failed and was cached as a placeholder. Either
+  // way renderSealedPrices would show that product at its fallback price with no
+  // sparkline for the rest of the 6h TTL, so treat both as a miss and refetch.
   function sealedCacheCoversAll(data) {
     if (!data) return false;
-    return SEALED_PRODUCTS.every(function(p) { return !!data[p.id]; });
+    return SEALED_PRODUCTS.every(function(p) {
+      const d = data[p.id];
+      // An empty history means the entry is a fallback: the proxy only reports a
+      // price when it has history behind it. This also catches placeholders
+      // cached before the flag existed.
+      return !!d && !d.placeholder && Array.isArray(d.history) && d.history.length > 0;
+    });
   }
 
   async function loadSealedPrices() {
@@ -6396,9 +6403,17 @@ onAuthStateChanged(auth, user => {
         data[p.id] = results[i];
         liveCount++;
       } else {
-        // Keep any previously-cached history so the sparkline survives a miss.
+        // Keep genuine previously-cached data so the sparkline survives a miss.
         const prev = staleData[p.id] || {};
-        data[p.id] = { price: prev.price || p.fallbackPrice, history: prev.history || [] };
+        if (prev.price != null && !prev.placeholder) {
+          data[p.id] = { price: prev.price, history: prev.history || [] };
+        } else {
+          // Nothing live and nothing real cached. Mark it so this entry can't
+          // satisfy sealedCacheCoversAll — otherwise one product that failed
+          // once is pinned to its fallback price for the whole TTL even after
+          // the upstream recovers.
+          data[p.id] = { price: p.fallbackPrice, history: [], placeholder: true };
+        }
       }
     }
 
