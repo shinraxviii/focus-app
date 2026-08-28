@@ -6323,11 +6323,20 @@ onAuthStateChanged(auth, user => {
   function renderSealedPrices(data) {
     const el = document.getElementById('sealed-list');
     if (!el) return;
-    let html = '';
-    for (let i = 0; i < SEALED_PRODUCTS.length; i++) {
-      const p = SEALED_PRODUCTS[i];
+    // Most valuable product first. Sorted here rather than in the loader so the
+    // order is recomputed from whatever prices this render is showing — every
+    // refresh reorders as prices move, instead of keeping the order products
+    // happen to sit in inside SEALED_PRODUCTS.
+    const rows = SEALED_PRODUCTS.map(function(p) {
       const d = data[p.id] || {};
-      const price = d.price || p.fallbackPrice;
+      return { p: p, d: d, price: d.price || p.fallbackPrice };
+    }).sort(function(a, b) { return b.price - a.price; });
+
+    let html = '';
+    for (let i = 0; i < rows.length; i++) {
+      const p = rows[i].p;
+      const d = rows[i].d;
+      const price = rows[i].price;
       const prices = d.history || [];
       // Percentage reflects the change over the last 30 days (matching the
       // sparkline window), not the full all-time history.
