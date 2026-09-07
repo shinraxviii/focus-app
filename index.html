@@ -6154,11 +6154,18 @@ onAuthStateChanged(auth, user => {
     return s.length > n ? s.slice(0, n).replace(/\s+\S*$/, '') + '…' : s;
   }
 
+  // The proxy tries Google Books (7s cap) and then Open Library (7s cap), so
+  // a slow lookup can legitimately take longer than the generic card timeout.
+  // A shorter client cap aborted those, showed "No cover art", and hid the
+  // whole card (opacity 0, button included) for the entire wait.
+  const BOOK_FETCH_TIMEOUT = 15000;
+  let _bookReqToken = 0;   // discards out-of-order / superseded responses
+
   function _renderBook(viewer, b, status) {
     const cover = b.cover || '';
     const yr = b.year ? ' · ' + b.year : '';
     const img = cover
-      ? '<img class="sorcery-card-img" src="' + esc(cover) + '" alt="' + esc(b.title) + '"'
+      ? '<img class="sorcery-card-img" src="' + esc(cover) + '" alt="' + esc(b.title) + '" decoding="async"'
         + ' onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'
       : '';
     viewer.innerHTML =
@@ -6178,23 +6185,41 @@ onAuthStateChanged(auth, user => {
     if (status) status.textContent = (b.label || asOfNow());
   }
 
+  function _bookSetBusy(viewer, busy) {
+    const btn = viewer.querySelector('#book-new-btn');
+    if (!btn) return;
+    btn.disabled = busy;
+    btn.textContent = busy ? 'Loading…' : 'New Book';
+  }
+
   async function showRandomBook() {
     const viewer = document.getElementById('book-viewer');
     const status = document.getElementById('book-updated');
     if (!viewer) return;
 
-    const hasBook = viewer.querySelector('.sorcery-card-img');
-    if (hasBook) viewer.style.opacity = '0';
+    const myToken = ++_bookReqToken;
+    const hasBook = !!viewer.querySelector('.sorcery-card-info');
+
+    // Feedback without hiding the card: keep the current book (and the button)
+    // visible but dimmed, or spin if there is nothing to show yet.
+    if (hasBook) {
+      viewer.style.opacity = '0.4';
+      _bookSetBusy(viewer, true);
+    } else {
+      viewer.style.opacity = '1';
+      viewer.innerHTML = '<div class="sorcery-img-wrap"><span class="mtg-spinner"></span></div>';
+    }
 
     const pick = BOOK_AUTHOR_PICKS[Math.floor(Math.random() * BOOK_AUTHOR_PICKS.length)];
     const searchUrl = 'https://www.google.com/search?tbm=bks&q='
       + encodeURIComponent(pick.title + ' ' + pick.author);
 
-    let b;
+    let b = null;
     try {
       const r = await fetchWithTimeout(
         BOOKS_PROXY_URL + '?title=' + encodeURIComponent(pick.title) + '&author=' + encodeURIComponent(pick.author),
-        TIMEOUT_MEDIUM);
+        BOOK_FETCH_TIMEOUT);
+      if (myToken !== _bookReqToken) return;   // superseded by a newer tap
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const d = await r.json();
       b = {
@@ -6205,16 +6230,33 @@ onAuthStateChanged(auth, user => {
         cover: d.cover || '',
         link: d.link || searchUrl,
       };
-      cacheSet('shelf-book', b, asOfNow());
     } catch (e) {
-      // Metadata fetch failed — show title/author with a link out
-      b = { title: pick.title, author: pick.author, year: '', blurb: '', cover: '', link: searchUrl };
+      if (typeof console !== 'undefined') console.warn('[Shelf] book fetch failed:', e && e.message);
+    }
+    if (myToken !== _bookReqToken) return;
+
+    if (b && b.cover) {
+      // Preload so the swap is atomic: no blank 420px box while a slow cover
+      // (Open Library can take several seconds) trickles in. A broken URL
+      // becomes "No cover art"; a slow one is rendered and finishes in place.
+      const imgState = await _mtgPreloadImage(b.cover);
+      if (myToken !== _bookReqToken) return;
+      if (imgState === 'error') b.cover = '';
     }
 
-    if (hasBook) {
-      setTimeout(function() { _renderBook(viewer, b, status); }, 150);
-    } else {
+    if (b) {
+      // Only pin a book for 12h when it actually has cover art; otherwise the
+      // next load gets another chance instead of a day of "No cover art".
+      if (b.cover) cacheSet('shelf-book', b, asOfNow());
       _renderBook(viewer, b, status);
+    } else if (hasBook) {
+      // Fetch failed: keep the book already on screen rather than replacing it
+      // with a coverless placeholder.
+      viewer.style.opacity = '1';
+      _bookSetBusy(viewer, false);
+      if (status) status.textContent = 'Fetch failed · try again';
+    } else {
+      _renderBook(viewer, { title: pick.title, author: pick.author, year: '', blurb: '', cover: '', link: searchUrl }, status);
     }
   }
 
@@ -6224,7 +6266,7 @@ onAuthStateChanged(auth, user => {
     if (!viewer) return;
     // Show the cached book instantly; only hit the API once per 12h on load.
     const cached = cacheGet('shelf-book', 12 * 60 * 60 * 1000);
-    if (cached && cached.data) {
+    if (cached && cached.data && cached.data.cover) {
       const b = Object.assign({}, cached.data, { label: cached.label });
       _renderBook(viewer, b, status);
     } else {
