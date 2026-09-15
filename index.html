@@ -2261,6 +2261,72 @@
     margin: -4px -6px;
   }
 
+  /* Cal Football schedule card */
+  .cfb-list { display: flex; flex-direction: column; }
+  .cfb-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 32px;
+  }
+  .cfb-col { display: flex; flex-direction: column; }
+  .cfb-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 8px;
+    margin: 0 -8px;
+    border-bottom: 1px solid var(--border);
+    text-decoration: none;
+    color: inherit;
+    border-radius: 6px;
+    transition: background 0.12s;
+  }
+  .cfb-row:last-child { border-bottom: none; }
+  .cfb-row:hover { background: var(--surface2); }
+  .cfb-row--live { background: rgba(245,158,11,0.07); }
+  .cfb-row--next { background: rgba(122,170,187,0.06); }
+  .cfb-left { min-width: 0; }
+  .cfb-week {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.06em;
+    margin-right: 6px;
+  }
+  .cfb-opp { font-size: 12px; color: var(--text); }
+  .cfb-rank { color: var(--text-muted); font-size: 10px; margin-right: 3px; }
+  .cfb-meta {
+    font-size: 9px;
+    color: var(--text-muted);
+    margin-top: 2px;
+    letter-spacing: 0.02em;
+    line-height: 1.4;
+  }
+  .cfb-right { text-align: right; flex-shrink: 0; }
+  .cfb-result { font-family: 'DM Serif Display', serif; font-size: 18px; }
+  .cfb-result--next { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.06em; }
+  .cfb-score { font-size: 13px; color: var(--text); margin-left: 6px; }
+  .cfb-line { font-size: 9px; color: var(--text-muted); margin-top: 1px; letter-spacing: 0.02em; }
+  .cfb-cover--covered { color: var(--win-color); }
+  .cfb-cover--lost { color: var(--loss-color); }
+  .cfb-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.04em;
+  }
+  /* The full-width schedule sits between Sports and LA Events in the DOM so it
+     lands directly under Sports on phones; dense flow lets LA Events backfill
+     the slot beside Sports on desktop instead of leaving a hole. */
+  #subtab-frontpage { grid-auto-flow: row dense; }
+  #cal-schedule-card .digest-card-title { white-space: nowrap; }
+  #cal-schedule-card .digest-card-updated { text-align: right; }
+
   .sport-right,
   .card-right {
     text-align: right;
@@ -2292,6 +2358,8 @@
   @media (max-width: 700px) {
     .digest-grid { grid-template-columns: 1fr; }
     .digest-card.full-width { grid-column: 1; }
+    .cfb-cols { grid-template-columns: 1fr; }
+    .cfb-footer { flex-direction: column; align-items: flex-start; gap: 4px; }
     .stock-grid { grid-template-columns: 1fr; gap: 0; }
     .stock-name { display: none; }
     .stock-mktcap { display: none; }
@@ -3009,6 +3077,17 @@ onAuthStateChanged(auth, user => {
         <span class="digest-card-updated" id="sports-updated"></span>
       </div>
       <div class="sport-list" id="sports-list">
+        <span class="digest-loading">Loading...</span>
+      </div>
+    </div>
+
+    <!-- CAL FOOTBALL SCHEDULE — season is set by CAL_FOOTBALL_SEASON in the script -->
+    <div class="digest-card full-width" id="cal-schedule-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title" id="cal-schedule-title">Cal Football</span>
+        <span class="digest-card-updated" id="cal-schedule-updated"></span>
+      </div>
+      <div class="cfb-list" id="cal-schedule-list">
         <span class="digest-loading">Loading...</span>
       </div>
     </div>
@@ -4552,6 +4631,7 @@ onAuthStateChanged(auth, user => {
   const MTGSTOCKS_PROXY_URL  = 'https://focus-proxy.vercel.app/api/mtgstocks';
   const TMDB_PROXY_URL       = 'https://focus-proxy.vercel.app/api/tmdb';
   const BOOKS_PROXY_URL      = 'https://focus-proxy.vercel.app/api/books';
+  const CFB_PROXY_URL        = 'https://focus-proxy.vercel.app/api/cfb';
 
   // ── TIMEOUT CONSTANTS ─────────────────────────────────────────
   const TIMEOUT_SHORT   = 4000;  // individual ticker fetches
@@ -4706,6 +4786,7 @@ onAuthStateChanged(auth, user => {
     if (loadDigest._sessionLoaded) return;
     loadDigest._sessionLoaded = true;
     loadSports();
+    loadCalSchedule();
     await loadLiveData();
     await loadDailyData();
   }
@@ -4717,6 +4798,7 @@ onAuthStateChanged(auth, user => {
     localStorage.removeItem('focus-digest-stocks');
     localStorage.removeItem('focus-digest-reddit2');
     localStorage.removeItem('focus-digest-sealed-prices');
+    localStorage.removeItem('focus-digest-' + CFB_CACHE_KEY);
 
     // Tier 2: Refresh if older than 1 hour
     if (!cacheGet('deals', 60 * 60 * 1000)) localStorage.removeItem('focus-digest-deals');
@@ -4736,6 +4818,7 @@ onAuthStateChanged(auth, user => {
     // Re-run all loaders in parallel where possible
     await Promise.all([
       loadSports(),
+      loadCalSchedule(),
       loadLiveData(),
       loadDailyData(),
       loadSealedPrices()
@@ -4886,6 +4969,7 @@ onAuthStateChanged(auth, user => {
       'fever':        ['🎭', "Events are taking a break"],
       'sanderson':    ['📖', "Brandon is too busy writing"],
       'sports':       ['🏀', "Scoreboard went offline"],
+      'cfb':          ['🐻', "Cal schedule went offline"],
     };
     const [emoji, msg] = map[key] || ['😵', "Something went sideways"];
     return '<div class="digest-error">'
@@ -7137,6 +7221,206 @@ onAuthStateChanged(auth, user => {
     }
   }
 
+
+  // ── CAL FOOTBALL SCHEDULE ──────────────────────────────────
+  // ┌──────────────────────────────────────────────────────────────────────┐
+  // │ YEARLY UPDATE: change this ONE number when the new season starts     │
+  // │ (e.g. 2027). The card title, the ESPN season that gets fetched, and  │
+  // │ the cache key all key off it. The proxy (focus-proxy/api/cfb.js)     │
+  // │ needs no change — it fetches whatever season the app asks for.       │
+  // └──────────────────────────────────────────────────────────────────────┘
+  const CAL_FOOTBALL_SEASON  = 2026;
+  const CAL_FOOTBALL_ESPN_ID = '25';   // ESPN team id: California Golden Bears
+
+  const CFB_CACHE_KEY = 'cfb-' + CAL_FOOTBALL_SEASON;
+  const CFB_CACHE_TTL = 10 * 60 * 1000; // 10 min — scores move on game days
+  const CFB_ESPN_SCHEDULE_URL = 'https://www.espn.com/college-football/team/schedule/_/id/'
+    + CAL_FOOTBALL_ESPN_ID + '/season/' + CAL_FOOTBALL_SEASON;
+
+  // Spread text relative to Cal: "CAL -3.5" (Cal favored), "STAN -7" (dog), "PK".
+  function cfbLineText(g, abbrev) {
+    const o = g.odds;
+    if (!o || o.line === null || o.line === undefined) return '';
+    if (o.line === 0) return 'PK';
+    const fav = o.line < 0 ? abbrev : (g.opponent.abbrev || 'OPP');
+    return fav + ' -' + Math.abs(o.line);
+  }
+
+  function cfbAtsRecord(games) {
+    let w = 0, l = 0, p = 0;
+    games.forEach(g => {
+      const c = g.odds && g.odds.cover;
+      if (c === 'covered') w++; else if (c === 'lost') l++; else if (c === 'push') p++;
+    });
+    if (!w && !l && !p) return '';
+    return w + '–' + l + (p ? '–' + p : '') + ' ATS';
+  }
+
+  function calScheduleLabel(data) {
+    const record = String((data.team && data.team.record) || '').replace(/-/g, '\u2013');
+    const ats = cfbAtsRecord(data.games || []);
+    return [record, ats, asOfNow()].filter(Boolean).join(' · ');
+  }
+
+  function renderCalSchedule(data) {
+    const games = (data && data.games) || [];
+    const abbrev = (data && data.team && data.team.abbrev) || 'CAL';
+    if (!games.length) {
+      return '<span class="digest-loading">No ' + CAL_FOOTBALL_SEASON + ' games posted yet</span>';
+    }
+    const now = Date.now();
+    const nextGame = games.find(g => g.state === 'pre' && new Date(g.date).getTime() > now - 6 * 3600e3);
+    const nextId = nextGame ? nextGame.id : null;
+
+    const rows = games.map(g => {
+      const d = new Date(g.date);
+      const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      const timeStr = g.timeValid === false ? 'TBA'
+        : d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      const isLive = g.state === 'in';
+      const isNext = g.id === nextId;
+      const opp = g.opponent || {};
+      const venue = g.venue || {};
+
+      // Left: week + opponent, then date · stadium · city, state · TV
+      const prefix = g.home || g.neutral ? 'vs' : '@';
+      const rank = opp.rank ? '<span class="cfb-rank">#' + esc(opp.rank) + '</span>' : '';
+      const place = [venue.name, [venue.city, venue.state].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
+      const meta = [dateStr, place || (g.home ? 'Berkeley, CA' : ''), (!g.completed && g.broadcast) ? g.broadcast : '']
+        .filter(Boolean).map(esc).join(' · ');
+      const week = g.week ? '<span class="cfb-week">' + (g.seasonType === 3 ? 'BOWL' : 'WK ' + esc(g.week)) + '</span>' : '';
+
+      // Right: result/score or kickoff, then the line
+      const lineTxt = cfbLineText(g, abbrev);
+      const ouTxt = g.odds && g.odds.overUnder !== null && g.odds.overUnder !== undefined ? 'O/U ' + g.odds.overUnder : '';
+      let main, mainClass, color, sub;
+      if (isLive) {
+        main = 'LIVE'; mainClass = 'cfb-result'; color = 'var(--live-color)';
+        sub = '<span class="sport-live-clock">' + esc(g.detail || 'In progress') + '</span>' + (lineTxt ? ' · ' + esc(lineTxt) : '');
+      } else if (g.completed) {
+        main = g.result || '—'; mainClass = 'cfb-result';
+        color = g.result === 'W' ? 'var(--win-color)' : g.result === 'L' ? 'var(--loss-color)' : 'var(--text-muted)';
+        const c = g.odds && g.odds.cover;
+        const coverTxt = c === 'covered' ? '<span class="cfb-cover--covered">✓ covered</span>'
+          : c === 'lost' ? '<span class="cfb-cover--lost">✗ no cover</span>'
+          : c === 'push' ? 'push' : '';
+        sub = [lineTxt ? esc(lineTxt) : '', coverTxt].filter(Boolean).join(' · ') || 'no line';
+      } else {
+        main = timeStr; mainClass = 'cfb-result--next'; color = isNext ? '#1e90ff' : 'var(--text-muted)';
+        sub = [lineTxt ? esc(lineTxt) : 'line TBD', ouTxt ? esc(ouTxt) : ''].filter(Boolean).join(' · ');
+      }
+      const score = g.score ? '<span class="cfb-score">' + esc(g.score.us) + '–' + esc(g.score.them) + '</span>' : '';
+      const rowClass = isLive ? ' cfb-row--live' : isNext ? ' cfb-row--next' : '';
+      const safeUrl = escUrl(g.url);
+      const tag = safeUrl ? 'a' : 'div';
+      const linkAttrs = safeUrl ? ' href="' + safeUrl + '" target="_blank" rel="noopener"' : '';
+      return '<' + tag + ' class="cfb-row' + rowClass + '"' + linkAttrs + '>'
+        + '<div class="cfb-left">'
+        +   '<div class="cfb-opp">' + week + esc(prefix) + ' ' + rank + esc(opp.short || opp.name || '?') + '</div>'
+        +   '<div class="cfb-meta">' + meta + '</div>'
+        + '</div>'
+        + '<div class="cfb-right">'
+        +   '<div><span class="' + mainClass + '" style="color:' + color + ';">' + esc(main) + '</span>' + score + '</div>'
+        +   '<div class="cfb-line">' + sub + '</div>'
+        + '</div>'
+        + '</' + tag + '>';
+    });
+
+    // Two chronological columns on desktop (stack on phones)
+    const half = rows.length > 4 ? Math.ceil(rows.length / 2) : rows.length;
+    const cols = [rows.slice(0, half), rows.slice(half)].filter(c => c.length)
+      .map(c => '<div class="cfb-col">' + c.join('') + '</div>').join('');
+    const oddsSrc = (games.find(g => g.odds && g.odds.provider) || { odds: {} }).odds.provider;
+    return '<div class="cfb-cols">' + cols + '</div>'
+      + '<div class="cfb-footer">'
+      +   '<span>' + (oddsSrc ? 'Lines via ' + esc(oddsSrc) + ' · ' : '') + 'times shown in your local time</span>'
+      +   '<a href="' + escUrl(CFB_ESPN_SCHEDULE_URL) + '" target="_blank" rel="noopener" class="digest-section-link">Full schedule on ESPN ↗</a>'
+      + '</div>';
+  }
+
+  // Fallback when the proxy is unreachable: read ESPN's schedule straight from
+  // the browser (same source the Sports card uses). No betting lines this way.
+  async function fetchCalScheduleDirect() {
+    const url = 'https://site.api.espn.com/apis/site/v2/sports/football/college-football/teams/'
+      + CAL_FOOTBALL_ESPN_ID + '/schedule?season=' + CAL_FOOTBALL_SEASON;
+    const r = await fetchWithTimeout(url, TIMEOUT_DEFAULT);
+    if (!r.ok) throw new Error('ESPN schedule ' + r.status);
+    const sd = await r.json();
+    const scoreOf = c => {
+      const v = c && c.score && typeof c.score === 'object' ? (c.score.value ?? c.score.displayValue) : (c && c.score);
+      const n = parseFloat(v); return Number.isFinite(n) ? n : null;
+    };
+    const games = (sd.events || []).map(ev => {
+      const comp = ev.competitions && ev.competitions[0];
+      if (!comp) return null;
+      const us = (comp.competitors || []).find(c => String(c.id) === CAL_FOOTBALL_ESPN_ID || String(c.team && c.team.id) === CAL_FOOTBALL_ESPN_ID);
+      const them = (comp.competitors || []).find(c => c !== us);
+      if (!us || !them) return null;
+      const st = (comp.status && comp.status.type) || {};
+      const state = st.state === 'in' ? 'in' : (st.completed || st.state === 'post') ? 'post' : 'pre';
+      const s1 = scoreOf(us), s2 = scoreOf(them);
+      const hasScore = state !== 'pre' && s1 !== null && s2 !== null;
+      const rank = them.curatedRank && them.curatedRank.current;
+      return {
+        id: String(ev.id), week: ev.week && ev.week.number, seasonType: ev.seasonType && ev.seasonType.type,
+        date: ev.date, timeValid: comp.timeValid !== false, state, completed: state === 'post',
+        detail: st.shortDetail || '', home: us.homeAway === 'home', neutral: comp.neutralSite === true,
+        opponent: { name: them.team && them.team.displayName, short: them.team && (them.team.shortDisplayName || them.team.displayName),
+                    abbrev: them.team && them.team.abbreviation, rank: rank >= 1 && rank <= 25 ? rank : null },
+        venue: { name: comp.venue && comp.venue.fullName, city: comp.venue && comp.venue.address && comp.venue.address.city,
+                 state: comp.venue && comp.venue.address && comp.venue.address.state },
+        broadcast: (comp.broadcasts && comp.broadcasts[0] && comp.broadcasts[0].media && comp.broadcasts[0].media.shortName) || '',
+        score: hasScore ? { us: s1, them: s2 } : null,
+        result: state === 'post' ? (us.winner === true ? 'W' : us.winner === false ? 'L' : (hasScore && s1 !== s2 ? (s1 > s2 ? 'W' : 'L') : null)) : null,
+        odds: null,
+        url: 'https://www.espn.com/college-football/game/_/gameId/' + encodeURIComponent(ev.id),
+      };
+    }).filter(Boolean).sort((a, b) => new Date(a.date) - new Date(b.date));
+    const team = sd.team || {};
+    return {
+      season: CAL_FOOTBALL_SEASON,
+      team: { abbrev: team.abbreviation || 'CAL', record: team.recordSummary || (team.record && team.record.items && team.record.items[0] && team.record.items[0].summary) || '' },
+      games,
+    };
+  }
+
+  async function loadCalSchedule() {
+    const list  = document.getElementById('cal-schedule-list');
+    const title = document.getElementById('cal-schedule-title');
+    const upd   = document.getElementById('cal-schedule-updated');
+    if (!list) return;
+    if (title) title.textContent = 'Cal Football ' + CAL_FOOTBALL_SEASON;
+
+    const cached = cacheGet(CFB_CACHE_KEY, CFB_CACHE_TTL);
+    if (cached) {
+      list.innerHTML = cached.data;
+      if (upd) upd.textContent = cached.label || '';
+      return;
+    }
+
+    try {
+      let data = null;
+      try {
+        const r = await fetchWithTimeout(
+          CFB_PROXY_URL + '?team=' + CAL_FOOTBALL_ESPN_ID + '&season=' + CAL_FOOTBALL_SEASON, TIMEOUT_LONG);
+        if (r.ok) data = await r.json();
+      } catch (_) { /* proxy down — try ESPN directly below */ }
+      if (!data || !Array.isArray(data.games)) data = await fetchCalScheduleDirect();
+
+      const html  = renderCalSchedule(data);
+      const label = calScheduleLabel(data);
+      list.innerHTML = html;
+      if (upd) upd.textContent = label;
+      if (data.games.length) cacheSet(CFB_CACHE_KEY, html, label);
+    } catch (e) {
+      const stale = cacheGetStale(CFB_CACHE_KEY);
+      list.innerHTML = stale
+        ? stale.data + '<div class="digest-stale">stale · ' + cacheAge(stale.ts) + '</div>'
+        : _errorHTML('cfb');
+    }
+  }
+  window.loadCalSchedule = loadCalSchedule;     // console debugging
+  window.renderCalSchedule = renderCalSchedule; // console debugging
 
   // ── ANALYTICS
   // ── ANALYTICS ────────────────────────────────────────────────
