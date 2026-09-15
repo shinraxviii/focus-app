@@ -2296,6 +2296,7 @@
   }
   .cfb-opp { font-size: 12px; color: var(--text); }
   .cfb-rank { color: var(--text-muted); font-size: 10px; margin-right: 3px; }
+  .cfb-rec { color: var(--text-muted); font-size: 10px; }
   .cfb-meta {
     font-size: 9px;
     color: var(--text-muted);
@@ -7027,7 +7028,8 @@ onAuthStateChanged(auth, user => {
     { name: 'LA Lakers',    league: 'NBA',     sport: 'basketball', league_path: 'nba',                    espnId: '13',    abbrev: 'LAL' },
     { name: 'LA Dodgers',   league: 'MLB',     sport: 'baseball',   league_path: 'mlb',                    espnId: 'lad',   abbrev: 'LAD' },
     { name: 'LA Kings',     league: 'NHL',     sport: 'hockey',     league_path: 'nhl',                    espnId: '8',     abbrev: 'LAK' },
-    { name: 'Venezia FC',   league: 'Serie B', sport: 'soccer',     league_path: 'ita.2',                  espnId: '17530', abbrev: 'VEN' },
+    // Venezia: league_path follows promotion/relegation — 'ita.1' = Serie A, 'ita.2' = Serie B.
+    { name: 'Venezia FC',   league: 'Serie A', sport: 'soccer',     league_path: 'ita.1',                  espnId: '17530', abbrev: 'VEN' },
   ];
 
   async function loadSports() {
@@ -7316,7 +7318,8 @@ onAuthStateChanged(auth, user => {
       const linkAttrs = safeUrl ? ' href="' + safeUrl + '" target="_blank" rel="noopener"' : '';
       return '<' + tag + ' class="cfb-row' + rowClass + '"' + linkAttrs + '>'
         + '<div class="cfb-left">'
-        +   '<div class="cfb-opp">' + week + esc(prefix) + ' ' + rank + esc(opp.short || opp.name || '?') + '</div>'
+        +   '<div class="cfb-opp">' + week + esc(prefix) + ' ' + rank + esc(opp.short || opp.name || '?')
+        +     (opp.record ? ' <span class="cfb-rec">(' + esc(String(opp.record).replace(/-/g, '\u2013')) + ')</span>' : '') + '</div>'
         +   '<div class="cfb-meta">' + meta + '</div>'
         + '</div>'
         + '<div class="cfb-right">'
@@ -7366,8 +7369,10 @@ onAuthStateChanged(auth, user => {
         id: String(ev.id), week: ev.week && ev.week.number, seasonType: ev.seasonType && ev.seasonType.type,
         date: ev.date, timeValid: comp.timeValid !== false, state, completed: state === 'post',
         detail: st.shortDetail || '', home: us.homeAway === 'home', neutral: comp.neutralSite === true,
-        opponent: { name: them.team && them.team.displayName, short: them.team && (them.team.shortDisplayName || them.team.displayName),
-                    abbrev: them.team && them.team.abbreviation, rank: rank >= 1 && rank <= 25 ? rank : null },
+        opponent: { id: String((them.team && them.team.id) || them.id || ''),
+                    name: them.team && them.team.displayName, short: them.team && (them.team.shortDisplayName || them.team.displayName),
+                    abbrev: them.team && them.team.abbreviation, rank: rank >= 1 && rank <= 25 ? rank : null,
+                    record: (Array.isArray(them.record) && them.record[0] && them.record[0].summary) || (them.records && them.records[0] && them.records[0].summary) || '' },
         venue: { name: comp.venue && comp.venue.fullName, city: comp.venue && comp.venue.address && comp.venue.address.city,
                  state: comp.venue && comp.venue.address && comp.venue.address.state },
         broadcast: (comp.broadcasts && comp.broadcasts[0] && comp.broadcasts[0].media && comp.broadcasts[0].media.shortName) || '',
@@ -7428,6 +7433,21 @@ onAuthStateChanged(auth, user => {
     } catch (_) { /* no line yet */ }
   }
 
+  // Current record for every opponent, from ESPN's team endpoint (same host
+  // as everything else). Best-effort: a miss keeps whatever the schedule gave.
+  async function attachOpponentRecords(data) {
+    const ids = [...new Set((data.games || []).map(g => g.opponent && g.opponent.id).filter(Boolean))];
+    await Promise.all(ids.map(async id => {
+      try {
+        const r = await fetchWithTimeout('https://site.api.espn.com/apis/site/v2/sports/football/college-football/teams/' + encodeURIComponent(id), TIMEOUT_SHORT);
+        if (!r.ok) return;
+        const t = (await r.json()).team || {};
+        const rec = t.recordSummary || (t.record && t.record.items && t.record.items[0] && t.record.items[0].summary) || '';
+        if (rec) data.games.forEach(g => { if (g.opponent && g.opponent.id === id) g.opponent.record = rec; });
+      } catch (_) { /* keep schedule-supplied record */ }
+    }));
+  }
+
   async function loadCalSchedule() {
     const list  = document.getElementById('cal-schedule-list');
     const title = document.getElementById('cal-schedule-title');
@@ -7462,7 +7482,7 @@ onAuthStateChanged(auth, user => {
         if (!data.team.record && proxied.team && proxied.team.record) data.team.record = proxied.team.record;
       }
       if (!data) throw new Error('schedule unavailable');
-      await attachNextGameLine(data);
+      await Promise.all([attachNextGameLine(data), attachOpponentRecords(data)]);
 
       const html  = renderCalSchedule(data);
       const label = calScheduleLabel(data);
