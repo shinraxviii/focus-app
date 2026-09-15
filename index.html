@@ -7338,8 +7338,9 @@ onAuthStateChanged(auth, user => {
       + '</div>';
   }
 
-  // Fallback when the proxy is unreachable: read ESPN's schedule straight from
-  // the browser (same source the Sports card uses). No betting lines this way.
+  // Primary data path: ESPN's team schedule read straight from the browser —
+  // the exact endpoint the Sports card falls back to for Cal (scores, times,
+  // venues, record). Betting lines are layered on separately.
   async function fetchCalScheduleDirect() {
     const url = 'https://site.api.espn.com/apis/site/v2/sports/football/college-football/teams/'
       + CAL_FOOTBALL_ESPN_ID + '/schedule?season=' + CAL_FOOTBALL_SEASON;
@@ -7384,6 +7385,49 @@ onAuthStateChanged(auth, user => {
     };
   }
 
+  // Spread text from an ESPN odds object (site or core API shape), relative to
+  // Cal: negative = Cal favored, positive = Cal is the dog, 0 = pick'em.
+  function cfbOddsFromEspn(o, ourAbbrev, oppAbbrev, weAreHome) {
+    if (!o) return null;
+    let line = null;
+    const details = typeof o.details === 'string' ? o.details.trim() : '';
+    const m = details.match(/^([A-Z&' .]+?)\s+([+-]?\d+(?:\.\d+)?)$/i);
+    if (m) {
+      const fav = m[1].trim().toUpperCase(), mag = Math.abs(parseFloat(m[2]));
+      if (fav === String(ourAbbrev).toUpperCase()) line = -mag;
+      else if (fav === String(oppAbbrev).toUpperCase()) line = mag;
+    } else if (/^(EVEN|PK|PICK)/i.test(details)) line = 0;
+    if (line === null && Number.isFinite(parseFloat(o.spread))) {
+      const spread = parseFloat(o.spread);          // ESPN expresses spread for the HOME team
+      line = weAreHome ? spread : -spread;
+    }
+    const ou = parseFloat(o.overUnder);
+    const overUnder = Number.isFinite(ou) ? ou : null;
+    if (line === null && overUnder === null) return null;
+    return { line, details, overUnder, provider: (o.provider && o.provider.name) || '', cover: null };
+  }
+
+  // Line for the next game from ESPN's scoreboard — the same host and fetch
+  // path the Sports card uses for live scores. Best-effort; never throws.
+  async function attachNextGameLine(data) {
+    try {
+      const now = Date.now();
+      const next = (data.games || []).find(g => g.state === 'pre' && new Date(g.date).getTime() > now - 6 * 3600e3);
+      if (!next || (next.odds && next.odds.line !== null && next.odds.line !== undefined)) return;
+      const ymd = d => d.toISOString().slice(0, 10).replace(/-/g, '');
+      const t = new Date(next.date).getTime();
+      const url = 'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard'
+        + '?groups=80&limit=400&dates=' + ymd(new Date(t - 864e5)) + '-' + ymd(new Date(t + 864e5));
+      const r = await fetchWithTimeout(url, TIMEOUT_DEFAULT);
+      if (!r.ok) return;
+      const sb = await r.json();
+      const ev = (sb.events || []).find(e => String(e.id) === String(next.id));
+      const o = ev && ev.competitions && ev.competitions[0] && ev.competitions[0].odds && ev.competitions[0].odds[0];
+      const odds = cfbOddsFromEspn(o, (data.team && data.team.abbrev) || 'CAL', next.opponent.abbrev, next.home);
+      if (odds) next.odds = odds;
+    } catch (_) { /* no line yet */ }
+  }
+
   async function loadCalSchedule() {
     const list  = document.getElementById('cal-schedule-list');
     const title = document.getElementById('cal-schedule-title');
@@ -7399,13 +7443,26 @@ onAuthStateChanged(auth, user => {
     }
 
     try {
-      let data = null;
-      try {
-        const r = await fetchWithTimeout(
-          CFB_PROXY_URL + '?team=' + CAL_FOOTBALL_ESPN_ID + '&season=' + CAL_FOOTBALL_SEASON, TIMEOUT_LONG);
-        if (r.ok) data = await r.json();
-      } catch (_) { /* proxy down — try ESPN directly below */ }
-      if (!data || !Array.isArray(data.games)) data = await fetchCalScheduleDirect();
+      // Schedule, scores, times and venues come straight from ESPN in the
+      // browser — the same endpoint and fetch path the Sports card uses.
+      // In parallel, the proxy is asked (best-effort) for closing spreads on
+      // past games; if it is down or not deployed, the card still renders.
+      const proxyUrl = CFB_PROXY_URL + '?team=' + CAL_FOOTBALL_ESPN_ID + '&season=' + CAL_FOOTBALL_SEASON;
+      const [direct, proxied] = await Promise.all([
+        fetchCalScheduleDirect().catch(() => null),
+        fetchWithTimeout(proxyUrl, TIMEOUT_LONG).then(r => r.ok ? r.json() : null).catch(() => null),
+      ]);
+      const proxyOk = proxied && Array.isArray(proxied.games);
+      let data = direct;
+      if (!data && proxyOk) data = proxied;
+      else if (data && proxyOk) {
+        const byId = {};
+        data.games.forEach(g => { byId[g.id] = g; });
+        proxied.games.forEach(pg => { const g = byId[pg.id]; if (g && pg.odds && !g.odds) g.odds = pg.odds; });
+        if (!data.team.record && proxied.team && proxied.team.record) data.team.record = proxied.team.record;
+      }
+      if (!data) throw new Error('schedule unavailable');
+      await attachNextGameLine(data);
 
       const html  = renderCalSchedule(data);
       const label = calScheduleLabel(data);
