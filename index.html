@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="icon.png">
 <link rel="icon" type="image/png" href="icon.png">
 <title>Focus</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=Jost:wght@700&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -2892,6 +2892,160 @@
     .nav-btn { padding: 10px 20px; }
   }
 
+
+  /* ── D20 (Digest › TCG) ─────────────────────────────────── */
+  :root { --d20-shadow: rgba(0,0,0,0.5); }
+  html.light { --d20-shadow: rgba(0,0,0,0.14); }
+  html.navy { --d20-shadow: rgba(0,0,0,0.55); }
+
+  .die-stage { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .die-btn {
+    appearance: none; background: none; border: 0; padding: 8px; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    border-radius: 50%;
+    position: relative;
+    font: inherit;
+  }
+  .die-btn:focus-visible, .look-btn:focus-visible, .d20-ctrl:focus-visible { outline: 2px solid var(--color-cyber); outline-offset: 2px; }
+  .die-3d { display: block; position: relative; z-index: 1; }
+  .die-btn svg {
+    width: 220px; height: 220px; max-width: 100%;
+    display: block;
+    filter: drop-shadow(0 6px 8px var(--d20-shadow));
+    transition: transform 0.15s ease;
+  }
+  .die-btn:hover svg { transform: scale(1.03); }
+  .die-btn:active svg { transform: scale(0.97); }
+  .die-btn.crit svg { animation: d20-crit 0.9s ease-out both; }
+  .die-btn.fumble svg { animation: d20-fumble 0.45s ease-in-out both; }
+  .die-shadow {
+    position: absolute; left: 50%; bottom: 2px; width: 150px; height: 20px;
+    transform: translateX(-50%);
+    background: radial-gradient(ellipse at center, var(--d20-shadow) 0%, transparent 70%);
+    opacity: 0.8; pointer-events: none;
+  }
+  @keyframes d20-crit {
+    0%   { transform: scale(1);                 filter: drop-shadow(0 10px 14px var(--d20-shadow)) drop-shadow(0 0 0 rgba(255,165,2,0)); }
+    30%  { transform: scale(1.14) rotate(-4deg); filter: drop-shadow(0 10px 14px var(--d20-shadow)) drop-shadow(0 0 26px rgba(255,165,2,0.95)); }
+    60%  { transform: scale(1.06) rotate(2deg);  filter: drop-shadow(0 10px 14px var(--d20-shadow)) drop-shadow(0 0 14px rgba(255,165,2,0.6)); }
+    100% { transform: scale(1);                 filter: drop-shadow(0 10px 14px var(--d20-shadow)) drop-shadow(0 0 0 rgba(255,165,2,0)); }
+  }
+  .die-btn.crit .die-num-g.front { animation: d20-numpop 0.7s cubic-bezier(0.2, 0.9, 0.3, 1.4) both; }
+  @keyframes d20-numpop {
+    0%   { transform: scale(0.4); opacity: 0; }
+    60%  { transform: scale(1.25); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .crit-ring {
+    position: absolute; inset: 10px; border-radius: 50%;
+    border: 2px solid var(--color-solar);
+    pointer-events: none;
+    animation: d20-ring 0.9s ease-out both;
+  }
+  .crit-ring.second { animation-delay: 0.12s; border-width: 1px; }
+  @keyframes d20-ring {
+    0%   { transform: scale(0.55); opacity: 0.9; }
+    100% { transform: scale(1.55); opacity: 0; }
+  }
+  .spark {
+    position: absolute; left: 50%; top: 50%;
+    width: var(--sz); height: var(--sz); border-radius: 50%;
+    background: var(--c);
+    box-shadow: 0 0 6px var(--c);
+    pointer-events: none;
+    animation: d20-spark var(--dur) cubic-bezier(0.1, 0.8, 0.3, 1) var(--delay) both;
+  }
+  .spark.streak { border-radius: 2px; height: 2px; width: calc(var(--sz) * 2.5); transform-origin: center; }
+  @keyframes d20-spark {
+    0%   { transform: translate(-50%, -50%) rotate(var(--rot)) scale(1); opacity: 1; }
+    100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy) + 24px)) rotate(var(--rot)) scale(0.15); opacity: 0; }
+  }
+  @keyframes d20-fumble {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-6px) rotate(-2deg); }
+    75% { transform: translateX(6px) rotate(2deg); }
+  }
+  .die-face { stroke-linejoin: round; shape-rendering: geometricPrecision; }
+  .die-num-g { transform-box: fill-box; transform-origin: center; pointer-events: none; }
+  .die-num, .die-num-shadow, .die-num-hi {
+    font-family: 'Jost', 'Futura', 'Century Gothic', 'Avenir Next', sans-serif;
+    font-weight: 700;
+    font-size: 38px;
+    letter-spacing: -1px;
+    text-anchor: middle;
+    dominant-baseline: central;
+  }
+  .die-num-shadow { fill: rgba(0,0,0,0.5); }
+  .die-num-hi { fill: rgba(255,255,255,0.28); }
+  .die-num { filter: url(#d20-ink-wear); }
+  .neon .die-num { filter: url(#d20-ink-wear) drop-shadow(0 0 6px var(--edge)); }
+  .die-num-rule { stroke-width: 2.4; stroke-linecap: round; }
+
+  .die-result { display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 40px; }
+  .die-result-main { font-family: 'DM Serif Display', serif; font-size: 18px; color: var(--text); }
+  .die-result-main .tag {
+    font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase;
+    margin-left: 8px; padding: 2px 7px; border-radius: 999px;
+    border: 1px solid var(--border); color: var(--text-muted); vertical-align: middle;
+  }
+  .die-result-main .tag.crit { color: var(--color-solar); border-color: var(--color-solar); }
+  .die-result-main .tag.fumble { color: var(--color-flame); border-color: var(--color-flame); }
+  .die-history { font-size: 10px; letter-spacing: 0.08em; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+  .die-history span { color: var(--text-muted); }
+
+  .die-footer {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); gap: 12px;
+  }
+  .look-name { display: flex; flex-direction: column; gap: 3px; }
+  .look-name b { font-weight: 500; font-size: 12px; color: var(--text); }
+  .look-name span { font-size: 9px; letter-spacing: 0.06em; color: var(--text-muted); }
+  .look-dots { display: flex; gap: 5px; margin-top: 2px; }
+  .look-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--text-dim); }
+  .look-dots i.on { background: var(--text); }
+  .look-btn {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 50%;
+    width: 36px; height: 36px; font-size: 18px; color: var(--text-dim); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0;
+  }
+  .look-btn:hover { color: var(--text); }
+
+  /* D20 rolls (Analytics) */
+  .d20-hist-wrap { position: relative; width: 100%; height: 200px; margin-top: 16px; }
+  .d20-hist-wrap svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .d20-hist-empty {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: var(--text-dim); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; text-align: center; padding: 0 24px;
+  }
+  .d20-hist-bar { fill: var(--text-muted); transition: fill 0.15s; }
+  .d20-hist-hit { fill: transparent; }
+  .d20-hist-hit:hover + .d20-hist-bar { fill: var(--text); }
+  .d20-hist-expected { fill: none; stroke: var(--text-dim); stroke-width: 1.5; stroke-dasharray: 3 3; }
+  .d20-hist-grid { stroke: var(--border); stroke-width: 1; }
+  .d20-hist-axis { font-family: 'DM Mono', monospace; font-size: 9px; fill: var(--text-dim); }
+  .d20-hist-tip {
+    position: absolute; pointer-events: none; transform: translate(-50%, -100%);
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px 8px; font-size: 10px; color: var(--text); white-space: nowrap;
+    box-shadow: 0 4px 10px var(--d20-shadow);
+  }
+  .d20-hist-tip b { font-weight: 500; }
+  .d20-hist-tip span { color: var(--text-muted); }
+  .d20-hist-legend { display: flex; gap: 14px; margin-top: 10px; font-size: 9px; letter-spacing: 0.06em; color: var(--text-muted); }
+  .d20-hist-legend i { display: inline-block; width: 10px; height: 8px; vertical-align: -1px; margin-right: 5px; background: var(--text-muted); border-radius: 1px; }
+  .d20-hist-legend i.dash { height: 0; border-top: 2px dashed var(--text-dim); background: none; vertical-align: 2px; }
+  .d20-stat-interpret b { color: var(--text-muted); font-weight: 500; }
+  .d20-stat-footer { display: flex; justify-content: flex-end; margin-top: 12px; }
+  .d20-link {
+    font: inherit; font-size: 10px; background: none; border: 0; padding: 0; cursor: pointer;
+    color: var(--text-muted); text-decoration: underline; text-underline-offset: 3px;
+  }
+  .d20-link:hover { color: var(--text); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .die-btn.crit svg, .die-btn.fumble svg, .die-btn.crit .die-num-g.front, .spark, .crit-ring { animation: none; }
+    .die-btn:hover svg { transform: none; }
+  }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script type="module">
@@ -3230,6 +3384,61 @@ onAuthStateChanged(auth, user => {
       </div>
     </div>
 
+    <!-- D20 ROLLER -->
+    <div class="digest-card" id="d20-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title">D20</span>
+        <span class="digest-card-updated" id="d20-updated">Tap the die to roll</span>
+      </div>
+      <div class="die-stage">
+        <button type="button" class="die-btn" id="d20-die" aria-label="Roll the twenty-sided die" title="Roll">
+          <span class="die-shadow"></span>
+          <span class="die-3d">
+          <svg viewBox="-118 -118 236 236" aria-hidden="true">
+            <defs>
+              <radialGradient id="d20-gem-light" cx="35%" cy="28%" r="70%">
+                <stop offset="0%" stop-color="#fff" stop-opacity="0.42"/>
+                <stop offset="45%" stop-color="#fff" stop-opacity="0.06"/>
+                <stop offset="100%" stop-color="#000" stop-opacity="0.10"/>
+              </radialGradient>
+              <linearGradient id="d20-metal-sheen" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#fff" stop-opacity="0.35"/>
+                <stop offset="40%" stop-color="#fff" stop-opacity="0.02"/>
+                <stop offset="60%" stop-color="#000" stop-opacity="0.05"/>
+                <stop offset="100%" stop-color="#000" stop-opacity="0.30"/>
+              </linearGradient>
+              <filter id="d20-ink-wear" x="-10%" y="-10%" width="120%" height="120%">
+                <feTurbulence type="fractalNoise" baseFrequency="0.32" numOctaves="2" seed="11" result="grain"/>
+                <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 9 -2.6" result="wear"/>
+                <feComposite in="SourceGraphic" in2="wear" operator="in"/>
+              </filter>
+              <filter id="d20-neon-glow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="3" result="b"/>
+                <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
+            <g id="die-root">
+              <g id="die-faces"></g>
+              <polygon id="die-overlay" points="" fill="none" pointer-events="none"/>
+            </g>
+          </svg>
+          </span>
+        </button>
+        <div class="die-result">
+          <div class="die-result-main" id="d20-result">Tap to roll</div>
+          <div class="die-history" id="d20-history">last · <span>—</span></div>
+        </div>
+      </div>
+      <div class="die-footer">
+        <div class="look-name">
+          <b id="look-name">Obsidian</b>
+          <span id="look-desc">matte · silver edge</span>
+          <div class="look-dots" id="look-dots"></div>
+        </div>
+        <button type="button" class="look-btn" id="look-btn" title="Next look" aria-label="Switch to the next die look">&#x21bb;</button>
+      </div>
+    </div>
+
     <!-- EDHREC COMMANDER RECOMMENDATIONS -->
     <div class="digest-card">
       <div class="digest-card-header">
@@ -3504,6 +3713,34 @@ onAuthStateChanged(auth, user => {
       </div>
     </div>
     <div class="zscore-sig" id="zscore-sig"></div>
+  </div>
+
+  <!-- D20 ROLLS -->
+  <div class="analytics-card stat-card" id="d20-rolls-card">
+    <div class="stat-card-header">
+      <div>
+        <div class="stat-card-label">D20 Rolls</div>
+        <div class="stat-big" id="d20-rolls-total">0</div>
+        <div class="stat-sub" id="d20-rolls-sub">rolls logged, all time</div>
+      </div>
+      <div class="stat-aside">
+        <div class="stat-aside-label">Mean · expect 10.5</div>
+        <div class="stat-aside-val" id="d20-rolls-mean">—</div>
+        <div class="stat-aside-label">Nat 20 · Nat 1</div>
+        <div class="stat-aside-val" id="d20-rolls-nats">—</div>
+      </div>
+    </div>
+    <div class="control-group" role="group" aria-label="Histogram view">
+      <button type="button" class="ctrl-btn d20-ctrl active" data-view="faces">Faces</button>
+      <button type="button" class="ctrl-btn d20-ctrl" data-view="sums">Sum of 3</button>
+    </div>
+    <div class="d20-hist-wrap" id="d20-hist-wrap">
+      <svg id="d20-hist" viewBox="0 0 332 200" aria-label="Histogram of d20 rolls"></svg>
+      <div class="d20-hist-empty" id="d20-hist-empty" style="display:none;">Roll the die in the TCG tab and the distribution fills in here</div>
+    </div>
+    <div class="d20-hist-legend"><span><i></i>Observed</span><span><i class="dash"></i>Expected for a fair die</span></div>
+    <div class="stat-interpret d20-stat-interpret" id="d20-rolls-interpret"></div>
+    <div class="d20-stat-footer"><button type="button" class="d20-link" id="d20-rolls-clear">Clear roll history</button></div>
   </div>
 
 </div>
@@ -9223,6 +9460,441 @@ onAuthStateChanged(auth, user => {
   window.runSpeedTest = runSpeedTest;
 
 
+</script>
+<script>
+// ── D20 ROLLER (Digest › TCG) + D20 ROLLS (Analytics) ──────────
+(function () {
+  const $ = id => document.getElementById(id);
+  const NS = 'http://www.w3.org/2000/svg';
+  const S = 95, CAM = 5;   // circumradius in svg units; camera distance in radii (mild perspective)
+
+  // ── A real icosahedron ──
+  const PHI = (1 + Math.sqrt(5)) / 2;
+  const VERTS = [[-1, PHI, 0], [1, PHI, 0], [-1, -PHI, 0], [1, -PHI, 0], [0, -1, PHI], [0, 1, PHI], [0, -1, -PHI], [0, 1, -PHI], [PHI, 0, -1], [PHI, 0, 1], [-PHI, 0, -1], [-PHI, 0, 1]]
+    .map(v => { const m = Math.hypot(v[0], v[1], v[2]); return [v[0] / m, v[1] / m, v[2] / m]; });
+  const TRIS = [[0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11], [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8], [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9], [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]];
+  const v3 = {
+    sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]],
+    add: (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]],
+    mul: (a, s) => [a[0] * s, a[1] * s, a[2] * s],
+    dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
+    cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]],
+    norm: a => { const m = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / m, a[1] / m, a[2] / m]; },
+  };
+  // Each face: vertex ids (outward winding), body-frame normal n, "up" u (centroid → first vertex), right v = n × u.
+  const FACES = TRIS.map(t => {
+    const a = VERTS[t[0]], b = VERTS[t[1]], c = VERTS[t[2]];
+    const cen = v3.mul(v3.add(v3.add(a, b), c), 1 / 3);
+    let n = v3.norm(v3.cross(v3.sub(b, a), v3.sub(c, a)));
+    if (v3.dot(n, cen) < 0) { n = v3.mul(n, -1); t = [t[0], t[2], t[1]]; }
+    const u = v3.norm(v3.sub(a, cen));
+    return { ids: t, cen, n, u, v: v3.cross(n, u), num: 0 };
+  });
+  // Numbering: opposite faces sum to 21, as on a real d20.
+  { let k = 1; FACES.forEach(f => { if (f.num) return; f.num = k; const opp = FACES.find(g => v3.dot(g.n, f.n) < -0.99); opp.num = 21 - k; k++; }); }
+  const faceOf = num => FACES.find(f => f.num === num);
+
+  // ── Quaternions (x, y, z, w) ──
+  const Q = {
+    mul: (a, b) => [
+      a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1],
+      a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0],
+      a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3],
+      a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2]],
+    norm: q => { const m = Math.hypot(q[0], q[1], q[2], q[3]) || 1; return q.map(x => x / m); },
+    slerp: (a, b, t) => {
+      let d = a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
+      if (d < 0) { b = b.map(x => -x); d = -d; }
+      if (d > 0.9995) return Q.norm(a.map((x, i) => x + (b[i] - x) * t));
+      const th = Math.acos(d), s = Math.sin(th);
+      const wa = Math.sin((1 - t) * th) / s, wb = Math.sin(t * th) / s;
+      return a.map((x, i) => x * wa + b[i] * wb);
+    },
+    toMatrix: q => {
+      const [x, y, z, w] = q;
+      return [
+        [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+        [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+        [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]];
+    },
+    fromMatrix: m => {
+      const tr = m[0][0] + m[1][1] + m[2][2]; let q;
+      if (tr > 0) { const s = Math.sqrt(tr + 1) * 2; q = [(m[2][1] - m[1][2]) / s, (m[0][2] - m[2][0]) / s, (m[1][0] - m[0][1]) / s, s / 4]; }
+      else if (m[0][0] > m[1][1] && m[0][0] > m[2][2]) { const s = Math.sqrt(1 + m[0][0] - m[1][1] - m[2][2]) * 2; q = [s / 4, (m[0][1] + m[1][0]) / s, (m[0][2] + m[2][0]) / s, (m[2][1] - m[1][2]) / s]; }
+      else if (m[1][1] > m[2][2]) { const s = Math.sqrt(1 + m[1][1] - m[0][0] - m[2][2]) * 2; q = [(m[0][1] + m[1][0]) / s, s / 4, (m[1][2] + m[2][1]) / s, (m[0][2] - m[2][0]) / s]; }
+      else { const s = Math.sqrt(1 + m[2][2] - m[0][0] - m[1][1]) * 2; q = [(m[0][2] + m[2][0]) / s, (m[1][2] + m[2][1]) / s, s / 4, (m[1][0] - m[0][1]) / s]; }
+      return Q.norm(q);
+    },
+  };
+  // Orientation that puts face `num` flat toward the viewer with its numeral upright
+  // (screen x right, y down, z toward the viewer).
+  const restQuat = num => { const f = faceOf(num); return Q.fromMatrix([f.v, v3.mul(f.u, -1), f.n]); };
+  const applyM = (m, p) => [v3.dot(m[0], p), v3.dot(m[1], p), v3.dot(m[2], p)];
+  const project = p => { const s = CAM / (CAM - p[2]); return [p[0] * s * S, p[1] * s * S]; };
+
+  // ── Looks ──
+  const LOOKS = [
+    { name: 'Obsidian', desc: 'matte · silver edge', h: 240, s: 6,  l: 22, contrast: 0.55, spec: 0.15, edge: '#a1a1aa', edgeW: 1.2, num: '#f4f4f5', finish: 'matte' },
+    { name: 'Ruby',     desc: 'gem · gold numeral',   h: 350, s: 72, l: 36, contrast: 0.75, spec: 0.45, edge: '#ffd7dc', edgeW: 0.9, num: '#ffd166', finish: 'gem' },
+    { name: 'Sapphire', desc: 'gem · white numeral',  h: 218, s: 74, l: 40, contrast: 0.75, spec: 0.45, edge: '#dbe7ff', edgeW: 0.9, num: '#ffffff', finish: 'gem' },
+    { name: 'Emerald',  desc: 'gem · gold numeral',   h: 152, s: 62, l: 30, contrast: 0.75, spec: 0.45, edge: '#c9f5dd', edgeW: 0.9, num: '#ffd166', finish: 'gem' },
+    { name: 'Brass',    desc: 'metal · engraved',     h: 40,  s: 62, l: 48, contrast: 0.9,  spec: 0.7,  edge: '#5a3d0e', edgeW: 1.0, num: '#3a2707', finish: 'metal' },
+    { name: 'Bone',     desc: 'ivory · ink numeral',  h: 44,  s: 38, l: 88, contrast: 0.35, spec: 0.05, edge: '#6b5a3e', edgeW: 1.1, num: '#2b2419', finish: 'bone' },
+    { name: 'Neon',     desc: 'wireframe · glow',     h: 182, s: 20, l: 9,  contrast: 0.4,  spec: 0.1,  edge: '#00d2d3', edgeW: 1.6, num: '#7ff7f7', finish: 'neon' },
+  ];
+  const LIGHT = v3.norm([-0.45, -0.65, 0.62]);
+  const HALF = v3.norm(v3.add(LIGHT, [0, 0, 1]));
+
+  const facesG = $('die-faces'), overlay = $('die-overlay'), rootG = $('die-root');
+  const dieBtn = $('d20-die'), resultEl = $('d20-result'), historyEl = $('d20-history');
+  const lookName = $('look-name'), lookDesc = $('look-desc'), lookDots = $('look-dots'), lookBtn = $('look-btn');
+  const svg = dieBtn.querySelector('svg'), shadowEl = dieBtn.querySelector('.die-shadow');
+
+  // Each face carries its own small, fixed misalignment, the way paint sits in a moulded die.
+  function faceQuirk(n) {
+    const h = Math.sin(n * 12.9898) * 43758.5453, f = h - Math.floor(h);
+    const h2 = Math.sin(n * 78.233) * 12345.678, f2 = h2 - Math.floor(h2);
+    return { rot: (f - 0.5) * 7, dx: (f2 - 0.5) * 3, dy: (f - 0.5) * 2.5 };
+  }
+  // Build one group per face: polygon + engraved numeral (three copies) + 6/9 underline.
+  const mk = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
+  FACES.forEach(f => {
+    const g = mk('g', {});
+    f.poly = mk('polygon', { class: 'die-face' });
+    f.numWrap = mk('g', {});                       // affine map from face-local units to the screen
+    f.numG = mk('g', { class: 'die-num-g' });      // the pop target on a natural 20
+    const q = faceQuirk(f.num);
+    const inner = mk('g', { transform: `translate(${q.dx.toFixed(2)} ${q.dy.toFixed(2)}) rotate(${q.rot.toFixed(2)})` });
+    f.shadowT = mk('text', { class: 'die-num-shadow', x: -0.8, y: 4.4 });
+    f.hiT = mk('text', { class: 'die-num-hi', x: 0.8, y: 6.2 });
+    f.mainT = mk('text', { class: 'die-num', x: 0, y: 5.3 });
+    [f.shadowT, f.hiT, f.mainT].forEach(t => { t.textContent = f.num; inner.appendChild(t); });
+    if (f.num === 6 || f.num === 9) inner.appendChild(f.rule = mk('line', { class: 'die-num-rule', x1: -8.5, y1: 24, x2: 8.5, y2: 24 }));
+    f.numG.appendChild(inner); f.numWrap.appendChild(f.numG);
+    g.appendChild(f.poly); g.appendChild(f.numWrap); facesG.appendChild(g); f.g = g;
+  });
+
+  let lookIdx = 0;
+  try { const saved = parseInt(localStorage.getItem('focus-digest-d20-look'), 10); if (saved >= 0 && saved < LOOKS.length) lookIdx = saved; } catch (e) {}
+  let look = LOOKS[lookIdx];
+  let showAllNumerals = true;
+
+  function applyLook() {
+    look = LOOKS[lookIdx];
+    FACES.forEach(f => {
+      f.poly.setAttribute('stroke', look.edge);
+      f.poly.setAttribute('stroke-width', look.edgeW);
+      f.poly.setAttribute('stroke-opacity', look.finish === 'gem' ? 0.55 : 1);
+      f.mainT.setAttribute('fill', look.num);
+      if (f.rule) f.rule.setAttribute('stroke', look.num);
+    });
+    overlay.setAttribute('fill', look.finish === 'gem' ? 'url(#d20-gem-light)' : look.finish === 'metal' ? 'url(#d20-metal-sheen)' : 'none');
+    facesG.setAttribute('filter', look.finish === 'neon' ? 'url(#d20-neon-glow)' : '');
+    svg.classList.toggle('neon', look.finish === 'neon');
+    svg.style.setProperty('--edge', look.edge);
+    lookName.textContent = look.name;
+    lookDesc.textContent = look.desc;
+    lookDots.innerHTML = LOOKS.map((_, i) => `<i class="${i === lookIdx ? 'on' : ''}"></i>`).join('');
+    render();
+  }
+
+  // Convex hull (monotone chain) of the projected vertices, for the gem/metal sheen overlay.
+  function hull(pts) {
+    pts = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+    const lower = [], upper = [];
+    for (const p of pts) { while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop(); lower.push(p); }
+    for (const p of pts.slice().reverse()) { while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop(); upper.push(p); }
+    return lower.slice(0, -1).concat(upper.slice(0, -1));
+  }
+
+  // ── Render one orientation ──
+  let curQ = restQuat(20), curHop = 0, restFace = 20;
+  function render(q = curQ, hop = curHop, atRest = true) {
+    curQ = q; curHop = hop;
+    const m = Q.toMatrix(q);
+    const world = VERTS.map(p => applyM(m, p));
+    const scr = world.map(project);
+    rootG.setAttribute('transform', `translate(0 ${(-hop).toFixed(1)}) scale(${(1 + hop / 320).toFixed(3)})`);
+    FACES.forEach(f => {
+      const n = applyM(m, f.n);
+      if (n[2] <= 0.02) { f.g.style.display = 'none'; return; }
+      f.g.style.display = '';
+      f.poly.setAttribute('points', f.ids.map(i => `${scr[i][0].toFixed(1)},${scr[i][1].toFixed(1)}`).join(' '));
+      // Lambert + a moving highlight, on the look's base colour.
+      const d = Math.max(0, v3.dot(n, LIGHT));
+      const spec = Math.pow(Math.max(0, v3.dot(n, HALF)), look.finish === 'metal' ? 14 : 36) * look.spec;
+      const lum = Math.max(look.l * 0.42, look.l + (d - 0.62) * 42 * look.contrast) + spec * 45;
+      const sat = look.finish === 'neon' ? look.s : look.s - (0.62 - d) * 10 - spec * 30;
+      f.poly.setAttribute('fill', `hsl(${look.h} ${Math.max(0, sat).toFixed(0)}% ${Math.min(97, Math.max(4, lum)).toFixed(0)}%)`);
+      // Numeral: map face-local units (100 = one radius) onto the projected face.
+      const visible = atRest ? f.num === restFace || showAllNumerals : showAllNumerals;
+      if (!visible) { f.numWrap.style.display = 'none'; return; }
+      f.numWrap.style.display = '';
+      const C = project(applyM(m, f.cen));
+      const U = project(applyM(m, v3.add(f.cen, v3.mul(f.u, 0.3))));
+      const V = project(applyM(m, v3.add(f.cen, v3.mul(f.v, 0.3))));
+      const a = (V[0] - C[0]) / 30, b = (V[1] - C[1]) / 30, c = -(U[0] - C[0]) / 30, dd = -(U[1] - C[1]) / 30;
+      f.numWrap.setAttribute('transform', `matrix(${a.toFixed(4)} ${b.toFixed(4)} ${c.toFixed(4)} ${dd.toFixed(4)} ${C[0].toFixed(1)} ${C[1].toFixed(1)})`);
+      f.numWrap.setAttribute('opacity', Math.min(1, Math.max(0, (n[2] - 0.12) * 2.2)).toFixed(2));
+      f.numG.classList.toggle('front', atRest && f.num === restFace);
+    });
+    overlay.setAttribute('points', hull(scr).map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' '));
+    svg.classList.toggle('at-rest', atRest);
+    shadowEl.style.transform = `translateX(-50%) scale(${(1 - hop / 90).toFixed(3)})`;
+    shadowEl.style.opacity = Math.max(0.15, 0.8 - hop / 60).toFixed(2);
+  }
+  function showNumber(n) { restFace = n; render(restQuat(n), 0, true); }
+
+  lookBtn.addEventListener('click', () => {
+    lookIdx = (lookIdx + 1) % LOOKS.length;
+    try { localStorage.setItem('focus-digest-d20-look', String(lookIdx)); } catch (e) {}
+    applyLook();
+  });
+
+  // ── History ──
+  const HISTORY_KEY = 'focus-digest-d20-rolls';
+  const HISTORY_CAP = 5000;
+  let history = [];   // [face, timestamp] pairs, oldest first
+  try {
+    const raw = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    if (Array.isArray(raw)) history = raw.filter(r => Array.isArray(r) && r[0] >= 1 && r[0] <= 20);
+  } catch (e) {}
+  function saveHistory() {
+    if (history.length > HISTORY_CAP) history = history.slice(-HISTORY_CAP);
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch (e) {}
+  }
+  function logRoll(n) { history.push([n, Date.now()]); saveHistory(); renderAnalytics(); }
+  function randomFace() {
+    if (window.crypto && crypto.getRandomValues) {
+      const buf = new Uint32Array(1);
+      const limit = Math.floor(0x100000000 / 20) * 20;   // reject values that would bias the modulo
+      do { crypto.getRandomValues(buf); } while (buf[0] >= limit);
+      return (buf[0] % 20) + 1;
+    }
+    return Math.floor(Math.random() * 20) + 1;
+  }
+  function renderResult(n) {
+    const tag = n === 20 ? '<span class="tag crit">Natural 20</span>' : n === 1 ? '<span class="tag fumble">Natural 1</span>' : '';
+    resultEl.innerHTML = `Rolled ${n} ${tag}`;
+    historyEl.innerHTML = 'last · ' + (history.length ? history.slice(-6).reverse().map(x => `<span>${x[0]}</span>`).join(' · ') : '<span>—</span>');
+    $('d20-updated').textContent = history.length ? `${history.length} roll${history.length === 1 ? '' : 's'} logged` : 'Tap the die to roll';
+  }
+
+  function critBurst() {
+    const solar = '#ffa502';
+    const colors = [solar, '#ffffff', '#ffe08a', solar];
+    const frag = document.createDocumentFragment();
+    for (const cls of ['crit-ring', 'crit-ring second']) {
+      const r = document.createElement('span'); r.className = cls; frag.appendChild(r);
+    }
+    const count = 26;
+    for (let i = 0; i < count; i++) {
+      const el = document.createElement('span');
+      const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+      const dist = 80 + Math.random() * 70;
+      el.className = 'spark' + (i % 3 === 0 ? ' streak' : '');
+      el.style.setProperty('--dx', (Math.cos(angle) * dist).toFixed(1) + 'px');
+      el.style.setProperty('--dy', (Math.sin(angle) * dist).toFixed(1) + 'px');
+      el.style.setProperty('--rot', (angle * 180 / Math.PI).toFixed(1) + 'deg');
+      el.style.setProperty('--sz', (3 + Math.random() * 4).toFixed(1) + 'px');
+      el.style.setProperty('--c', colors[i % colors.length]);
+      el.style.setProperty('--dur', (0.7 + Math.random() * 0.5).toFixed(2) + 's');
+      el.style.setProperty('--delay', (Math.random() * 0.08).toFixed(2) + 's');
+      frag.appendChild(el);
+    }
+    dieBtn.appendChild(frag);
+    setTimeout(() => dieBtn.querySelectorAll('.spark, .crit-ring').forEach(e => e.remove()), 1500);
+  }
+
+  // ── The roll: a toss, three bounces, a rolling stop ──
+  // The whole roll is simulated up front. The free tumble would end somewhere random, so the
+  // rotation that takes it from there to the result face is folded into the motion in
+  // proportion to how much the die has turned so far: hidden while it spins fast, finished by
+  // the time it stops. Nothing is left to steer at the end.
+  let rolling = false;
+  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const rndAxis = () => v3.norm([rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)]);
+  const BOUNCES = [{ t0: 0, dur: 0.44, peak: 34 }, { t0: 0.44, dur: 0.27, peak: 12 }, { t0: 0.71, dur: 0.15, peak: 4 }];
+  const T_END = 1.7, DT = 1 / 120;
+  const IDENT = [0, 0, 0, 1];
+  const qInv = q => [-q[0], -q[1], -q[2], q[3]];
+
+  function planRoll(target) {
+    const frames = [];
+    let q = curQ, w = v3.mul(rndAxis(), rnd(20, 28)), bounced = 0, angle = 0;
+    for (let t = 0; t <= T_END + 1e-9; t += DT) {
+      let hop = 0, inAir = false;
+      for (const b of BOUNCES) { if (t >= b.t0 && t < b.t0 + b.dur) { const u = (t - b.t0) / b.dur; hop = b.peak * 4 * u * (1 - u); inAir = true; } }
+      while (bounced < BOUNCES.length && t >= BOUNCES[bounced].t0 + BOUNCES[bounced].dur) {
+        bounced++;   // each landing knocks the spin sideways and bleeds energy
+        w = v3.add(v3.mul(w, 0.5), v3.mul(rndAxis(), [8, 4, 2][bounced - 1] || 1.5));
+      }
+      w = v3.mul(w, Math.exp(-(inAir ? 0.5 : 6.5) * DT));
+      const dq = Q.mul([w[0] * 0.5 * DT, w[1] * 0.5 * DT, w[2] * 0.5 * DT, 0], q);
+      q = Q.norm(q.map((x, i) => x + dq[i]));
+      angle += Math.hypot(w[0], w[1], w[2]) * DT;
+      frames.push({ q, hop, angle });
+    }
+    const total = frames[frames.length - 1].angle;
+    const corr = Q.mul(target, qInv(frames[frames.length - 1].q));
+    frames.forEach(fr => { fr.q = Q.mul(Q.slerp(IDENT, corr, fr.angle / total), fr.q); });
+    frames[frames.length - 1].q = target;
+    return frames;
+  }
+
+  function roll(forced) {
+    if (rolling) return;
+    rolling = true;
+    const n = forced || randomFace();
+    dieBtn.classList.remove('crit', 'fumble');
+    resultEl.textContent = 'Rolling…';
+
+    const settle = () => {
+      showNumber(n);
+      logRoll(n);
+      renderResult(n);
+      if (n === 20) { dieBtn.classList.add('crit'); if (!reduced) critBurst(); }
+      if (n === 1) dieBtn.classList.add('fumble');
+      rolling = false;
+    };
+    if (reduced) { settle(); return; }
+
+    const frames = planRoll(restQuat(n));
+    const start = performance.now();
+    function frame(now) {
+      const t = (now - start) / 1000;
+      if (t >= T_END) { settle(); return; }
+      const i = Math.max(0, Math.min(frames.length - 1, Math.floor(t / DT)));
+      render(frames[i].q, frames[i].hop, false);
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+  dieBtn.addEventListener('click', () => roll());
+
+  // ── Analytics ──
+  const histSvg = $('d20-hist'), histWrap = $('d20-hist-wrap');
+  let view = 'faces';
+  const el = (tag, attrs, text) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; return e; };
+
+  // Probability mass of the sum of three d20s, by convolution.
+  const PMF3 = (() => {
+    let pmf = Array(21).fill(0).map((_, i) => i >= 1 ? 1 / 20 : 0);
+    const conv = (a, b) => { const out = Array(a.length + b.length - 1).fill(0); a.forEach((x, i) => b.forEach((y, j) => { out[i + j] += x * y; })); return out; };
+    return conv(conv(pmf, pmf), pmf);   // index = sum, 3..60
+  })();
+  const CHI2_95_DF19 = 30.14;
+
+  function renderAnalytics() {
+    const faces = history.map(r => r[0]);
+    const n = faces.length;
+    $('d20-rolls-total').textContent = n;
+    $('d20-rolls-sub').textContent = n === 1 ? 'roll logged, all time' : 'rolls logged, all time';
+    const mean = n ? faces.reduce((a, b) => a + b, 0) / n : null;
+    $('d20-rolls-mean').textContent = mean == null ? '—' : mean.toFixed(2);
+    $('d20-rolls-nats').textContent = n ? `${faces.filter(x => x === 20).length} · ${faces.filter(x => x === 1).length}` : '—';
+
+    // Bins and expectations for the current view.
+    let bins, expected, labels, tick;
+    if (view === 'faces') {
+      bins = Array(20).fill(0); faces.forEach(f => bins[f - 1]++);
+      expected = Array(20).fill(n / 20);
+      labels = i => String(i + 1); tick = i => (i + 1) % 5 === 0 || i === 0;
+    } else {
+      const triples = Math.floor(n / 3);
+      bins = Array(58).fill(0);
+      for (let t = 0; t < triples; t++) bins[faces[3 * t] + faces[3 * t + 1] + faces[3 * t + 2] - 3]++;
+      expected = bins.map((_, i) => PMF3[i + 3] * triples);
+      labels = i => String(i + 3); tick = i => (i + 3) % 10 === 0 || i === 0 || i === 57;
+    }
+    const total = bins.reduce((a, b) => a + b, 0);
+    $('d20-hist-empty').style.display = total > 0 ? 'none' : '';
+
+    // Draw, sized to the card so the bars fill the width on desktop.
+    const W = Math.max(332, Math.round(histWrap.clientWidth) || 0), H = 200, padL = 26, padR = 6, padT = 12, padB = 22;
+    histSvg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    const plotW = W - padL - padR, plotH = H - padT - padB;
+    const maxV = Math.max(1, ...bins, ...expected) * 1.08;
+    const y = v => padT + plotH - (v / maxV) * plotH;
+    const slot = plotW / bins.length, gap = bins.length > 30 ? 1 : 2, barW = Math.min(bins.length > 30 ? 14 : 36, Math.max(1, slot - gap));
+    histSvg.replaceChildren();
+    // Recessive grid: three horizontal rules with left labels.
+    const step = Math.max(1, Math.ceil(maxV / 3));
+    const gridUnit = step >= 50 ? Math.round(step / 50) * 50 : step >= 10 ? Math.round(step / 10) * 10 : step >= 5 ? 5 : step;
+    for (let v = gridUnit; v < maxV; v += gridUnit) {
+      histSvg.appendChild(el('line', { class: 'd20-hist-grid', x1: padL, x2: W - padR, y1: y(v), y2: y(v) }));
+      histSvg.appendChild(el('text', { class: 'd20-hist-axis', x: padL - 6, y: y(v) + 3, 'text-anchor': 'end' }, v));
+    }
+    histSvg.appendChild(el('line', { class: 'd20-hist-grid', x1: padL, x2: W - padR, y1: y(0), y2: y(0) }));
+    const r = Math.min(3, barW / 2);
+    bins.forEach((v, i) => {
+      const x = padL + i * slot + (slot - barW) / 2;
+      const top = y(v), h = y(0) - top;
+      // Hit area first so the sibling selector can light the bar.
+      const hit = el('rect', { class: 'd20-hist-hit', x: padL + i * slot, y: padT, width: slot, height: plotH });
+      const d = v > 0
+        ? `M${x},${y(0)} V${top + r} a${r},${r} 0 0 1 ${r},-${r} h${barW - 2 * r} a${r},${r} 0 0 1 ${r},${r} V${y(0)} Z`
+        : '';
+      const bar = el('path', { class: 'd20-hist-bar', d });
+      const label = labels(i), exp = expected[i];
+      const show = e => {
+        const tip = histWrap.querySelector('.d20-hist-tip') || histWrap.appendChild(Object.assign(document.createElement('div'), { className: 'd20-hist-tip' }));
+        const pct = total ? (100 * v / total).toFixed(1) + '%' : '0%';
+        tip.innerHTML = `<b>${view === 'faces' ? 'Face ' : 'Sum '}${label}</b> · ${v} <span>(${pct})</span><br><span>expected ${exp.toFixed(1)}</span>`;
+        const box = histWrap.getBoundingClientRect();
+        const sx = box.width / W;
+        tip.style.left = ((padL + i * slot + slot / 2) * sx) + 'px';
+        tip.style.top = (Math.min(top, y(exp)) * (box.height / H) - 8) + 'px';
+      };
+      hit.addEventListener('mouseenter', show);
+      hit.addEventListener('mouseleave', () => histWrap.querySelector('.d20-hist-tip')?.remove());
+      histSvg.appendChild(hit); histSvg.appendChild(bar);
+      if (tick(i)) histSvg.appendChild(el('text', { class: 'd20-hist-axis', x: padL + i * slot + slot / 2, y: H - 6, 'text-anchor': 'middle' }, label));
+    });
+    // Expected overlay: flat line for faces, bell for sums.
+    if (total > 0) {
+      const pts = expected.map((v, i) => `${(padL + i * slot + slot / 2).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+      histSvg.appendChild(el('polyline', { class: 'd20-hist-expected', points: pts }));
+    }
+
+    // Interpretation.
+    const out = $('d20-rolls-interpret');
+    if (!n) { out.innerHTML = 'A single fair d20 is <b>uniform</b>: every face settles toward 5%. The bell shape you are looking for shows up in the <b>Sum of 3</b> view, where the central limit theorem takes over.'; return; }
+    if (view === 'faces') {
+      const chi2 = bins.reduce((acc, o, i) => acc + Math.pow(o - expected[i], 2) / expected[i], 0);
+      const verdict = n < 100 ? 'Too early to judge fairness; the test needs about 100 rolls to mean much.' : chi2 < CHI2_95_DF19 ? 'Consistent with a fair die.' : 'Further from flat than 95% of fair dice would be at this sample size.';
+      out.innerHTML = `Uniform is the target here: each face should approach <b>5%</b> (${(n / 20).toFixed(1)} of ${n}). Chi-square <b>${chi2.toFixed(1)}</b> on 19 df, fair threshold 30.1. ${verdict}`;
+    } else {
+      const triples = Math.floor(n / 3);
+      const sums = []; for (let t = 0; t < triples; t++) sums.push(faces[3 * t] + faces[3 * t + 1] + faces[3 * t + 2]);
+      const sMean = triples ? (sums.reduce((a, b) => a + b, 0) / triples).toFixed(1) : '—';
+      out.innerHTML = `Every three rolls become one sum from 3 to 60. Sums of independent rolls pile up in the middle, so this view drifts toward a bell around <b>31.5</b> as it grows. <b>${triples}</b> sums so far, mean <b>${sMean}</b>.`;
+    }
+  }
+
+  // Redraw when the card changes width, including when the Analytics tab first becomes visible.
+  if (window.ResizeObserver) {
+    let lastW = 0;
+    new ResizeObserver(() => { const w = Math.round(histWrap.clientWidth); if (w !== lastW) { lastW = w; renderAnalytics(); } }).observe(histWrap);
+  }
+  document.querySelectorAll('.d20-ctrl').forEach(b => b.addEventListener('click', () => {
+    view = b.dataset.view;
+    document.querySelectorAll('.d20-ctrl').forEach(x => x.classList.toggle('active', x === b));
+    renderAnalytics();
+  }));
+  $('d20-rolls-clear').addEventListener('click', () => {
+    if (!history.length || !confirm('Clear all logged rolls?')) return;
+    history = []; saveHistory(); renderAnalytics(); renderResult(restFace);
+  });
+  // Initial state: the die rests on the last logged roll, or a 20 before any roll.
+  applyLook();
+  const first = history.length ? history[history.length - 1][0] : 20;
+  showNumber(first);
+  if (history.length) renderResult(first);
+  renderAnalytics();
+})();
 </script>
   <canvas id="complete-canvas"></canvas>
 </body>
