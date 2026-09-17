@@ -7169,8 +7169,11 @@ onAuthStateChanged(auth, user => {
             } else {
               const isHome = myTeam.homeAway === 'home';
               const oppName = other.team?.abbreviation || other.team?.shortDisplayName || '?';
-              const gameDate = new Date(next.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-              const gameTime = new Date(next.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+              // Kickoff not set yet: ESPN stamps midnight Eastern, so read the date in ET
+              const timeSet = comp.timeValid !== false;
+              const gameDate = new Date(next.date).toLocaleDateString('en-US', timeSet
+                ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', timeZone: 'America/New_York' });
+              const gameTime = timeSet ? new Date(next.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : 'TBA';
               const nextGameUrl = next.id ? 'https://www.espn.com/' + espnSportSlug(t) + '/game/_/gameId/' + next.id : '';
               return { name: t.name, league: t.league, record,
                 result: 'NEXT', score: '', isLive: false, liveClock: '',
@@ -7276,7 +7279,12 @@ onAuthStateChanged(auth, user => {
 
     const rows = games.map(g => {
       const d = new Date(g.date);
-      const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      // ESPN stamps games with no kickoff time yet as midnight Eastern, which is
+      // the previous evening in Pacific time. Take the calendar date from ET for
+      // those so a Saturday game doesn't show as Friday.
+      const dateOpts = { weekday: 'short', month: 'short', day: 'numeric' };
+      if (g.timeValid === false) dateOpts.timeZone = 'America/New_York';
+      const dateStr = d.toLocaleDateString('en-US', dateOpts);
       const timeStr = g.timeValid === false ? 'TBA'
         : d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
       const isLive = g.state === 'in';
