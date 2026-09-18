@@ -2384,6 +2384,93 @@
   #cal-schedule-card .digest-card-title { white-space: nowrap; }
   #cal-schedule-card .digest-card-updated { text-align: right; }
 
+  /* ── Weather & Air (Front Page, stacked under the speed test) ── */
+  .wx-body { display: flex; flex-direction: column; gap: 12px; flex: 1; justify-content: center; }
+  .wx-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .wx-now { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .wx-icon { font-size: 30px; line-height: 1; }
+  .wx-temp { font-family: 'DM Serif Display', serif; font-size: 30px; line-height: 1; color: var(--text); letter-spacing: -0.5px; }
+  .wx-feels { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-dim); margin-left: 8px; letter-spacing: 0.04em; }
+  .wx-cond { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .wx-aqi {
+    display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0;
+    padding: 6px 12px; border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--aqi-color) 45%, transparent);
+    background: color-mix(in srgb, var(--aqi-color) 12%, transparent);
+  }
+  .wx-aqi-num { font-family: 'DM Serif Display', serif; font-size: 24px; line-height: 1; color: var(--aqi-color); }
+  .wx-aqi-label { font-size: 9px; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; margin-top: 3px; white-space: nowrap; }
+  .wx-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .wx-stat { display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; background: var(--surface2); border-radius: 6px; min-width: 0; }
+  .wx-stat-label { font-size: 8px; color: var(--text-dim); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
+  .wx-stat-val { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  @media (max-width: 700px) {
+    .wx-stats { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* ── Standings (Sports) ─────────────────────────────────────── */
+  .standings-controls { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  .standings-select {
+    background: var(--btn-bg);
+    border: 1px solid var(--btn-border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 6px 28px 6px 10px;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%238e8e96' stroke-width='1.5'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+  }
+  .standings-select:focus {
+    border-color: var(--btn-icon);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--btn-icon) 15%, transparent);
+  }
+  .standings-summary { font-size: 10px; color: var(--text-muted); letter-spacing: 0.04em; }
+  .standings-cols { display: grid; grid-template-columns: 1fr 1fr; column-gap: 32px; row-gap: 0; }
+  .standings-col { display: flex; flex-direction: column; min-width: 0; }
+  .st-row {
+    --st-w: 30px;       /* stat column widths; phones tighten these */
+    --st-w-wide: 38px;
+    display: grid;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    margin: 0 -8px;
+    border-bottom: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 11px;
+    color: var(--text);
+    text-decoration: none;
+    transition: background 0.12s;
+  }
+  .st-row:last-child { border-bottom: none; }
+  a.st-row:hover { background: var(--surface2); }
+  .st-row--head {
+    font-size: 8px; color: var(--text-dim); letter-spacing: 0.08em; text-transform: uppercase;
+    padding-top: 0; padding-bottom: 4px;
+  }
+  .st-row--me { background: rgba(122,170,187,0.10); }
+  .st-row--me .st-team { color: var(--color-electric); font-weight: 500; }
+  .st-rank { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-muted); text-align: right; padding-right: 2px; }
+  .st-rank--note { box-shadow: inset 3px 0 0 var(--note-color); padding-left: 5px; }
+  .st-logo { width: 16px; height: 16px; object-fit: contain; }
+  .st-team { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .st-team-abbr { display: none; }
+  .st-stat { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-muted); text-align: right; white-space: nowrap; }
+  .st-row--me .st-stat { color: var(--text); }
+  @media (max-width: 700px) {
+    .standings-cols { grid-template-columns: 1fr; }
+    .standings-col + .standings-col .st-row--head { display: none; }
+    .st-row { --st-w: 26px; --st-w-wide: 32px; gap: 4px; }
+    .st-team-name { display: none; }
+    .st-team-abbr { display: inline; }
+  }
+
   .sport-right,
   .card-right {
     text-align: right;
@@ -3311,42 +3398,55 @@ onAuthStateChanged(auth, user => {
       </div>
     </div>
 
-    <!-- SPEED TEST -->
-    <div class="digest-card" id="speed-test-card">
-      <div class="digest-card-header">
-        <span class="digest-card-title">Speed Test</span>
-        <span class="digest-card-updated" id="speed-test-updated"></span>
-      </div>
-      <div class="speed-test-body" id="speed-test-body">
-        <div class="speed-test-gauges">
-          <div class="speed-gauge">
-            <div class="speed-gauge-ring">
-              <svg viewBox="0 0 72 72"><circle class="gauge-track" cx="36" cy="36" r="30"/><circle class="gauge-fill" id="gauge-download" cx="36" cy="36" r="30" stroke-dasharray="188.5" stroke-dashoffset="188.5"/></svg>
-              <div class="speed-gauge-val" id="speed-dl-val">—</div>
-            </div>
-            <span class="speed-gauge-label">Download</span>
-            <span class="speed-gauge-unit">Mbps</span>
-          </div>
-          <div class="speed-gauge">
-            <div class="speed-gauge-ring">
-              <svg viewBox="0 0 72 72"><circle class="gauge-track" cx="36" cy="36" r="30"/><circle class="gauge-fill gauge-fill--upload" id="gauge-upload" cx="36" cy="36" r="30" stroke-dasharray="188.5" stroke-dashoffset="188.5"/></svg>
-              <div class="speed-gauge-val" id="speed-ul-val">—</div>
-            </div>
-            <span class="speed-gauge-label">Upload</span>
-            <span class="speed-gauge-unit">Mbps</span>
-          </div>
-          <div class="speed-gauge">
-            <div class="speed-gauge-ring">
-              <svg viewBox="0 0 72 72"><circle class="gauge-track" cx="36" cy="36" r="30"/><circle class="gauge-fill gauge-fill--ping" id="gauge-ping" cx="36" cy="36" r="30" stroke-dasharray="188.5" stroke-dashoffset="188.5"/></svg>
-              <div class="speed-gauge-val" id="speed-ping-val">—</div>
-            </div>
-            <span class="speed-gauge-label">Ping</span>
-            <span class="speed-gauge-unit">ms</span>
-          </div>
+    <!-- STACKED: Speed Test + Weather (together they match the LA Events card height) -->
+    <div class="digest-stack">
+      <!-- SPEED TEST -->
+      <div class="digest-card" id="speed-test-card">
+        <div class="digest-card-header">
+          <span class="digest-card-title">Speed Test</span>
+          <span class="digest-card-updated" id="speed-test-updated"></span>
         </div>
-        <div class="speed-test-progress" id="speed-progress" style="display:none;"><div class="speed-test-progress-fill" id="speed-progress-fill"></div></div>
-        <div class="speed-test-status" id="speed-test-status"></div>
-        <button class="speed-test-btn" id="speed-test-btn" onclick="runSpeedTest()">Run Speed Test</button>
+        <div class="speed-test-body" id="speed-test-body">
+          <div class="speed-test-gauges">
+            <div class="speed-gauge">
+              <div class="speed-gauge-ring">
+                <svg viewBox="0 0 72 72"><circle class="gauge-track" cx="36" cy="36" r="30"/><circle class="gauge-fill" id="gauge-download" cx="36" cy="36" r="30" stroke-dasharray="188.5" stroke-dashoffset="188.5"/></svg>
+                <div class="speed-gauge-val" id="speed-dl-val">—</div>
+              </div>
+              <span class="speed-gauge-label">Download</span>
+              <span class="speed-gauge-unit">Mbps</span>
+            </div>
+            <div class="speed-gauge">
+              <div class="speed-gauge-ring">
+                <svg viewBox="0 0 72 72"><circle class="gauge-track" cx="36" cy="36" r="30"/><circle class="gauge-fill gauge-fill--upload" id="gauge-upload" cx="36" cy="36" r="30" stroke-dasharray="188.5" stroke-dashoffset="188.5"/></svg>
+                <div class="speed-gauge-val" id="speed-ul-val">—</div>
+              </div>
+              <span class="speed-gauge-label">Upload</span>
+              <span class="speed-gauge-unit">Mbps</span>
+            </div>
+            <div class="speed-gauge">
+              <div class="speed-gauge-ring">
+                <svg viewBox="0 0 72 72"><circle class="gauge-track" cx="36" cy="36" r="30"/><circle class="gauge-fill gauge-fill--ping" id="gauge-ping" cx="36" cy="36" r="30" stroke-dasharray="188.5" stroke-dashoffset="188.5"/></svg>
+                <div class="speed-gauge-val" id="speed-ping-val">—</div>
+              </div>
+              <span class="speed-gauge-label">Ping</span>
+              <span class="speed-gauge-unit">ms</span>
+            </div>
+          </div>
+          <div class="speed-test-progress" id="speed-progress" style="display:none;"><div class="speed-test-progress-fill" id="speed-progress-fill"></div></div>
+          <div class="speed-test-status" id="speed-test-status"></div>
+          <button class="speed-test-btn" id="speed-test-btn" onclick="runSpeedTest()">Run Speed Test</button>
+        </div>
+      </div>
+      <!-- WEATHER & AIR QUALITY: coordinates come from the header widget's geolocation -->
+      <div class="digest-card" id="weather-card">
+        <div class="digest-card-header">
+          <span class="digest-card-title">Weather &amp; Air</span>
+          <span class="digest-card-updated" id="weather-card-updated">via Open-Meteo</span>
+        </div>
+        <div class="wx-body" id="weather-card-body">
+          <span class="digest-loading">Loading...</span>
+        </div>
       </div>
     </div>
   </div>
@@ -3360,6 +3460,21 @@ onAuthStateChanged(auth, user => {
         <span class="digest-card-updated" id="sports-updated"></span>
       </div>
       <div class="sport-list" id="sports-list">
+        <span class="digest-loading">Loading...</span>
+      </div>
+    </div>
+
+    <!-- STANDINGS: the dropdown lists SPORTS_TEAMS; the table shows the picked team's league group -->
+    <div class="digest-card full-width" id="standings-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title">Standings</span>
+        <span class="digest-card-updated" id="standings-updated">via ESPN</span>
+      </div>
+      <div class="standings-controls">
+        <select id="standings-team" class="standings-select" aria-label="Team to show standings for"></select>
+        <span class="standings-summary" id="standings-summary"></span>
+      </div>
+      <div class="standings-cols" id="standings-list">
         <span class="digest-loading">Loading...</span>
       </div>
     </div>
@@ -5114,6 +5229,7 @@ onAuthStateChanged(auth, user => {
     if (loadDigest._sessionLoaded) return;
     loadDigest._sessionLoaded = true;
     loadSports();
+    loadStandings();
     loadCalSchedule();
     await loadLiveData();
     await loadDailyData();
@@ -5127,6 +5243,9 @@ onAuthStateChanged(auth, user => {
     localStorage.removeItem('focus-digest-reddit2');
     localStorage.removeItem('focus-digest-sealed-prices');
     localStorage.removeItem('focus-digest-' + CFB_CACHE_KEY);
+    Object.keys(localStorage)
+      .filter(function(k) { return k.startsWith('focus-digest-standings-'); })
+      .forEach(function(k) { localStorage.removeItem(k); });
 
     // Tier 2: Refresh if older than 1 hour
     if (!cacheGet('deals', 60 * 60 * 1000)) localStorage.removeItem('focus-digest-deals');
@@ -5146,10 +5265,12 @@ onAuthStateChanged(auth, user => {
     // Re-run all loaders in parallel where possible
     await Promise.all([
       loadSports(),
+      loadStandings(),
       loadCalSchedule(),
       loadLiveData(),
       loadDailyData(),
-      loadSealedPrices()
+      loadSealedPrices(),
+      refreshWeatherCard()
     ]);
   }
 
@@ -5298,6 +5419,8 @@ onAuthStateChanged(auth, user => {
       'sanderson':    ['📖', "Brandon is too busy writing"],
       'sports':       ['🏀', "Scoreboard went offline"],
       'cfb':          ['🐻', "Cal schedule went offline"],
+      'standings':    ['📊', "Standings went offline"],
+      'weather':      ['🌫', "Sky report unavailable"],
     };
     const [emoji, msg] = map[key] || ['😵', "Something went sideways"];
     return '<div class="digest-error">'
@@ -7554,6 +7677,285 @@ onAuthStateChanged(auth, user => {
   }
 
 
+  // ── STANDINGS ──────────────────────────────────────────────
+  // One card, one team at a time. The dropdown lists SPORTS_TEAMS; the table
+  // is the ESPN standings group that team sits in (conference, league, or
+  // full table) with the team's row highlighted. Adding a team to
+  // SPORTS_TEAMS adds it to the dropdown automatically.
+  const STANDINGS_TEAM_KEY = 'focus-standings-team';
+
+  // Columns per sport. Each column tries the listed ESPN stat names /
+  // abbreviations in order; a column no entry can fill is dropped, so the
+  // same spec serves NBA and college basketball (CONF only exists for the
+  // latter, GB and L10 only for the former).
+  const STANDINGS_COLUMNS = {
+    basketball: [
+      { label: 'W',    keys: ['wins', 'W'] },
+      { label: 'L',    keys: ['losses', 'L'] },
+      { label: 'PCT',  keys: ['winPercent', 'PCT'] },
+      { label: 'CONF', keys: ['vsConf', 'CONF', 'vs. Conf.'] },
+      { label: 'GB',   keys: ['gamesBehind', 'GB'] },
+      { label: 'STRK', keys: ['streak', 'STRK'] },
+      { label: 'L10',  keys: ['Last Ten Games', 'L10'] },
+    ],
+    baseball: [
+      { label: 'W',    keys: ['wins', 'W'] },
+      { label: 'L',    keys: ['losses', 'L'] },
+      { label: 'PCT',  keys: ['winPercent', 'PCT'] },
+      { label: 'GB',   keys: ['gamesBehind', 'GB'] },
+      { label: 'STRK', keys: ['streak', 'STRK'] },
+      { label: 'L10',  keys: ['Last Ten Games', 'L10'] },
+    ],
+    hockey: [
+      { label: 'W',    keys: ['wins', 'W'] },
+      { label: 'L',    keys: ['losses', 'L'] },
+      { label: 'OTL',  keys: ['otLosses', 'OTL'] },
+      { label: 'PTS',  keys: ['points', 'PTS', 'P'] },
+      { label: 'STRK', keys: ['streak', 'STRK'] },
+      { label: 'L10',  keys: ['Last Ten Games', 'L10'] },
+    ],
+    football: [
+      { label: 'W',    keys: ['wins', 'W'] },
+      { label: 'L',    keys: ['losses', 'L'] },
+      { label: 'CONF', keys: ['vsConf', 'CONF', 'vs. Conf.'] },
+      { label: 'PF',   keys: ['pointsFor', 'PF'] },
+      { label: 'PA',   keys: ['pointsAgainst', 'PA'] },
+      { label: 'STRK', keys: ['streak', 'STRK'] },
+    ],
+    soccer: [
+      { label: 'GP',   keys: ['gamesPlayed', 'GP'] },
+      { label: 'W',    keys: ['wins', 'W'] },
+      { label: 'D',    keys: ['ties', 'D'] },
+      { label: 'L',    keys: ['losses', 'L'] },
+      { label: 'GD',   keys: ['pointDifferential', 'GD'] },
+      { label: 'PTS',  keys: ['points', 'PTS', 'P'] },
+    ],
+  };
+
+  // First stat on an entry matching any of the keys (by name, abbreviation,
+  // or short label), or null.
+  function standingsStat(entry, keys) {
+    const stats = (entry && entry.stats) || [];
+    for (let k = 0; k < keys.length; k++) {
+      const kl = keys[k].toLowerCase();
+      for (let i = 0; i < stats.length; i++) {
+        const s = stats[i];
+        if (!s) continue;
+        if ((s.name || '').toLowerCase() === kl
+          || (s.abbreviation || '').toLowerCase() === kl
+          || (s.shortDisplayName || '').toLowerCase() === kl) {
+          if (s.displayValue != null && s.displayValue !== '') return s;
+          if (typeof s.value === 'number') return Object.assign({}, s, { displayValue: String(s.value) });
+        }
+      }
+    }
+    return null;
+  }
+
+  // Every node in the ESPN tree that carries a standings table.
+  function standingsGroups(node, out, depth) {
+    if (!node || depth > 5) return out;
+    const entries = node.standings && Array.isArray(node.standings.entries) ? node.standings.entries : null;
+    if (entries && entries.length) {
+      out.push({ name: node.name || node.displayName || '', abbreviation: node.abbreviation || '', entries: entries });
+    }
+    (node.children || []).forEach(function(c) { standingsGroups(c, out, depth + 1); });
+    return out;
+  }
+
+  function standingsEntryIsTeam(entry, t) {
+    const tm = (entry && entry.team) || {};
+    return String(tm.id) === String(t.espnId)
+      || (tm.abbreviation || '').toUpperCase() === String(t.abbrev).toUpperCase();
+  }
+
+  // Pick the table to show: the biggest group the team is in that still fits
+  // a card (a conference or a league table), never an all-teams dump.
+  function standingsPickGroup(tree, t) {
+    const groups = standingsGroups(tree, [], 0).filter(function(g) {
+      return g.entries.some(function(e) { return standingsEntryIsTeam(e, t); });
+    });
+    if (!groups.length) return null;
+    const fits = groups.filter(function(g) { return g.entries.length <= 24; });
+    const pool = fits.length ? fits : groups;
+    return pool.reduce(function(best, g) {
+      if (!best) return g;
+      if (fits.length) return g.entries.length > best.entries.length ? g : best;
+      return g.entries.length < best.entries.length ? g : best;
+    }, null);
+  }
+
+  // ESPN sorts most tables already, but soccer tables arrive unsorted with a
+  // "rank" stat; use rank / seed when every entry has one.
+  function standingsSortEntries(entries) {
+    const keyed = entries.map(function(e) {
+      const s = standingsStat(e, ['rank', 'playoffSeed', 'seed']);
+      const v = s ? parseFloat(s.value != null ? s.value : s.displayValue) : NaN;
+      return { e: e, v: v };
+    });
+    if (keyed.every(function(k) { return !isNaN(k.v) && k.v > 0; })) {
+      keyed.sort(function(a, b) { return a.v - b.v; });
+      return keyed.map(function(k) { return k.e; });
+    }
+    return entries.slice();
+  }
+
+  function ordinal(n) {
+    const s = ['th', 'st', 'nd', 'rd'], v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  }
+
+  function standingsSummary(t, group, entries, myIdx) {
+    const me = entries[myIdx];
+    const parts = [ordinal(myIdx + 1) + ' of ' + entries.length + (group.name ? ' in ' + group.name : '')];
+    const num = function(e, keys) { const s = standingsStat(e, keys); return s ? parseFloat(s.value != null ? s.value : s.displayValue) : NaN; };
+
+    if (t.sport === 'basketball' || t.sport === 'baseball') {
+      const gb = standingsStat(me, ['gamesBehind', 'GB']);
+      if (gb && myIdx > 0 && gb.displayValue !== '-' && gb.displayValue !== '0') parts.push(gb.displayValue + ' GB');
+    } else if (t.sport === 'hockey' || t.sport === 'soccer') {
+      const mine = num(me, ['points', 'PTS', 'P']);
+      const top  = num(entries[0], ['points', 'PTS', 'P']);
+      if (!isNaN(mine) && !isNaN(top)) {
+        parts.push(myIdx === 0 ? 'top of the table' : (top - mine) + ' pts off 1st');
+      }
+      if (t.sport === 'soccer' && !isNaN(mine)) {
+        // Relegation line: ESPN marks zones via entry.note; fall back to the
+        // bottom three when it doesn't.
+        let zoneStart = -1;
+        for (let i = 0; i < entries.length; i++) {
+          const note = entries[i].note && (entries[i].note.description || '');
+          if (/relegat/i.test(note)) { zoneStart = i; break; }
+        }
+        if (zoneStart < 0 && entries.length >= 10) zoneStart = entries.length - 3;
+        if (zoneStart >= 0) {
+          if (myIdx >= zoneStart) parts.push('in the relegation zone');
+          else {
+            const line = num(entries[zoneStart], ['points', 'PTS', 'P']);
+            if (!isNaN(line)) parts.push((mine - line) + ' pts above relegation');
+          }
+        }
+      }
+    }
+    return parts.join(' · ');
+  }
+
+  function renderStandings(t, tree) {
+    const list = document.getElementById('standings-list');
+    const summaryEl = document.getElementById('standings-summary');
+    const group = standingsPickGroup(tree, t);
+    if (!group) {
+      list.innerHTML = '<span class="digest-loading">No table found for ' + esc(t.name) + '</span>';
+      if (summaryEl) summaryEl.textContent = '';
+      return;
+    }
+    const entries = standingsSortEntries(group.entries);
+    const myIdx = entries.findIndex(function(e) { return standingsEntryIsTeam(e, t); });
+
+    // Keep only columns at least one row can fill
+    const cols = (STANDINGS_COLUMNS[t.sport] || STANDINGS_COLUMNS.basketball).filter(function(c) {
+      return entries.some(function(e) { return standingsStat(e, c.keys); });
+    });
+    const gridCols = '24px 16px minmax(0,1fr) ' + cols.map(function(c) { return c.label.length > 2 ? 'var(--st-w-wide)' : 'var(--st-w)'; }).join(' ');
+
+    const head = '<div class="st-row st-row--head" style="grid-template-columns:' + gridCols + ';">'
+      + '<span></span><span></span><span>Team</span>'
+      + cols.map(function(c) { return '<span class="st-stat" style="color:inherit;">' + esc(c.label) + '</span>'; }).join('')
+      + '</div>';
+
+    const rowHTML = function(e, i) {
+      const tm = e.team || {};
+      const name = tm.shortDisplayName || tm.displayName || tm.name || tm.abbreviation || '?';
+      const abbr = tm.abbreviation || name;
+      const logo = escUrl((tm.logos && tm.logos[0] && tm.logos[0].href) || '');
+      const link = escUrl(((tm.links || []).find(function(l) { return (l.rel || []).indexOf('clubhouse') >= 0; }) || {}).href || '');
+      const note = e.note && e.note.color ? e.note : null;
+      const tag = link ? 'a' : 'div';
+      const attrs = link ? ' href="' + link + '" target="_blank" rel="noopener"' : '';
+      const rankStyle = note ? ' style="--note-color:' + esc(note.color) + ';"' : '';
+      const rankTitle = note && note.description ? ' title="' + esc(note.description) + '"' : '';
+      return '<' + tag + ' class="st-row' + (i === myIdx ? ' st-row--me' : '') + '"' + attrs + ' style="grid-template-columns:' + gridCols + ';">'
+        + '<span class="st-rank' + (note ? ' st-rank--note' : '') + '"' + rankStyle + rankTitle + '>' + (i + 1) + '</span>'
+        + (logo ? '<img class="st-logo" src="' + logo + '" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">' : '<span></span>')
+        + '<span class="st-team"><span class="st-team-name">' + esc(name) + '</span><span class="st-team-abbr">' + esc(abbr) + '</span></span>'
+        + cols.map(function(c) { const s = standingsStat(e, c.keys); return '<span class="st-stat">' + esc(s ? s.displayValue : '—') + '</span>'; }).join('')
+        + '</' + tag + '>';
+    };
+
+    // Two columns on desktop, split down the middle (CSS stacks them on phones)
+    const half = Math.ceil(entries.length / 2);
+    const colHTML = function(slice, offset) {
+      return '<div class="standings-col">' + head + slice.map(function(e, i) { return rowHTML(e, i + offset); }).join('') + '</div>';
+    };
+    list.innerHTML = entries.length > 6
+      ? colHTML(entries.slice(0, half), 0) + colHTML(entries.slice(half), half)
+      : colHTML(entries, 0);
+
+    if (summaryEl) summaryEl.textContent = myIdx >= 0 ? standingsSummary(t, group, entries, myIdx) : (group.name || '');
+  }
+
+  function standingsSelectedTeam() {
+    const sel = document.getElementById('standings-team');
+    const idx = sel ? parseInt(sel.value, 10) : 0;
+    return SPORTS_TEAMS[isNaN(idx) ? 0 : idx] || SPORTS_TEAMS[0];
+  }
+
+  (function initStandingsSelect() {
+    const sel = document.getElementById('standings-team');
+    if (!sel) return;
+    sel.innerHTML = SPORTS_TEAMS.map(function(t, i) {
+      return '<option value="' + i + '">' + esc(t.name) + '</option>';
+    }).join('');
+    let saved = 0;
+    try { saved = parseInt(localStorage.getItem(STANDINGS_TEAM_KEY), 10); } catch (_) {}
+    if (!isNaN(saved) && saved >= 0 && saved < SPORTS_TEAMS.length) sel.value = String(saved);
+    sel.addEventListener('change', function() {
+      try { localStorage.setItem(STANDINGS_TEAM_KEY, sel.value); } catch (_) {}
+      loadStandings();
+    });
+  })();
+
+  async function loadStandings() {
+    const list = document.getElementById('standings-list');
+    const updated = document.getElementById('standings-updated');
+    if (!list) return;
+    const t = standingsSelectedTeam();
+    if (!t) return;
+    const key = 'standings-' + t.sport + '-' + t.league_path;
+    const token = (loadStandings._token = (loadStandings._token || 0) + 1);
+
+    const cached = cacheGet(key, 60 * 60 * 1000);
+    if (cached && cached.data) {
+      renderStandings(t, cached.data);
+      if (updated) updated.textContent = cached.label || 'via ESPN';
+      return;
+    }
+
+    list.innerHTML = '<span class="digest-loading">Loading...</span>';
+    try {
+      const url = 'https://site.api.espn.com/apis/v2/sports/' + t.sport + '/' + t.league_path + '/standings';
+      const r = await fetchWithTimeout(url, TIMEOUT_LONG);
+      if (!r.ok) throw new Error('standings ' + r.status);
+      const data = await r.json();
+      if (token !== loadStandings._token) return;  // the dropdown moved on
+      const label = asOfNow();
+      renderStandings(t, data);
+      if (updated) updated.textContent = label;
+      cacheSet(key, data, label);
+    } catch (e) {
+      if (token !== loadStandings._token) return;
+      const stale = cacheGetStale(key);
+      if (stale && stale.data) {
+        renderStandings(t, stale.data);
+        if (updated) updated.textContent = 'cached · ' + cacheAge(stale.ts);
+      } else {
+        list.innerHTML = _errorHTML('standings');
+        const summaryEl = document.getElementById('standings-summary');
+        if (summaryEl) summaryEl.textContent = '';
+      }
+    }
+  }
+
   // ── CAL FOOTBALL SCHEDULE ──────────────────────────────────
   // ┌──────────────────────────────────────────────────────────────────────┐
   // │ YEARLY UPDATE: change this ONE number when the new season starts     │
@@ -9528,6 +9930,156 @@ onAuthStateChanged(auth, user => {
     </div>`;
   }
 
+  // ── WEATHER & AIR QUALITY CARD (Front Page) ─────────────────
+  // Stacked under the speed test. It shares the header widget's coordinates:
+  // the geolocation callbacks below call this right after fetchWeather().
+  // Both feeds are Open-Meteo (forecast + air-quality), no key needed.
+  const WEATHER_CARD_KEY = 'weather-aqi';
+
+  // EPA US AQI bands: [upper bound, label, color]
+  const AQI_BANDS = [
+    [50,       'Good',           '#2ed573'],
+    [100,      'Moderate',       '#ffd32a'],
+    [150,      'Sensitive',      '#ffa502'],  // unhealthy for sensitive groups
+    [200,      'Unhealthy',      '#ff4757'],
+    [300,      'Very unhealthy', '#c56cf0'],
+    [Infinity, 'Hazardous',      '#a4161a'],
+  ];
+  function aqiBand(v) {
+    if (v == null || isNaN(v)) return null;
+    for (let i = 0; i < AQI_BANDS.length; i++) if (v <= AQI_BANDS[i][0]) return AQI_BANDS[i];
+    return AQI_BANDS[AQI_BANDS.length - 1];
+  }
+
+  // "2026-09-18T06:38" (Open-Meteo local time) -> "6:38 AM"
+  function wxClock(iso) {
+    if (!iso || iso.length < 16) return '—';
+    const h = parseInt(iso.slice(11, 13), 10), m = iso.slice(14, 16);
+    if (isNaN(h)) return '—';
+    return ((h % 12) || 12) + ':' + m + (h < 12 ? ' AM' : ' PM');
+  }
+
+  function cachedWeatherCity() {
+    try {
+      const c = JSON.parse(localStorage.getItem('focus-weather-city') || 'null');
+      return c && c.city ? c.city : '';
+    } catch (_) { return ''; }
+  }
+
+  function renderWeatherCard(data) {
+    const body = document.getElementById('weather-card-body');
+    if (!body || !data || !data.wx) return;
+    const cur = data.wx.current || {};
+    const day = data.wx.daily || {};
+    const aq  = (data.aq && data.aq.current) || {};
+    const city = data.city || cachedWeatherCity();
+
+    const n = function(v) { return (v == null || isNaN(v)) ? null : Math.round(v); };
+    const deg = function(v) { const r = n(v); return r == null ? '—' : r + '°'; };
+    const first = function(arr) { return Array.isArray(arr) ? arr[0] : null; };
+
+    const aqi = n(aq.us_aqi);
+    const band = aqiBand(aqi);
+    const aqiHTML = band
+      ? `<div class="wx-aqi" style="--aqi-color:${band[2]};" title="US AQI · PM2.5 ${n(aq.pm2_5) == null ? '—' : n(aq.pm2_5) + ' µg/m³'}">
+           <span class="wx-aqi-num">${aqi}</span>
+           <span class="wx-aqi-label">AQI · ${esc(band[1])}</span>
+         </div>`
+      : `<div class="wx-aqi" style="--aqi-color:var(--text-dim);"><span class="wx-aqi-num">—</span><span class="wx-aqi-label">AQI</span></div>`;
+
+    const feels = n(cur.apparent_temperature);
+    const rain  = first(day.precipitation_probability_max);
+    const uv    = first(day.uv_index_max);
+    const cond  = getText(cur.weathercode);
+
+    const stats = [
+      ['Hi / Lo',  deg(first(day.temperature_2m_max)) + ' / ' + deg(first(day.temperature_2m_min))],
+      ['Rain',     rain == null ? '—' : n(rain) + '%'],
+      ['Wind',     n(cur.wind_speed_10m) == null ? '—' : n(cur.wind_speed_10m) + ' mph'],
+      ['Humidity', n(cur.relative_humidity_2m) == null ? '—' : n(cur.relative_humidity_2m) + '%'],
+      ['UV max',   uv == null ? '—' : n(uv)],
+      ['PM2.5',    n(aq.pm2_5) == null ? '—' : n(aq.pm2_5) + ' µg'],
+      ['Sunrise',  wxClock(first(day.sunrise))],
+      ['Sunset',   wxClock(first(day.sunset))],
+    ];
+
+    body.innerHTML = `
+      <div class="wx-top">
+        <div class="wx-now">
+          <span class="wx-icon">${getIcon(cur.weathercode)}</span>
+          <div style="min-width:0;">
+            <div class="wx-temp">${deg(cur.temperature_2m)}${feels != null ? `<span class="wx-feels">feels ${feels}°</span>` : ''}</div>
+            <div class="wx-cond">${esc(cond)}${city ? ' · ' + esc(city) : ''}</div>
+          </div>
+        </div>
+        ${aqiHTML}
+      </div>
+      <div class="wx-stats">
+        ${stats.map(function(s) { return `<div class="wx-stat"><span class="wx-stat-label">${s[0]}</span><span class="wx-stat-val">${esc(String(s[1]))}</span></div>`; }).join('')}
+      </div>`;
+  }
+
+  async function loadWeatherCard(lat, lon) {
+    const body = document.getElementById('weather-card-body');
+    if (!body) return;
+    loadWeatherCard._last = [lat, lon];
+    const loc = lat.toFixed(2) + ',' + lon.toFixed(2);
+    const updated = document.getElementById('weather-card-updated');
+
+    // 30-minute cache, but only for the same spot
+    const cached = cacheGet(WEATHER_CARD_KEY, 30 * 60 * 1000);
+    if (cached && cached.data && cached.data.loc === loc) {
+      renderWeatherCard(cached.data);
+      if (updated) updated.textContent = cached.label || 'via Open-Meteo';
+      return;
+    }
+
+    try {
+      const wxUrl = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon
+        + '&current=temperature_2m,apparent_temperature,relative_humidity_2m,weathercode,wind_speed_10m'
+        + '&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset,uv_index_max'
+        + '&temperature_unit=fahrenheit&wind_speed_unit=mph&forecast_days=1&timezone=auto';
+      const aqUrl = 'https://air-quality-api.open-meteo.com/v1/air-quality?latitude=' + lat + '&longitude=' + lon
+        + '&current=us_aqi,pm2_5,pm10&timezone=auto';
+      const [wr, ar] = await Promise.all([
+        fetchWithTimeout(wxUrl, TIMEOUT_DEFAULT),
+        fetchWithTimeout(aqUrl, TIMEOUT_DEFAULT).catch(function() { return null; }),
+      ]);
+      if (!wr.ok) throw new Error('forecast ' + wr.status);
+      const wx = await wr.json();
+      let aq = null;
+      if (ar && ar.ok) { try { aq = await ar.json(); } catch (_) {} }
+
+      const data = { wx, aq, loc, city: cachedWeatherCity() };
+      renderWeatherCard(data);
+      const label = asOfNow();
+      if (updated) updated.textContent = label;
+      cacheSet(WEATHER_CARD_KEY, data, label);
+
+      // The header widget resolves the city name in parallel; if it wasn't
+      // known yet, redraw once it lands so the card shows it too.
+      if (!data.city) setTimeout(function() {
+        const c = cachedWeatherCity();
+        if (c) { data.city = c; renderWeatherCard(data); cacheSet(WEATHER_CARD_KEY, data, label); }
+      }, 4000);
+    } catch (e) {
+      const stale = cacheGetStale(WEATHER_CARD_KEY);
+      if (stale && stale.data) {
+        renderWeatherCard(stale.data);
+        if (updated) updated.textContent = 'cached · ' + cacheAge(stale.ts);
+      } else {
+        body.innerHTML = _errorHTML('weather');
+      }
+    }
+  }
+
+  // Pull-to-refresh hook: drop the cache and refetch for the last coordinates.
+  function refreshWeatherCard() {
+    localStorage.removeItem('focus-digest-' + WEATHER_CARD_KEY);
+    const last = loadWeatherCard._last;
+    return last ? loadWeatherCard(last[0], last[1]) : Promise.resolve();
+  }
+
   const WEATHER_CACHE_KEY = 'focus-weather-cache';
 
   async function fetchWeather(lat, lon) {
@@ -9590,11 +10142,12 @@ onAuthStateChanged(auth, user => {
   // Fetch fresh data in the background
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
-      pos => fetchWeather(pos.coords.latitude, pos.coords.longitude),
-      ()  => fetchWeather(34.1669, -118.5422)
+      pos => { fetchWeather(pos.coords.latitude, pos.coords.longitude); loadWeatherCard(pos.coords.latitude, pos.coords.longitude); },
+      ()  => { fetchWeather(34.1669, -118.5422); loadWeatherCard(34.1669, -118.5422); }
     );
   } else {
     fetchWeather(34.1669, -118.5422);
+    loadWeatherCard(34.1669, -118.5422);
   }
 
   // Init weather, date, title — these run immediately regardless of auth
