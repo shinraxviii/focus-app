@@ -2302,9 +2302,9 @@
      the flat gray, and laid out label-left / number-right so the tile is
      filled rather than a box with text in one corner. */
   .cfb-stats {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
     margin-bottom: 14px;
   }
   .cfb-stat {
@@ -2312,13 +2312,14 @@
     background: color-mix(in srgb, var(--surface) 55%, var(--bg));
     border: 1px solid var(--border);
     border-color: color-mix(in srgb, var(--border) 60%, transparent);
-    border-radius: 10px;
-    padding: 9px 14px;
+    border-radius: 9px;
+    padding: 7px 12px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
+    gap: 14px;
     min-width: 0;
+    flex: 0 1 auto;
   }
   .cfb-stat-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .cfb-stat-label {
@@ -2334,7 +2335,7 @@
   .cfb-stat-row { display: flex; align-items: baseline; gap: 6px; flex-shrink: 0; }
   .cfb-stat-value {
     font-family: 'DM Serif Display', serif;
-    font-size: 22px;
+    font-size: 20px;
     line-height: 1.1;
     color: var(--text);
   }
@@ -2412,7 +2413,7 @@
     .digest-card.full-width { grid-column: 1; }
     .cfb-cols { grid-template-columns: 1fr; }
     .cfb-footer { flex-direction: column; align-items: flex-start; gap: 4px; }
-    .cfb-stats { gap: 6px; }
+    .cfb-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
     .cfb-stat { padding: 8px 10px; flex-direction: column; align-items: flex-start; gap: 3px; }
     .cfb-stat-text { display: contents; }
     .cfb-stat-row { order: 2; }
@@ -5087,6 +5088,17 @@ onAuthStateChanged(auth, user => {
     } catch (e) { /* private mode / storage disabled — nothing to clear */ }
   })();
 
+  // A reload always lands on the Front Page, but browsers restore the previous
+  // scroll offset, which is usually past the end of that page (blank space).
+  // Turn restoration off and start every load at the top.
+  (function startAtTopOnReload() {
+    try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (e) {}
+    var toTop = function() { window.scrollTo(0, 0); };
+    toTop();
+    window.addEventListener('load', toTop);
+    window.addEventListener('pageshow', toTop); // back/forward cache on iOS Safari
+  })();
+
   // ── DIGEST ───────────────────────────────────────────────────
 
   async function loadDigest() {
@@ -7653,7 +7665,7 @@ onAuthStateChanged(auth, user => {
     if (!rows.length) return null;
     const key = v => String(v || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const find = pred => { const r = rows.find(x => x.value !== null && pred(key(x.name), key(x.label), key(x.cat), String(x.label || '').toLowerCase())); return r ? r.value : null; };
-    const isRemaining = (n, l, c, raw) => ((/rsos|remsos|remainingsos|remaining|remstrength/.test(n) || /remsos|rsos|remaining/.test(l)) && /sos|strength|schedule/.test(n + l)) || /\brsos\b|\brem\.?\s+sos\b/.test(raw || '');
+    const isRemaining = (n, l, c, raw) => ((/rsos|remsos|remainingsos|remaining|remstrength|rem|future|rest|left|ahead/.test(n) || /remsos|rsos|remaining|rem|future|rest|left|ahead/.test(l)) && /sos|strength|schedule|sched/.test(n + l)) || /\brsos\b|\brem\.?\s*sos\b|\bsos\s*\(?rem/.test(raw || '');
     const isSos = (n, l, c, raw) => !isRemaining(n, l, c, raw) && (n === 'sos' || n === 'sosrank' || n === 'strengthofschedule' || /strengthofschedule/.test(l) || /\bsos\b/.test(raw || ''));
     const rsos = find((n, l, c, raw) => isRemaining(n, l, c, raw));
     const sos  = find((n, l, c, raw) => isSos(n, l, c, raw));
@@ -7688,7 +7700,10 @@ onAuthStateChanged(auth, user => {
   function renderFpiDebug() {
     if (!fpiDebugOn()) return '';
     const rows = fpiFlatten(window._fpiRawLast);
-    const body = rows.length ? rows.map(r => esc(r.cat) + ' · ' + esc(r.name) + ' · ' + esc(r.label) + ' · ' + esc(r.value)).join('\n') : 'no FPI payload received';
+    let raw = window._fpiRawLast; if (raw && raw.data && typeof raw.data === 'object') raw = raw.data;
+    if (raw && Array.isArray(raw.items)) raw = raw.items.find(e => String(((e.team || {}).$ref || '')).indexOf('/teams/' + CAL_FOOTBALL_ESPN_ID) !== -1) || raw.items[0] || raw;
+    const keys = raw && typeof raw === 'object' ? Object.keys(raw).map(k => k + ':' + (Array.isArray(raw[k]) ? 'array[' + raw[k].length + ']' : raw[k] && typeof raw[k] === 'object' ? (raw[k].$ref ? 'ref ' + raw[k].$ref : 'object{' + Object.keys(raw[k]).join(',') + '}') : typeof raw[k])).join('\n') : '';
+    const body = (keys ? 'top-level keys:\n' + esc(keys) + '\n\nstats:\n' : '') + (rows.length ? rows.map(r => esc(r.cat) + ' · ' + esc(r.name) + ' · ' + esc(r.label) + ' · ' + esc(r.value)).join('\n') : 'no FPI payload received');
     return '<pre class="cfb-debug" style="font-size:9px;line-height:1.5;color:var(--text-muted);background:var(--surface2);border-radius:8px;padding:8px 10px;margin:0 0 12px;white-space:pre-wrap;word-break:break-word;">FPI DEBUG\n' + body + '</pre>';
   }
 
