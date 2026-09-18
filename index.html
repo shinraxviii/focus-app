@@ -2373,10 +2373,14 @@
     color: var(--text-dim);
     letter-spacing: 0.04em;
   }
-  /* The full-width schedule sits between Sports and LA Events in the DOM so it
-     lands directly under Sports on phones; dense flow lets LA Events backfill
-     the slot beside Sports on desktop instead of leaving a hole. */
-  #subtab-frontpage { grid-auto-flow: row dense; }
+  /* Sports tab: the scores card is full-width, so lay its rows out in two
+     columns on desktop (like the schedule below it); phones stack them. */
+  #subtab-sports .sport-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 32px;
+    row-gap: 10px;
+  }
   #cal-schedule-card .digest-card-title { white-space: nowrap; }
   #cal-schedule-card .digest-card-updated { text-align: right; }
 
@@ -2412,6 +2416,7 @@
     .digest-grid { grid-template-columns: 1fr; }
     .digest-card.full-width { grid-column: 1; }
     .cfb-cols { grid-template-columns: 1fr; }
+    #subtab-sports .sport-list { grid-template-columns: 1fr; }
     .cfb-footer { flex-direction: column; align-items: flex-start; gap: 4px; }
     .cfb-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
     .cfb-stat { padding: 8px 10px; flex-direction: column; align-items: flex-start; gap: 3px; }
@@ -3275,6 +3280,7 @@ onAuthStateChanged(auth, user => {
   <!-- Sub-tabs -->
   <div class="digest-sub-tabs" id="digest-sub-tabs">
     <button class="digest-sub-tab active" data-subtab="frontpage">Front Page</button>
+    <button class="digest-sub-tab" data-subtab="sports">Sports</button>
     <button class="digest-sub-tab" data-subtab="hobbies">Hobbies</button>
     <button class="digest-sub-tab" data-subtab="gaming">TCG</button>
     <button class="digest-sub-tab" data-subtab="motivation">Quotes</button>
@@ -3292,28 +3298,6 @@ onAuthStateChanged(auth, user => {
         <span class="digest-loading">Loading...</span>
       </div>
       <div id="earnings-section" style="background: var(--surface2); border-radius: 8px; padding: 4px 12px 8px; margin-top: 8px;"></div>
-    </div>
-
-    <!-- SPORTS -->
-    <div class="digest-card">
-      <div class="digest-card-header">
-        <span class="digest-card-title">Sports</span>
-        <span class="digest-card-updated" id="sports-updated"></span>
-      </div>
-      <div class="sport-list" id="sports-list">
-        <span class="digest-loading">Loading...</span>
-      </div>
-    </div>
-
-    <!-- CAL FOOTBALL SCHEDULE — season is set by CAL_FOOTBALL_SEASON in the script -->
-    <div class="digest-card full-width" id="cal-schedule-card">
-      <div class="digest-card-header">
-        <span class="digest-card-title" id="cal-schedule-title">Cal Football</span>
-        <span class="digest-card-updated" id="cal-schedule-updated"></span>
-      </div>
-      <div class="cfb-list" id="cal-schedule-list">
-        <span class="digest-loading">Loading...</span>
-      </div>
     </div>
 
     <!-- FEVER LA EVENTS -->
@@ -3363,6 +3347,31 @@ onAuthStateChanged(auth, user => {
         <div class="speed-test-progress" id="speed-progress" style="display:none;"><div class="speed-test-progress-fill" id="speed-progress-fill"></div></div>
         <div class="speed-test-status" id="speed-test-status"></div>
         <button class="speed-test-btn" id="speed-test-btn" onclick="runSpeedTest()">Run Speed Test</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SPORTS -->
+  <div class="digest-grid digest-subtab-content" id="subtab-sports" style="display:none;">
+    <!-- SCORES: teams are listed in SPORTS_TEAMS in the script -->
+    <div class="digest-card full-width">
+      <div class="digest-card-header">
+        <span class="digest-card-title">Scores</span>
+        <span class="digest-card-updated" id="sports-updated"></span>
+      </div>
+      <div class="sport-list" id="sports-list">
+        <span class="digest-loading">Loading...</span>
+      </div>
+    </div>
+
+    <!-- CAL FOOTBALL SCHEDULE — season is set by CAL_FOOTBALL_SEASON in the script -->
+    <div class="digest-card full-width" id="cal-schedule-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title" id="cal-schedule-title">Cal Football</span>
+        <span class="digest-card-updated" id="cal-schedule-updated"></span>
+      </div>
+      <div class="cfb-list" id="cal-schedule-list">
+        <span class="digest-loading">Loading...</span>
       </div>
     </div>
   </div>
