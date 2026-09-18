@@ -7657,21 +7657,25 @@ onAuthStateChanged(auth, user => {
     return out;
   }
 
-  // Pull the three numbers we show out of the flattened stats. Matching is on
-  // the internal name first, then on abbreviation / display name, so it holds
-  // up whether ESPN calls remaining SOS "rsos", "remsos" or "Remaining SOS".
+  // Pull the three numbers we show out of the flattened stats. ESPN's real
+  // internal names (seen in a live payload, Sep 2026):
+  //   fpi · fpirank · avgsosrank ("AvgInSOS RK" = season SOS rank from an
+  //   average team's perspective, the number ESPN's FPI page shows as SOS)
+  //   · sosremainingrank ("SOS Remaining RK") · accomplishmentrank (SOR).
+  // Exact names first; label heuristics only as a fallback if ESPN renames.
   function fpiExtract(raw) {
     const rows = fpiFlatten(raw);
     if (!rows.length) return null;
     const key = v => String(v || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const byName = (...names) => { for (const nm of names) { const r = rows.find(x => x.value !== null && key(x.name) === nm); if (r) return r.value; } return null; };
     const find = pred => { const r = rows.find(x => x.value !== null && pred(key(x.name), key(x.label), key(x.cat), String(x.label || '').toLowerCase())); return r ? r.value : null; };
-    const isRemaining = (n, l, c, raw) => ((/rsos|remsos|remainingsos|remaining|remstrength|rem|future|rest|left|ahead/.test(n) || /remsos|rsos|remaining|rem|future|rest|left|ahead/.test(l)) && /sos|strength|schedule|sched/.test(n + l)) || /\brsos\b|\brem\.?\s*sos\b|\bsos\s*\(?rem/.test(raw || '');
+    const isRemaining = (n, l, c, raw) => ((/rsos|remsos|remainingsos|remaining|remstrength/.test(n) || /remsos|rsos|remaining/.test(l)) && /sos|strength|schedule/.test(n + l)) || /\brsos\b|\brem\.?\s*sos\b/.test(raw || '');
     const isSos = (n, l, c, raw) => !isRemaining(n, l, c, raw) && (n === 'sos' || n === 'sosrank' || n === 'strengthofschedule' || /strengthofschedule/.test(l) || /\bsos\b/.test(raw || ''));
-    const rsos = find((n, l, c, raw) => isRemaining(n, l, c, raw));
-    const sos  = find((n, l, c, raw) => isSos(n, l, c, raw));
-    const fpi  = find((n, l, c) => c !== 'efficiency' && c !== 'projections' && (n === 'fpi' || (/^fpi/.test(l) && !/rank|rk|trend/.test(l))));
-    const fpiRank = find((n, l, c) => c !== 'efficiency' && ((n === 'rank' || n === 'rk' || n === 'fpirank') || (/fpi/.test(n + l) && /rank|(^|[^a-z])rk($|[^a-z])/.test(n + ' ' + l))))
-      ?? find((n, l, c) => (c === 'fpi' || c === 'predictive') && (l === 'rk' || l === 'rank' || /^rk|^rank/.test(l)));
+
+    const rsos    = byName('sosremainingrank', 'remsosrank', 'rsosrank', 'rsos', 'remsos') ?? find(isRemaining);
+    const sos     = byName('avgsosrank', 'sosrank', 'sos') ?? find(isSos);
+    const fpi     = byName('fpi') ?? find((n, l, c) => c !== 'efficiency' && /^fpi/.test(l) && !/rank|rk|trend/.test(l));
+    const fpiRank = byName('fpirank', 'rank') ?? find((n, l, c) => c !== 'efficiency' && /fpi/.test(n + l) && /rank|(^|[^a-z])rk($|[^a-z])/.test(n + ' ' + l));
     if (sos === null && rsos === null && fpiRank === null) return null;
     return { sos, rsos, fpiRank, fpi };
   }
