@@ -7564,54 +7564,68 @@ onAuthStateChanged(auth, user => {
   function fpiCandidateUrls() {
     const season = CAL_FOOTBALL_SEASON, team = CAL_FOOTBALL_ESPN_ID;
     return [
-      'https://site.web.api.espn.com/apis/fitt/v3/sports/football/college-football/powerindex?region=us&lang=en&contentorigin=espn&limit=200&season=' + season,
-      'https://sports.core.api.espn.com/v2/sports/football/leagues/college-football/seasons/' + season + '/types/2/teams/' + team + '/powerindex?lang=en&region=us',
+      // ESPN core API: one team's power index for the season (no season-type segment)
+      'https://sports.core.api.espn.com/v2/sports/football/leagues/college-football/seasons/' + season + '/powerindex/' + team + '?lang=en&region=us',
     ];
   }
 
-  // Flatten whatever ESPN sent into [{ cat, name, label, value }]
+  // Flatten whatever ESPN sent into [{ cat, name, label, value }].
+  // Core API shape (the documented one): { team, predictives: [stat…], efficiencies: [stat…] }
+  // where stat = { name, abbreviation, displayName, value, displayValue, description };
+  // the league-wide list wraps those in items[]. Older/other feeds use
+  // categories[] + teams[] or a flat stats[]; those are handled too.
   function fpiFlatten(raw) {
     const out = [];
     const num = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
     if (!raw || typeof raw !== 'object') return out;
-    if (raw.data && (raw.data.teams || raw.data.stats)) raw = raw.data; // proxy wrapper
+    if (raw.data && typeof raw.data === 'object') raw = raw.data; // proxy wrapper
     const teamId = String(CAL_FOOTBALL_ESPN_ID);
     const idOf = e => { const t = (e && e.team) || {}; const m = String(t.$ref || '').match(/\/teams\/(\w+)/); return String(t.id ?? (m ? m[1] : '')); };
+    const pushStat = (cat, st) => { if (st && typeof st === 'object') out.push({ cat, name: st.name || '', label: [st.abbreviation, st.displayName, st.shortDisplayName].filter(Boolean).join(' '), value: num(st.value ?? st.displayValue) }); };
+
+    let entry = raw;
+    if (Array.isArray(raw.items)) entry = raw.items.find(e => idOf(e) === teamId) || (raw.items.length === 1 ? raw.items[0] : null);
+    if (entry && (Array.isArray(entry.predictives) || Array.isArray(entry.efficiencies))) {
+      const id = idOf(entry);
+      if (id && id !== teamId) return out;
+      (entry.predictives || []).forEach(st => pushStat('predictive', st));
+      (entry.efficiencies || []).forEach(st => pushStat('efficiency', st));
+      return out;
+    }
 
     if (Array.isArray(raw.teams)) {
-      // FPI page feed: categories[] describe the columns, teams[].categories[] carry values
       const meta = {};
       (raw.categories || []).forEach(c => { if (c && c.name) meta[c.name] = c; });
-      const entry = raw.teams.find(e => idOf(e) === teamId) || (raw.teams.length === 1 ? raw.teams[0] : null);
-      if (!entry) return out;
-      (entry.categories || []).forEach(c => {
+      const e = raw.teams.find(x => idOf(x) === teamId) || (raw.teams.length === 1 ? raw.teams[0] : null);
+      if (!e) return out;
+      (e.categories || []).forEach(c => {
         const m = meta[c.name] || {};
         const names = c.names || m.names || [];
         const labels = c.labels || m.labels || c.displayNames || m.displayNames || [];
         const values = c.values || c.displayValues || [];
         values.forEach((v, i) => out.push({ cat: c.name || '', name: names[i] || '', label: labels[i] || '', value: num(v) }));
-        if (Array.isArray(c.stats)) c.stats.forEach(st => out.push({ cat: c.name || '', name: st.name || '', label: st.displayName || st.abbreviation || '', value: num(st.value ?? st.displayValue) }));
+        if (Array.isArray(c.stats)) c.stats.forEach(st => pushStat(c.name || '', st));
       });
     }
-    if (Array.isArray(raw.stats)) {
-      // Core API: flat stats[] with name / displayName / value
-      raw.stats.forEach(st => out.push({ cat: st.category || '', name: st.name || '', label: st.displayName || st.abbreviation || '', value: num(st.value ?? st.displayValue) }));
-    }
+    if (Array.isArray(raw.stats)) raw.stats.forEach(st => pushStat(st.category || '', st));
     return out;
   }
 
-  // Pull the three numbers we show out of the flattened stats
+  // Pull the three numbers we show out of the flattened stats. Matching is on
+  // the internal name first, then on abbreviation / display name, so it holds
+  // up whether ESPN calls remaining SOS "rsos", "remsos" or "Remaining SOS".
   function fpiExtract(raw) {
     const rows = fpiFlatten(raw);
     if (!rows.length) return null;
     const key = v => String(v || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-    const find = pred => { const r = rows.find(x => x.value !== null && pred(key(x.name), key(x.label), key(x.cat))); return r ? r.value : null; };
-    const remaining = (n, l) => /rsos|remsos|remainingsos|sosremaining|remainingstrength/.test(n) || /remsos|rsos|remainingsos|remainingstrength|remaining/.test(l) && /sos|strength/.test(l);
-    const rsos = find((n, l) => remaining(n, l));
-    const sos  = find((n, l) => !remaining(n, l) && (n === 'sos' || n === 'sosrank' || n === 'strengthofschedule' || (l === 'sos' || /strengthofschedule/.test(l))));
-    const fpi  = find((n, l, c) => n === 'fpi' || (l === 'fpi' && c !== 'projections'));
-    const fpiRank = find((n, l, c) => (n === 'rank' || n === 'rk') && (c === 'fpi' || c === '' || c === 'overall'))
-      ?? find((n, l, c) => n === 'fpirank' || /^fpirank|fpirk$/.test(n) || (/rank|^rk$/.test(l) && /fpi/.test(n)) || ((l === 'rk' || l === 'rank') && c === 'fpi'));
+    const find = pred => { const r = rows.find(x => x.value !== null && pred(key(x.name), key(x.label), key(x.cat), String(x.label || '').toLowerCase())); return r ? r.value : null; };
+    const isRemaining = (n, l, c, raw) => ((/rsos|remsos|remainingsos|remaining|remstrength/.test(n) || /remsos|rsos|remaining/.test(l)) && /sos|strength|schedule/.test(n + l)) || /\brsos\b|\brem\.?\s+sos\b/.test(raw || '');
+    const isSos = (n, l, c, raw) => !isRemaining(n, l, c, raw) && (n === 'sos' || n === 'sosrank' || n === 'strengthofschedule' || /strengthofschedule/.test(l) || /\bsos\b/.test(raw || ''));
+    const rsos = find((n, l, c, raw) => isRemaining(n, l, c, raw));
+    const sos  = find((n, l, c, raw) => isSos(n, l, c, raw));
+    const fpi  = find((n, l, c) => c !== 'efficiency' && c !== 'projections' && (n === 'fpi' || (/^fpi/.test(l) && !/rank|rk|trend/.test(l))));
+    const fpiRank = find((n, l, c) => c !== 'efficiency' && ((n === 'rank' || n === 'rk' || n === 'fpirank') || (/fpi/.test(n + l) && /rank|(^|[^a-z])rk($|[^a-z])/.test(n + ' ' + l))))
+      ?? find((n, l, c) => (c === 'fpi' || c === 'predictive') && (l === 'rk' || l === 'rank' || /^rk|^rank/.test(l)));
     if (sos === null && rsos === null && fpiRank === null) return null;
     return { sos, rsos, fpiRank, fpi };
   }
