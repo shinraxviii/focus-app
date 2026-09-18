@@ -5087,6 +5087,17 @@ onAuthStateChanged(auth, user => {
     } catch (e) { /* private mode / storage disabled — nothing to clear */ }
   })();
 
+  // A reload always lands on the Front Page, but browsers restore the previous
+  // scroll offset, which is usually past the end of that page (blank space).
+  // Turn restoration off and start every load at the top.
+  (function startAtTopOnReload() {
+    try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (e) {}
+    var toTop = function() { window.scrollTo(0, 0); };
+    toTop();
+    window.addEventListener('load', toTop);
+    window.addEventListener('pageshow', toTop); // back/forward cache on iOS Safari
+  })();
+
   // ── DIGEST ───────────────────────────────────────────────────
 
   async function loadDigest() {
