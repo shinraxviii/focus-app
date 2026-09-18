@@ -7583,14 +7583,28 @@ onAuthStateChanged(auth, user => {
     const idOf = e => { const t = (e && e.team) || {}; const m = String(t.$ref || '').match(/\/teams\/(\w+)/); return String(t.id ?? (m ? m[1] : '')); };
     const pushStat = (cat, st) => { if (st && typeof st === 'object') out.push({ cat, name: st.name || '', label: [st.abbreviation, st.displayName, st.shortDisplayName].filter(Boolean).join(' '), value: num(st.value ?? st.displayValue) }); };
 
+    // Any array of { name/displayName, value/displayValue } objects counts as a
+    // stat group, whatever ESPN names the group (predictives, efficiencies,
+    // resume, …), one level of nesting deep.
+    const isStatArr = a => Array.isArray(a) && a.length > 0 && a.every(x => x && typeof x === 'object' && (x.name || x.displayName || x.abbreviation) && (x.value !== undefined || x.displayValue !== undefined));
+    const catName = k => String(k).toLowerCase().replace(/ies$/, 'y').replace(/s$/, '');
+    const collect = (obj, prefix) => {
+      let found = false;
+      Object.keys(obj || {}).forEach(k => {
+        const v = obj[k];
+        if (isStatArr(v)) { found = true; v.forEach(st => pushStat(catName(prefix ? prefix + k : k), st)); }
+        else if (!prefix && v && typeof v === 'object' && !Array.isArray(v)) {
+          Object.keys(v).forEach(k2 => { if (isStatArr(v[k2])) { found = true; v[k2].forEach(st => pushStat(catName(k), st)); } });
+        }
+      });
+      return found;
+    };
     let entry = raw;
     if (Array.isArray(raw.items)) entry = raw.items.find(e => idOf(e) === teamId) || (raw.items.length === 1 ? raw.items[0] : null);
-    if (entry && (Array.isArray(entry.predictives) || Array.isArray(entry.efficiencies))) {
+    if (entry && !Array.isArray(entry.teams) && !Array.isArray(entry.stats)) {
       const id = idOf(entry);
       if (id && id !== teamId) return out;
-      (entry.predictives || []).forEach(st => pushStat('predictive', st));
-      (entry.efficiencies || []).forEach(st => pushStat('efficiency', st));
-      return out;
+      if (collect(entry, '')) return out;
     }
 
     if (Array.isArray(raw.teams)) {
@@ -7635,15 +7649,27 @@ onAuthStateChanged(auth, user => {
       try {
         const r = await fetchWithTimeout(url, TIMEOUT_DEFAULT);
         if (!r.ok) continue;
-        const parsed = fpiExtract(await r.json());
+        const raw = await r.json();
+        window._fpiRawLast = raw; // for ?fpidebug
+        const parsed = fpiExtract(raw);
         if (parsed) return parsed;
       } catch (_) { /* try the next source */ }
     }
     try {
       const r = await fetchWithTimeout(FPI_PROXY_URL + '?team=' + CAL_FOOTBALL_ESPN_ID + '&season=' + CAL_FOOTBALL_SEASON, TIMEOUT_LONG);
-      if (r.ok) return fpiExtract(await r.json());
+      if (r.ok) { const raw = await r.json(); window._fpiRawLast = raw; return fpiExtract(raw); }
     } catch (_) { /* no FPI this load */ }
     return null;
+  }
+
+  // Add ?fpidebug to the URL to list every stat ESPN sent (name · label · value)
+  // under the tiles — the quickest way to see what a missing tile should match.
+  function fpiDebugOn() { try { return new URLSearchParams(window.location.search).has('fpidebug'); } catch (_) { return false; } }
+  function renderFpiDebug() {
+    if (!fpiDebugOn()) return '';
+    const rows = fpiFlatten(window._fpiRawLast);
+    const body = rows.length ? rows.map(r => esc(r.cat) + ' · ' + esc(r.name) + ' · ' + esc(r.label) + ' · ' + esc(r.value)).join('\n') : 'no FPI payload received';
+    return '<pre class="cfb-debug" style="font-size:9px;line-height:1.5;color:var(--text-muted);background:var(--surface2);border-radius:8px;padding:8px 10px;margin:0 0 12px;white-space:pre-wrap;word-break:break-word;">FPI DEBUG\n' + body + '</pre>';
   }
 
   // Compare against the last values seen on this device. History lives in
@@ -7767,7 +7793,7 @@ onAuthStateChanged(auth, user => {
     const cols = [rows.slice(0, half), rows.slice(half)].filter(c => c.length)
       .map(c => '<div class="cfb-col">' + c.join('') + '</div>').join('');
     const oddsSrc = (games.find(g => g.odds && g.odds.provider) || { odds: {} }).odds.provider;
-    return renderFpiTiles(data.fpiTrend) + '<div class="cfb-cols">' + cols + '</div>'
+    return renderFpiTiles(data.fpiTrend) + renderFpiDebug() + '<div class="cfb-cols">' + cols + '</div>'
       + '<div class="cfb-footer">'
       +   '<span>' + (oddsSrc ? 'Lines via ' + esc(oddsSrc) + ' · ' : '') + 'times shown in your local time</span>'
       +   '<a href="' + escUrl(CFB_ESPN_SCHEDULE_URL) + '" target="_blank" rel="noopener" class="digest-section-link">Full schedule on ESPN ↗</a>'
@@ -7922,7 +7948,7 @@ onAuthStateChanged(auth, user => {
       const label = calScheduleLabel(data);
       list.innerHTML = html;
       if (upd) upd.textContent = label;
-      if (data.games.length) cacheSet(CFB_CACHE_KEY, html, label);
+      if (data.games.length && !fpiDebugOn()) cacheSet(CFB_CACHE_KEY, html, label);
     } catch (e) {
       const stale = cacheGetStale(CFB_CACHE_KEY);
       list.innerHTML = stale
