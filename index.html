@@ -2297,23 +2297,30 @@
   .cfb-opp { font-size: 12px; color: var(--text); }
   .cfb-rank { color: var(--text-muted); font-size: 10px; margin-right: 3px; }
   .cfb-rec { color: var(--text-muted); font-size: 10px; }
-  /* SOS / Remaining SOS / FPI tiles across the top of the card */
+  /* SOS / Remaining SOS / FPI tiles across the top of the card.
+     Tinted just off the card surface (toward the page background) instead of
+     the flat gray, and laid out label-left / number-right so the tile is
+     filled rather than a box with text in one corner. */
   .cfb-stats {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 10px;
-    margin-bottom: 16px;
+    margin-bottom: 14px;
   }
   .cfb-stat {
-    background: var(--surface2);
+    background: var(--surface);
+    background: color-mix(in srgb, var(--surface) 55%, var(--bg));
     border: 1px solid var(--border);
+    border-color: color-mix(in srgb, var(--border) 60%, transparent);
     border-radius: 10px;
-    padding: 10px 14px;
+    padding: 9px 14px;
     display: flex;
-    flex-direction: column;
-    gap: 4px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
     min-width: 0;
   }
+  .cfb-stat-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .cfb-stat-label {
     font-size: 9px;
     letter-spacing: 0.1em;
@@ -2324,7 +2331,7 @@
     text-overflow: ellipsis;
   }
   .cfb-stat-label--short { display: none; }
-  .cfb-stat-row { display: flex; align-items: baseline; gap: 8px; }
+  .cfb-stat-row { display: flex; align-items: baseline; gap: 6px; flex-shrink: 0; }
   .cfb-stat-value {
     font-family: 'DM Serif Display', serif;
     font-size: 22px;
@@ -2406,7 +2413,10 @@
     .cfb-cols { grid-template-columns: 1fr; }
     .cfb-footer { flex-direction: column; align-items: flex-start; gap: 4px; }
     .cfb-stats { gap: 6px; }
-    .cfb-stat { padding: 8px 10px; }
+    .cfb-stat { padding: 8px 10px; flex-direction: column; align-items: flex-start; gap: 3px; }
+    .cfb-stat-text { display: contents; }
+    .cfb-stat-row { order: 2; }
+    .cfb-stat-sub { order: 3; }
     .cfb-stat-value { font-size: 19px; }
     .cfb-stat-label--long { display: none; }
     .cfb-stat-label--short { display: inline; }
@@ -7715,9 +7725,11 @@ onAuthStateChanged(auth, user => {
           + (up ? '▲' : '▼') + ' ' + esc(delta) + '</span>';
       }
       return '<div class="cfb-stat">'
-        + '<div class="cfb-stat-label"><span class="cfb-stat-label--long">' + esc(label) + '</span><span class="cfb-stat-label--short">' + esc(shortLabel) + '</span></div>'
+        + '<div class="cfb-stat-text">'
+        +   '<div class="cfb-stat-label"><span class="cfb-stat-label--long">' + esc(label) + '</span><span class="cfb-stat-label--short">' + esc(shortLabel) + '</span></div>'
+        +   '<div class="cfb-stat-sub">' + esc(sub) + '</div>'
+        + '</div>'
         + '<div class="cfb-stat-row"><span class="cfb-stat-value">#' + esc(m.cur) + '</span>' + trend + '</div>'
-        + '<div class="cfb-stat-sub">' + esc(sub) + '</div>'
         + '</div>';
     };
     const rating = t.fpi && t.fpi.cur !== null && t.fpi.cur !== undefined
