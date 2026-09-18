@@ -7657,21 +7657,25 @@ onAuthStateChanged(auth, user => {
     return out;
   }
 
-  // Pull the three numbers we show out of the flattened stats. Matching is on
-  // the internal name first, then on abbreviation / display name, so it holds
-  // up whether ESPN calls remaining SOS "rsos", "remsos" or "Remaining SOS".
+  // Pull the three numbers we show out of the flattened stats. ESPN's real
+  // internal names (seen in a live payload, Sep 2026):
+  //   fpi · fpirank · avgsosrank ("AvgInSOS RK" = season SOS rank from an
+  //   average team's perspective, the number ESPN's FPI page shows as SOS)
+  //   · sosremainingrank ("SOS Remaining RK") · accomplishmentrank (SOR).
+  // Exact names first; label heuristics only as a fallback if ESPN renames.
   function fpiExtract(raw) {
     const rows = fpiFlatten(raw);
     if (!rows.length) return null;
     const key = v => String(v || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const byName = (...names) => { for (const nm of names) { const r = rows.find(x => x.value !== null && key(x.name) === nm); if (r) return r.value; } return null; };
     const find = pred => { const r = rows.find(x => x.value !== null && pred(key(x.name), key(x.label), key(x.cat), String(x.label || '').toLowerCase())); return r ? r.value : null; };
-    const isRemaining = (n, l, c, raw) => ((/rsos|remsos|remainingsos|remaining|remstrength|rem|future|rest|left|ahead/.test(n) || /remsos|rsos|remaining|rem|future|rest|left|ahead/.test(l)) && /sos|strength|schedule|sched/.test(n + l)) || /\brsos\b|\brem\.?\s*sos\b|\bsos\s*\(?rem/.test(raw || '');
+    const isRemaining = (n, l, c, raw) => ((/rsos|remsos|remainingsos|remaining|remstrength/.test(n) || /remsos|rsos|remaining/.test(l)) && /sos|strength|schedule/.test(n + l)) || /\brsos\b|\brem\.?\s*sos\b/.test(raw || '');
     const isSos = (n, l, c, raw) => !isRemaining(n, l, c, raw) && (n === 'sos' || n === 'sosrank' || n === 'strengthofschedule' || /strengthofschedule/.test(l) || /\bsos\b/.test(raw || ''));
-    const rsos = find((n, l, c, raw) => isRemaining(n, l, c, raw));
-    const sos  = find((n, l, c, raw) => isSos(n, l, c, raw));
-    const fpi  = find((n, l, c) => c !== 'efficiency' && c !== 'projections' && (n === 'fpi' || (/^fpi/.test(l) && !/rank|rk|trend/.test(l))));
-    const fpiRank = find((n, l, c) => c !== 'efficiency' && ((n === 'rank' || n === 'rk' || n === 'fpirank') || (/fpi/.test(n + l) && /rank|(^|[^a-z])rk($|[^a-z])/.test(n + ' ' + l))))
-      ?? find((n, l, c) => (c === 'fpi' || c === 'predictive') && (l === 'rk' || l === 'rank' || /^rk|^rank/.test(l)));
+
+    const rsos    = byName('sosremainingrank', 'remsosrank', 'rsosrank', 'rsos', 'remsos') ?? find(isRemaining);
+    const sos     = byName('avgsosrank', 'sosrank', 'sos') ?? find(isSos);
+    const fpi     = byName('fpi') ?? find((n, l, c) => c !== 'efficiency' && /^fpi/.test(l) && !/rank|rk|trend/.test(l));
+    const fpiRank = byName('fpirank', 'rank') ?? find((n, l, c) => c !== 'efficiency' && /fpi/.test(n + l) && /rank|(^|[^a-z])rk($|[^a-z])/.test(n + ' ' + l));
     if (sos === null && rsos === null && fpiRank === null) return null;
     return { sos, rsos, fpiRank, fpi };
   }
@@ -7703,25 +7707,54 @@ onAuthStateChanged(auth, user => {
     let raw = window._fpiRawLast; if (raw && raw.data && typeof raw.data === 'object') raw = raw.data;
     if (raw && Array.isArray(raw.items)) raw = raw.items.find(e => String(((e.team || {}).$ref || '')).indexOf('/teams/' + CAL_FOOTBALL_ESPN_ID) !== -1) || raw.items[0] || raw;
     const keys = raw && typeof raw === 'object' ? Object.keys(raw).map(k => k + ':' + (Array.isArray(raw[k]) ? 'array[' + raw[k].length + ']' : raw[k] && typeof raw[k] === 'object' ? (raw[k].$ref ? 'ref ' + raw[k].$ref : 'object{' + Object.keys(raw[k]).join(',') + '}') : typeof raw[k])).join('\n') : '';
-    const body = (keys ? 'top-level keys:\n' + esc(keys) + '\n\nstats:\n' : '') + (rows.length ? rows.map(r => esc(r.cat) + ' · ' + esc(r.name) + ' · ' + esc(r.label) + ' · ' + esc(r.value)).join('\n') : 'no FPI payload received');
+    let histTxt = '';
+    try { const h = JSON.parse(localStorage.getItem(CFB_FPI_HIST_KEY) || '{}') || {}; histTxt = Object.keys(h).map(k => k + ': ' + (h[k].snaps || []).map(x => '#' + x.v + ' (' + new Date(x.ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ')').join(' → ')).join('\n'); } catch (_) {}
+    const body = (histTxt ? 'trend history (value · date recorded):\n' + esc(histTxt) + '\n\n' : '') + (keys ? 'top-level keys:\n' + esc(keys) + '\n\nstats:\n' : '') + (rows.length ? rows.map(r => esc(r.cat) + ' · ' + esc(r.name) + ' · ' + esc(r.label) + ' · ' + esc(r.value)).join('\n') : 'no FPI payload received');
     return '<pre class="cfb-debug" style="font-size:9px;line-height:1.5;color:var(--text-muted);background:var(--surface2);border-radius:8px;padding:8px 10px;margin:0 0 12px;white-space:pre-wrap;word-break:break-word;">FPI DEBUG\n' + body + '</pre>';
   }
 
-  // Compare against the last values seen on this device. History lives in
-  // localStorage and only rolls forward when a value actually changes, so an
-  // arrow keeps pointing at the last move until ESPN's next update.
+  // Trend arrows compare this week's number with last week's, not this load
+  // with the previous load. Every value change is recorded as a snapshot in
+  // localStorage; snapshots are grouped into FPI "cycles" (weeks starting
+  // Sunday 00:00 local: ESPN reruns the model after Saturday's games, so a
+  // Sunday update and a Tuesday correction land in the same cycle while the
+  // previous Friday's value does not). The arrow compares the latest snapshot with the last
+  // snapshot from an earlier cycle, and stays put until a later cycle brings
+  // a different value.
+  function fpiCycleId(ts) {
+    const d = new Date(ts);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - d.getDay()); // back to the most recent Sunday
+    return d.getTime();
+  }
   function fpiWithTrend(cur) {
     let hist = {};
     try { hist = JSON.parse(localStorage.getItem(CFB_FPI_HIST_KEY) || '{}') || {}; } catch (_) {}
     const now = Date.now();
     const out = {};
     ['sos', 'rsos', 'fpiRank', 'fpi'].forEach(k => {
+      let h = hist[k];
+      if (h && !Array.isArray(h.snaps)) { // migrate the older {cur, prev, ts, prevTs} record
+        const snaps = [];
+        if (h.prev !== null && h.prev !== undefined) snaps.push({ ts: h.prevTs || ((h.ts || now) - 7 * 864e5), v: h.prev });
+        if (h.cur !== null && h.cur !== undefined) snaps.push({ ts: h.ts || now, v: h.cur });
+        h = { snaps };
+      }
+      if (!h || !Array.isArray(h.snaps)) h = { snaps: [] };
       const v = cur[k];
-      const h = hist[k] || null;
-      if (v === null || v === undefined) { out[k] = h ? { cur: h.cur, prev: h.prev, prevTs: h.prevTs } : { cur: null, prev: null }; return; }
-      if (!h || h.cur === null || h.cur === undefined) hist[k] = { cur: v, prev: null, ts: now, prevTs: null };
-      else if (h.cur !== v) hist[k] = { cur: v, prev: h.cur, ts: now, prevTs: h.ts };
-      out[k] = { cur: hist[k].cur, prev: hist[k].prev, prevTs: hist[k].prevTs };
+      const last = h.snaps[h.snaps.length - 1];
+      if (v !== null && v !== undefined && (!last || last.v !== v)) {
+        h.snaps.push({ ts: now, v });
+        if (h.snaps.length > 40) h.snaps.splice(0, h.snaps.length - 40);
+      }
+      hist[k] = h;
+      const latest = h.snaps[h.snaps.length - 1] || null;
+      let base = null;
+      if (latest) {
+        const cycle = fpiCycleId(latest.ts);
+        for (let i = h.snaps.length - 2; i >= 0; i--) { if (fpiCycleId(h.snaps[i].ts) < cycle) { base = h.snaps[i]; break; } }
+      }
+      out[k] = { cur: latest ? latest.v : null, prev: base ? base.v : null, prevTs: base ? base.ts : null };
     });
     try { localStorage.setItem(CFB_FPI_HIST_KEY, JSON.stringify(hist)); } catch (_) {}
     return out;
