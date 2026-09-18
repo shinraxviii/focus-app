@@ -3281,8 +3281,8 @@ onAuthStateChanged(auth, user => {
   <div class="digest-sub-tabs" id="digest-sub-tabs">
     <button class="digest-sub-tab active" data-subtab="frontpage">Front Page</button>
     <button class="digest-sub-tab" data-subtab="sports">Sports</button>
-    <button class="digest-sub-tab" data-subtab="hobbies">Hobbies</button>
     <button class="digest-sub-tab" data-subtab="gaming">TCG</button>
+    <button class="digest-sub-tab" data-subtab="hobbies">Hobbies</button>
     <button class="digest-sub-tab" data-subtab="motivation">Quotes</button>
   </div>
 
@@ -3371,68 +3371,6 @@ onAuthStateChanged(auth, user => {
         <span class="digest-card-updated" id="cal-schedule-updated"></span>
       </div>
       <div class="cfb-list" id="cal-schedule-list">
-        <span class="digest-loading">Loading...</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- HOBBIES -->
-  <div class="digest-grid digest-subtab-content" id="subtab-hobbies" style="display:none;">
-    <!-- REDDIT FEED -->
-    <div class="digest-card">
-      <div class="digest-card-header">
-        <span class="digest-card-title">Reddit Feed</span>
-        <span class="digest-card-updated" id="reddit-status">Loading</span>
-      </div>
-      <div class="reddit-subs-row" id="reddit-subs-row"></div>
-      <div class="reddit-add-row">
-        <input type="text" id="reddit-sub-input" placeholder="+ Add a subreddit (e.g. finalfantasy)" class="reddit-sub-input">
-      </div>
-      <div class="news-list" id="reddit-feed">
-        <span class="digest-loading">Loading...</span>
-      </div>
-    </div>
-
-    <!-- STACKED: Brandon Sanderson + Tech Deals -->
-    <div class="digest-stack">
-      <div class="digest-card">
-        <div class="digest-card-header">
-          <span class="digest-card-title">Brandon Sanderson</span>
-          <span class="digest-card-updated" id="sanderson-updated">Writing Progress</span>
-        </div>
-        <div class="sanderson-list" id="sanderson-list">
-          <span class="digest-loading">Loading...</span>
-        </div>
-      </div>
-      <div class="digest-card">
-        <div class="digest-card-header">
-          <span class="digest-card-title">Tech Deals</span>
-          <span class="digest-card-updated" id="deals-status">Deals</span>
-        </div>
-        <div class="deals-list" id="deals-container">
-          <span class="digest-loading">Loading...</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- FROM THE SHELF -->
-    <div class="digest-card">
-      <div class="digest-card-header">
-        <span class="digest-card-title">From the Shelf</span>
-        <span class="digest-card-updated" id="book-updated">via Google Books</span>
-      </div>
-      <div class="sorcery-viewer" id="book-viewer">
-        <span class="digest-loading">Loading...</span>
-      </div>
-    </div>
-
-    <!-- UPCOMING MOVIES -->
-    <div class="digest-card">
-      <div class="digest-card-header">
-        <span class="digest-card-title">Upcoming Movies</span>
-        <span class="digest-card-updated" id="movies-updated">via TMDB</span>
-      </div>
-      <div id="movies-list">
         <span class="digest-loading">Loading...</span>
       </div>
     </div>
@@ -3557,6 +3495,68 @@ onAuthStateChanged(auth, user => {
         <span class="digest-card-updated" id="mtg-updated">via Scryfall</span>
       </div>
       <div class="card-list" id="mtg-list">
+        <span class="digest-loading">Loading...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- HOBBIES -->
+  <div class="digest-grid digest-subtab-content" id="subtab-hobbies" style="display:none;">
+    <!-- REDDIT FEED -->
+    <div class="digest-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title">Reddit Feed</span>
+        <span class="digest-card-updated" id="reddit-status">Loading</span>
+      </div>
+      <div class="reddit-subs-row" id="reddit-subs-row"></div>
+      <div class="reddit-add-row">
+        <input type="text" id="reddit-sub-input" placeholder="+ Add a subreddit (e.g. finalfantasy)" class="reddit-sub-input">
+      </div>
+      <div class="news-list" id="reddit-feed">
+        <span class="digest-loading">Loading...</span>
+      </div>
+    </div>
+
+    <!-- STACKED: Brandon Sanderson + Tech Deals -->
+    <div class="digest-stack">
+      <div class="digest-card">
+        <div class="digest-card-header">
+          <span class="digest-card-title">Brandon Sanderson</span>
+          <span class="digest-card-updated" id="sanderson-updated">Writing Progress</span>
+        </div>
+        <div class="sanderson-list" id="sanderson-list">
+          <span class="digest-loading">Loading...</span>
+        </div>
+      </div>
+      <div class="digest-card">
+        <div class="digest-card-header">
+          <span class="digest-card-title">Tech Deals</span>
+          <span class="digest-card-updated" id="deals-status">Deals</span>
+        </div>
+        <div class="deals-list" id="deals-container">
+          <span class="digest-loading">Loading...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- FROM THE SHELF -->
+    <div class="digest-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title">From the Shelf</span>
+        <span class="digest-card-updated" id="book-updated">via Google Books</span>
+      </div>
+      <div class="sorcery-viewer" id="book-viewer">
+        <span class="digest-loading">Loading...</span>
+      </div>
+    </div>
+
+    <!-- UPCOMING MOVIES -->
+    <div class="digest-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title">Upcoming Movies</span>
+        <span class="digest-card-updated" id="movies-updated">via TMDB</span>
+      </div>
+      <div id="movies-list">
         <span class="digest-loading">Loading...</span>
       </div>
     </div>
