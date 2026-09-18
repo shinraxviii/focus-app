@@ -2297,6 +2297,50 @@
   .cfb-opp { font-size: 12px; color: var(--text); }
   .cfb-rank { color: var(--text-muted); font-size: 10px; margin-right: 3px; }
   .cfb-rec { color: var(--text-muted); font-size: 10px; }
+  /* SOS / Remaining SOS / FPI tiles across the top of the card */
+  .cfb-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .cfb-stat {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+  .cfb-stat-label {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cfb-stat-label--short { display: none; }
+  .cfb-stat-row { display: flex; align-items: baseline; gap: 8px; }
+  .cfb-stat-value {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    line-height: 1.1;
+    color: var(--text);
+  }
+  .cfb-stat-trend {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .cfb-stat-trend--up   { color: var(--win-color); }
+  .cfb-stat-trend--down { color: var(--loss-color); }
+  .cfb-stat-trend--flat { color: var(--text-dim); }
+  .cfb-stat-sub { font-size: 9px; color: var(--text-dim); letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .cfb-meta {
     font-size: 9px;
     color: var(--text-muted);
@@ -2361,6 +2405,11 @@
     .digest-card.full-width { grid-column: 1; }
     .cfb-cols { grid-template-columns: 1fr; }
     .cfb-footer { flex-direction: column; align-items: flex-start; gap: 4px; }
+    .cfb-stats { gap: 6px; }
+    .cfb-stat { padding: 8px 10px; }
+    .cfb-stat-value { font-size: 19px; }
+    .cfb-stat-label--long { display: none; }
+    .cfb-stat-label--short { display: inline; }
     .stock-grid { grid-template-columns: 1fr; gap: 0; }
     .stock-name { display: none; }
     .stock-mktcap { display: none; }
@@ -7504,6 +7553,131 @@ onAuthStateChanged(auth, user => {
     return [record, ats, asOfNow()].filter(Boolean).join(' · ');
   }
 
+  // ── FPI · STRENGTH OF SCHEDULE (ESPN Football Power Index) ─────
+  // Read straight from ESPN in the browser first (same host family as the
+  // rest of the card); the proxy relay is the fallback. Both return ESPN's
+  // own payload, so one parser below handles either shape.
+  const FPI_PROXY_URL = 'https://focus-proxy.vercel.app/api/fpi';
+  // Deliberately NOT a 'focus-digest-' key: ?refresh must not wipe the trend history.
+  const CFB_FPI_HIST_KEY = 'focus-cfb-fpi-hist-' + CAL_FOOTBALL_SEASON;
+
+  function fpiCandidateUrls() {
+    const season = CAL_FOOTBALL_SEASON, team = CAL_FOOTBALL_ESPN_ID;
+    return [
+      'https://site.web.api.espn.com/apis/fitt/v3/sports/football/college-football/powerindex?region=us&lang=en&contentorigin=espn&limit=200&season=' + season,
+      'https://sports.core.api.espn.com/v2/sports/football/leagues/college-football/seasons/' + season + '/types/2/teams/' + team + '/powerindex?lang=en&region=us',
+    ];
+  }
+
+  // Flatten whatever ESPN sent into [{ cat, name, label, value }]
+  function fpiFlatten(raw) {
+    const out = [];
+    const num = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
+    if (!raw || typeof raw !== 'object') return out;
+    if (raw.data && (raw.data.teams || raw.data.stats)) raw = raw.data; // proxy wrapper
+    const teamId = String(CAL_FOOTBALL_ESPN_ID);
+    const idOf = e => { const t = (e && e.team) || {}; const m = String(t.$ref || '').match(/\/teams\/(\w+)/); return String(t.id ?? (m ? m[1] : '')); };
+
+    if (Array.isArray(raw.teams)) {
+      // FPI page feed: categories[] describe the columns, teams[].categories[] carry values
+      const meta = {};
+      (raw.categories || []).forEach(c => { if (c && c.name) meta[c.name] = c; });
+      const entry = raw.teams.find(e => idOf(e) === teamId) || (raw.teams.length === 1 ? raw.teams[0] : null);
+      if (!entry) return out;
+      (entry.categories || []).forEach(c => {
+        const m = meta[c.name] || {};
+        const names = c.names || m.names || [];
+        const labels = c.labels || m.labels || c.displayNames || m.displayNames || [];
+        const values = c.values || c.displayValues || [];
+        values.forEach((v, i) => out.push({ cat: c.name || '', name: names[i] || '', label: labels[i] || '', value: num(v) }));
+        if (Array.isArray(c.stats)) c.stats.forEach(st => out.push({ cat: c.name || '', name: st.name || '', label: st.displayName || st.abbreviation || '', value: num(st.value ?? st.displayValue) }));
+      });
+    }
+    if (Array.isArray(raw.stats)) {
+      // Core API: flat stats[] with name / displayName / value
+      raw.stats.forEach(st => out.push({ cat: st.category || '', name: st.name || '', label: st.displayName || st.abbreviation || '', value: num(st.value ?? st.displayValue) }));
+    }
+    return out;
+  }
+
+  // Pull the three numbers we show out of the flattened stats
+  function fpiExtract(raw) {
+    const rows = fpiFlatten(raw);
+    if (!rows.length) return null;
+    const key = v => String(v || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const find = pred => { const r = rows.find(x => x.value !== null && pred(key(x.name), key(x.label), key(x.cat))); return r ? r.value : null; };
+    const remaining = (n, l) => /rsos|remsos|remainingsos|sosremaining|remainingstrength/.test(n) || /remsos|rsos|remainingsos|remainingstrength|remaining/.test(l) && /sos|strength/.test(l);
+    const rsos = find((n, l) => remaining(n, l));
+    const sos  = find((n, l) => !remaining(n, l) && (n === 'sos' || n === 'sosrank' || n === 'strengthofschedule' || (l === 'sos' || /strengthofschedule/.test(l))));
+    const fpi  = find((n, l, c) => n === 'fpi' || (l === 'fpi' && c !== 'projections'));
+    const fpiRank = find((n, l, c) => (n === 'rank' || n === 'rk') && (c === 'fpi' || c === '' || c === 'overall'))
+      ?? find((n, l, c) => n === 'fpirank' || /^fpirank|fpirk$/.test(n) || (/rank|^rk$/.test(l) && /fpi/.test(n)) || ((l === 'rk' || l === 'rank') && c === 'fpi'));
+    if (sos === null && rsos === null && fpiRank === null) return null;
+    return { sos, rsos, fpiRank, fpi };
+  }
+
+  async function fetchFpi() {
+    for (const url of fpiCandidateUrls()) {
+      try {
+        const r = await fetchWithTimeout(url, TIMEOUT_DEFAULT);
+        if (!r.ok) continue;
+        const parsed = fpiExtract(await r.json());
+        if (parsed) return parsed;
+      } catch (_) { /* try the next source */ }
+    }
+    try {
+      const r = await fetchWithTimeout(FPI_PROXY_URL + '?team=' + CAL_FOOTBALL_ESPN_ID + '&season=' + CAL_FOOTBALL_SEASON, TIMEOUT_LONG);
+      if (r.ok) return fpiExtract(await r.json());
+    } catch (_) { /* no FPI this load */ }
+    return null;
+  }
+
+  // Compare against the last values seen on this device. History lives in
+  // localStorage and only rolls forward when a value actually changes, so an
+  // arrow keeps pointing at the last move until ESPN's next update.
+  function fpiWithTrend(cur) {
+    let hist = {};
+    try { hist = JSON.parse(localStorage.getItem(CFB_FPI_HIST_KEY) || '{}') || {}; } catch (_) {}
+    const now = Date.now();
+    const out = {};
+    ['sos', 'rsos', 'fpiRank', 'fpi'].forEach(k => {
+      const v = cur[k];
+      const h = hist[k] || null;
+      if (v === null || v === undefined) { out[k] = h ? { cur: h.cur, prev: h.prev, prevTs: h.prevTs } : { cur: null, prev: null }; return; }
+      if (!h || h.cur === null || h.cur === undefined) hist[k] = { cur: v, prev: null, ts: now, prevTs: null };
+      else if (h.cur !== v) hist[k] = { cur: v, prev: h.cur, ts: now, prevTs: h.ts };
+      out[k] = { cur: hist[k].cur, prev: hist[k].prev, prevTs: hist[k].prevTs };
+    });
+    try { localStorage.setItem(CFB_FPI_HIST_KEY, JSON.stringify(hist)); } catch (_) {}
+    return out;
+  }
+
+  function renderFpiTiles(t) {
+    if (!t) return '';
+    const rankTile = (label, shortLabel, m, sub) => {
+      if (!m || m.cur === null || m.cur === undefined) return '';
+      let trend = '<span class="cfb-stat-trend cfb-stat-trend--flat" title="no change recorded yet">–</span>';
+      if (m.prev !== null && m.prev !== undefined && m.prev !== m.cur) {
+        const up = m.cur < m.prev; // ranks: a smaller number is a climb toward #1
+        const delta = Math.abs(m.cur - m.prev);
+        const when = m.prevTs ? ' on ' + new Date(m.prevTs).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+        trend = '<span class="cfb-stat-trend ' + (up ? 'cfb-stat-trend--up' : 'cfb-stat-trend--down') + '" title="was #' + esc(m.prev) + when + '">'
+          + (up ? '▲' : '▼') + ' ' + esc(delta) + '</span>';
+      }
+      return '<div class="cfb-stat">'
+        + '<div class="cfb-stat-label"><span class="cfb-stat-label--long">' + esc(label) + '</span><span class="cfb-stat-label--short">' + esc(shortLabel) + '</span></div>'
+        + '<div class="cfb-stat-row"><span class="cfb-stat-value">#' + esc(m.cur) + '</span>' + trend + '</div>'
+        + '<div class="cfb-stat-sub">' + esc(sub) + '</div>'
+        + '</div>';
+    };
+    const rating = t.fpi && t.fpi.cur !== null && t.fpi.cur !== undefined
+      ? 'rating ' + (t.fpi.cur > 0 ? '+' : '') + Number(t.fpi.cur).toFixed(1) : 'ESPN power index';
+    const tiles = rankTile('Strength of Schedule', 'SOS', t.sos, '#1 is hardest')
+      + rankTile('Remaining SOS', 'Remaining', t.rsos, 'games left')
+      + rankTile('FPI', 'FPI', t.fpiRank, rating);
+    return tiles ? '<div class="cfb-stats">' + tiles + '</div>' : '';
+  }
+
   function renderCalSchedule(data) {
     const games = (data && data.games) || [];
     const abbrev = (data && data.team && data.team.abbrev) || 'CAL';
@@ -7579,7 +7753,7 @@ onAuthStateChanged(auth, user => {
     const cols = [rows.slice(0, half), rows.slice(half)].filter(c => c.length)
       .map(c => '<div class="cfb-col">' + c.join('') + '</div>').join('');
     const oddsSrc = (games.find(g => g.odds && g.odds.provider) || { odds: {} }).odds.provider;
-    return '<div class="cfb-cols">' + cols + '</div>'
+    return renderFpiTiles(data.fpiTrend) + '<div class="cfb-cols">' + cols + '</div>'
       + '<div class="cfb-footer">'
       +   '<span>' + (oddsSrc ? 'Lines via ' + esc(oddsSrc) + ' · ' : '') + 'times shown in your local time</span>'
       +   '<a href="' + escUrl(CFB_ESPN_SCHEDULE_URL) + '" target="_blank" rel="noopener" class="digest-section-link">Full schedule on ESPN ↗</a>'
@@ -7727,7 +7901,8 @@ onAuthStateChanged(auth, user => {
         if (!data.team.record && proxied.team && proxied.team.record) data.team.record = proxied.team.record;
       }
       if (!data) throw new Error('schedule unavailable');
-      await Promise.all([attachNextGameLine(data), attachOpponentRecords(data)]);
+      const [, , fpi] = await Promise.all([attachNextGameLine(data), attachOpponentRecords(data), fetchFpi()]);
+      data.fpiTrend = fpi ? fpiWithTrend(fpi) : null;
 
       const html  = renderCalSchedule(data);
       const label = calScheduleLabel(data);
