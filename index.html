@@ -3165,6 +3165,15 @@ window._fbLoadLog = async () => {
   const snap = await getDoc(doc(db, 'users', currentUser.uid, 'data', 'log'));
   return snap.exists() ? JSON.parse(snap.data().log) : [];
 };
+window._fbSaveD20 = async (data) => {
+  if (!currentUser) return;
+  await setDoc(doc(db, 'users', currentUser.uid, 'data', 'd20'), { d20: JSON.stringify(data) });
+};
+window._fbLoadD20 = async () => {
+  if (!currentUser) return null;
+  const snap = await getDoc(doc(db, 'users', currentUser.uid, 'data', 'd20'));
+  return snap.exists() ? JSON.parse(snap.data().d20) : {};
+};
 window._fbSignInWithGoogle = async () => signInWithPopup(auth, provider);
 window._fbSignOut = async () => signOut(auth);
 
@@ -4004,6 +4013,7 @@ onAuthStateChanged(auth, user => {
     await loadPrefsFromCloud();
     renderRedditTags(); // refresh tags after cloud prefs loaded
     loadDigest(); // preload digest data in background
+    if (window._d20OnUserReady) window._d20OnUserReady(); // merge the roll log from the cloud
   };
 
   async function handleLogin() {
@@ -9790,7 +9800,15 @@ onAuthStateChanged(auth, user => {
   });
 
   let lookIdx = 0;
-  try { const saved = parseInt(localStorage.getItem('focus-digest-d20-look'), 10); if (saved >= 0 && saved < LOOKS.length) lookIdx = saved; } catch (e) {}
+  // Deliberately NOT 'focus-digest-' keys: ?refresh wipes every digest cache and must not touch these.
+  const LOOK_KEY = 'focus-d20-look', HISTORY_KEY = 'focus-d20-rolls';
+  try {   // one-time move off the old digest-prefixed keys
+    for (const [oldK, newK] of [['focus-digest-d20-look', LOOK_KEY], ['focus-digest-d20-rolls', HISTORY_KEY]]) {
+      const v = localStorage.getItem(oldK);
+      if (v !== null) { if (localStorage.getItem(newK) === null) localStorage.setItem(newK, v); localStorage.removeItem(oldK); }
+    }
+  } catch (e) {}
+  try { const saved = parseInt(localStorage.getItem(LOOK_KEY), 10); if (saved >= 0 && saved < LOOKS.length) lookIdx = saved; } catch (e) {}
   let look = LOOKS[lookIdx];
   let showAllNumerals = true;
 
@@ -9863,22 +9881,70 @@ onAuthStateChanged(auth, user => {
 
   lookBtn.addEventListener('click', () => {
     lookIdx = (lookIdx + 1) % LOOKS.length;
-    try { localStorage.setItem('focus-digest-d20-look', String(lookIdx)); } catch (e) {}
+    try { localStorage.setItem(LOOK_KEY, String(lookIdx)); } catch (e) {}
     applyLook();
   });
 
   // ── History ──
-  const HISTORY_KEY = 'focus-digest-d20-rolls';
+  // Every roll is a [face, timestamp] pair. localStorage holds a copy on this device; the
+  // signed-in user's Firestore doc holds the durable one, and the two are merged on sign-in
+  // so rolls from any device or browser end up in the same log. `clearedAt` lets a clear on
+  // one device win over the copies elsewhere.
   const HISTORY_CAP = 5000;
-  let history = [];   // [face, timestamp] pairs, oldest first
+  const CLEARED_KEY = 'focus-d20-cleared';
+  let history = [];
+  let clearedAt = 0;
+  const validRolls = raw => Array.isArray(raw) ? raw.filter(r => Array.isArray(r) && r[0] >= 1 && r[0] <= 20 && r[1] > 0) : [];
   try {
-    const raw = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-    if (Array.isArray(raw)) history = raw.filter(r => Array.isArray(r) && r[0] >= 1 && r[0] <= 20);
+    history = validRolls(JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'));
+    clearedAt = parseInt(localStorage.getItem(CLEARED_KEY), 10) || 0;
   } catch (e) {}
+
+  function mergeRolls(a, b) {
+    const seen = new Set(), out = [];
+    for (const r of a.concat(b)) {
+      const k = r[0] + ':' + r[1];
+      if (r[1] <= clearedAt || seen.has(k)) continue;
+      seen.add(k); out.push(r);
+    }
+    out.sort((x, y) => x[1] - y[1]);
+    return out.length > HISTORY_CAP ? out.slice(-HISTORY_CAP) : out;
+  }
+
+  let cloudTimer = null;
   function saveHistory() {
     if (history.length > HISTORY_CAP) history = history.slice(-HISTORY_CAP);
-    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch (e) {}
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+      localStorage.setItem(CLEARED_KEY, String(clearedAt));
+    } catch (e) {}
+    // Batch quick successive rolls into one cloud write.
+    clearTimeout(cloudTimer);
+    cloudTimer = setTimeout(saveToCloudNow, 1500);
   }
+  async function saveToCloudNow() {
+    clearTimeout(cloudTimer); cloudTimer = null;
+    if (!window._fbSaveD20) return;
+    try { await window._fbSaveD20({ rolls: history, clearedAt }); } catch (e) { /* offline: the local copy is still there */ }
+  }
+  // Runs once auth resolves: pull the cloud log, merge it with this device's, push the union back.
+  window._d20OnUserReady = async () => {
+    if (!window._fbLoadD20) return;
+    let cloud = null;
+    try { cloud = await window._fbLoadD20(); } catch (e) { return; }
+    if (!cloud) return;
+    const cloudRolls = validRolls(cloud.rolls);
+    clearedAt = Math.max(clearedAt, cloud.clearedAt || 0);
+    const before = history.length;
+    history = mergeRolls(history, cloudRolls);
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); localStorage.setItem(CLEARED_KEY, String(clearedAt)); } catch (e) {}
+    renderAnalytics();
+    if (history.length) { restFace = history[history.length - 1][0]; showNumber(restFace); renderResult(restFace); }
+    // Push back if this device knew rolls the cloud didn't, or the cloud doc doesn't exist yet.
+    if (history.length !== cloudRolls.length || before !== history.length || cloud.rolls === undefined) saveToCloudNow();
+  };
+  window.addEventListener('pagehide', () => { if (cloudTimer) saveToCloudNow(); });
+
   function logRoll(n) { history.push([n, Date.now()]); saveHistory(); renderAnalytics(); }
   function randomFace() {
     if (window.crypto && crypto.getRandomValues) {
@@ -10101,7 +10167,7 @@ onAuthStateChanged(auth, user => {
   }));
   $('d20-rolls-clear').addEventListener('click', () => {
     if (!history.length || !confirm('Clear all logged rolls?')) return;
-    history = []; saveHistory(); renderAnalytics(); renderResult(restFace);
+    clearedAt = Date.now(); history = []; saveHistory(); saveToCloudNow(); renderAnalytics(); renderResult(restFace);
   });
   // Initial state: the die rests on the last logged roll, or a 20 before any roll.
   applyLook();
