@@ -3102,10 +3102,19 @@
     position: relative;
     font: inherit;
   }
-  .die-btn:focus-visible, .look-btn:focus-visible, .d20-ctrl:focus-visible { outline: 2px solid var(--color-cyber); outline-offset: 2px; }
+  .die-btn:focus-visible, .look-btn:focus-visible, .d20-ctrl:focus-visible, .dice-kind:focus-visible, .dice-count:focus-visible { outline: 2px solid var(--color-cyber); outline-offset: 2px; }
   .die-3d { display: block; position: relative; z-index: 1; }
+  .dice-controls { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .dice-controls .control-group { margin-bottom: 0; }
+  .dice-row { display: flex; justify-content: center; align-items: flex-end; gap: 6px; flex-wrap: wrap; --die-size: 220px; }
+  .dice-row[data-count="2"] { --die-size: 150px; }
+  .dice-row[data-count="3"] { --die-size: 102px; }
+  @media (min-width: 701px) {
+    .dice-row[data-count="2"] { --die-size: 180px; }
+    .dice-row[data-count="3"] { --die-size: 140px; }
+  }
   .die-btn svg {
-    width: 220px; height: 220px; max-width: 100%;
+    width: var(--die-size, 220px); height: var(--die-size, 220px); max-width: 100%;
     display: block;
     filter: drop-shadow(0 6px 8px var(--d20-shadow));
     transition: transform 0.15s ease;
@@ -3115,7 +3124,7 @@
   .die-btn.crit svg { animation: d20-crit 0.9s ease-out both; }
   .die-btn.fumble svg { animation: d20-fumble 0.45s ease-in-out both; }
   .die-shadow {
-    position: absolute; left: 50%; bottom: 2px; width: 150px; height: 20px;
+    position: absolute; left: 50%; bottom: 2px; width: calc(var(--die-size, 220px) * 0.68); height: calc(var(--die-size, 220px) * 0.09);
     transform: translateX(-50%);
     background: radial-gradient(ellipse at center, var(--d20-shadow) 0%, transparent 70%);
     opacity: 0.8; pointer-events: none;
@@ -3178,7 +3187,8 @@
   .die-num-rule { stroke-width: 2.4; stroke-linecap: round; }
 
   .die-result { display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 40px; }
-  .die-result-main { font-family: 'DM Serif Display', serif; font-size: 18px; color: var(--text); }
+  .die-result-main { font-family: 'DM Serif Display', serif; font-size: 18px; color: var(--text); text-align: center; }
+  .die-result-main b { font-weight: 400; font-size: 22px; }
   .die-result-main .tag {
     font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase;
     margin-left: 8px; padding: 2px 7px; border-radius: 999px;
@@ -3233,7 +3243,7 @@
   .d20-stat-interpret b { color: var(--text-muted); font-weight: 500; }
   .d20-stat-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; }
   .die-footer-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-  #d20-card, #d20-rolls-card { scroll-margin-top: 16px; }
+  #d20-card, #d20-rolls-card, #d6-rolls-card { scroll-margin-top: 16px; }
   .d20-link {
     font: inherit; font-size: 10px; background: none; border: 0; padding: 0; cursor: pointer;
     color: var(--text-muted); text-decoration: underline; text-underline-offset: 3px;
@@ -3561,46 +3571,49 @@ onAuthStateChanged(auth, user => {
       </div>
     </div>
 
-    <!-- D20 ROLLER -->
+    <!-- DICE ROLLER -->
     <div class="digest-card" id="d20-card">
       <div class="digest-card-header">
-        <span class="digest-card-title">D20</span>
-        <span class="digest-card-updated" id="d20-updated">Tap the die to roll</span>
+        <span class="digest-card-title">Dice</span>
+        <span class="digest-card-updated" id="d20-updated">Tap the dice to roll</span>
+      </div>
+      <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+        <defs>
+          <radialGradient id="d20-gem-light" cx="35%" cy="28%" r="70%">
+            <stop offset="0%" stop-color="#fff" stop-opacity="0.42"/>
+            <stop offset="45%" stop-color="#fff" stop-opacity="0.06"/>
+            <stop offset="100%" stop-color="#000" stop-opacity="0.10"/>
+          </radialGradient>
+          <linearGradient id="d20-metal-sheen" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#fff" stop-opacity="0.35"/>
+            <stop offset="40%" stop-color="#fff" stop-opacity="0.02"/>
+            <stop offset="60%" stop-color="#000" stop-opacity="0.05"/>
+            <stop offset="100%" stop-color="#000" stop-opacity="0.30"/>
+          </linearGradient>
+          <filter id="d20-ink-wear" x="-10%" y="-10%" width="120%" height="120%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.32" numOctaves="2" seed="11" result="grain"/>
+            <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 9 -2.6" result="wear"/>
+            <feComposite in="SourceGraphic" in2="wear" operator="in"/>
+          </filter>
+          <filter id="d20-neon-glow" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="3" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+      </svg>
+      <div class="dice-controls">
+        <div class="control-group" role="group" aria-label="Die type">
+          <button type="button" class="ctrl-btn dice-kind active" data-kind="d20">D20</button>
+          <button type="button" class="ctrl-btn dice-kind" data-kind="d6">D6</button>
+        </div>
+        <div class="control-group" role="group" aria-label="Number of dice">
+          <button type="button" class="ctrl-btn dice-count active" data-count="1">1</button>
+          <button type="button" class="ctrl-btn dice-count" data-count="2">2</button>
+          <button type="button" class="ctrl-btn dice-count" data-count="3">3</button>
+        </div>
       </div>
       <div class="die-stage">
-        <button type="button" class="die-btn" id="d20-die" aria-label="Roll the twenty-sided die" title="Roll">
-          <span class="die-shadow"></span>
-          <span class="die-3d">
-          <svg viewBox="-118 -118 236 236" aria-hidden="true">
-            <defs>
-              <radialGradient id="d20-gem-light" cx="35%" cy="28%" r="70%">
-                <stop offset="0%" stop-color="#fff" stop-opacity="0.42"/>
-                <stop offset="45%" stop-color="#fff" stop-opacity="0.06"/>
-                <stop offset="100%" stop-color="#000" stop-opacity="0.10"/>
-              </radialGradient>
-              <linearGradient id="d20-metal-sheen" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="#fff" stop-opacity="0.35"/>
-                <stop offset="40%" stop-color="#fff" stop-opacity="0.02"/>
-                <stop offset="60%" stop-color="#000" stop-opacity="0.05"/>
-                <stop offset="100%" stop-color="#000" stop-opacity="0.30"/>
-              </linearGradient>
-              <filter id="d20-ink-wear" x="-10%" y="-10%" width="120%" height="120%">
-                <feTurbulence type="fractalNoise" baseFrequency="0.32" numOctaves="2" seed="11" result="grain"/>
-                <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 9 -2.6" result="wear"/>
-                <feComposite in="SourceGraphic" in2="wear" operator="in"/>
-              </filter>
-              <filter id="d20-neon-glow" x="-30%" y="-30%" width="160%" height="160%">
-                <feGaussianBlur stdDeviation="3" result="b"/>
-                <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-              </filter>
-            </defs>
-            <g id="die-root">
-              <g id="die-faces"></g>
-              <polygon id="die-overlay" points="" fill="none" pointer-events="none"/>
-            </g>
-          </svg>
-          </span>
-        </button>
+        <div class="dice-row" id="dice-row" data-count="1" data-kind="d20"></div>
         <div class="die-result">
           <div class="die-result-main" id="d20-result">Tap to roll</div>
           <div class="die-history" id="d20-history">last · <span>—</span></div>
@@ -3613,7 +3626,7 @@ onAuthStateChanged(auth, user => {
           <div class="look-dots" id="look-dots"></div>
         </div>
         <div class="die-footer-actions">
-          <button type="button" class="ctrl-btn" id="d20-stats-btn" title="Open the D20 Rolls card in Analytics">Stats &#x2197;</button>
+          <button type="button" class="ctrl-btn" id="d20-stats-btn" title="Open the rolls card in Analytics">Stats &#x2197;</button>
           <button type="button" class="look-btn" id="look-btn" title="Next look" aria-label="Switch to the next die look">&#x21bb;</button>
         </div>
       </div>
@@ -3985,6 +3998,36 @@ onAuthStateChanged(auth, user => {
     <div class="d20-stat-footer">
       <button type="button" class="d20-link" id="d20-roll-link">Roll the die &#x2197;</button>
       <button type="button" class="d20-link" id="d20-rolls-clear">Clear roll history</button>
+    </div>
+  </div>
+  <!-- D6 ROLLS -->
+  <div class="analytics-card stat-card" id="d6-rolls-card">
+    <div class="stat-card-header">
+      <div>
+        <div class="stat-card-label">D6 Rolls</div>
+        <div class="stat-big" id="d6-rolls-total">0</div>
+        <div class="stat-sub" id="d6-rolls-sub">d6 rolls logged, all time</div>
+      </div>
+      <div class="stat-aside">
+        <div class="stat-aside-label">Mean · expect 3.5</div>
+        <div class="stat-aside-val" id="d6-rolls-mean">—</div>
+        <div class="stat-aside-label">Sixes · Ones</div>
+        <div class="stat-aside-val" id="d6-rolls-nats">—</div>
+      </div>
+    </div>
+    <div class="control-group" role="group" aria-label="Histogram view">
+      <button type="button" class="ctrl-btn d20-ctrl active" data-view="faces">Faces</button>
+      <button type="button" class="ctrl-btn d20-ctrl" data-view="sums">Sum of 3</button>
+    </div>
+    <div class="d20-hist-wrap" id="d6-hist-wrap">
+      <svg id="d6-hist" viewBox="0 0 332 200" aria-label="Histogram of d6 rolls"></svg>
+      <div class="d20-hist-empty" id="d6-hist-empty" style="display:none;">Switch the dice card to D6 and roll; the distribution fills in here</div>
+    </div>
+    <div class="d20-hist-legend"><span><i></i>Observed</span><span><i class="dash"></i>Expected for a fair die</span></div>
+    <div class="stat-interpret d20-stat-interpret" id="d6-rolls-interpret"></div>
+    <div class="d20-stat-footer">
+      <button type="button" class="d20-link" id="d6-roll-link">Roll the die &#x2197;</button>
+      <button type="button" class="d20-link" id="d6-rolls-clear">Clear roll history</button>
     </div>
   </div>
 
@@ -10421,17 +10464,12 @@ onAuthStateChanged(auth, user => {
 
 </script>
 <script>
-// ── D20 ROLLER (Digest › TCG) + D20 ROLLS (Analytics) ──────────
+// ── DICE ROLLER (Digest › TCG) + D20 / D6 ROLLS (Analytics) ──────────
 (function () {
   const $ = id => document.getElementById(id);
   const NS = 'http://www.w3.org/2000/svg';
-  const S = 95, CAM = 5;   // circumradius in svg units; camera distance in radii (mild perspective)
+  const CAM = 5;   // camera distance in radii (mild perspective)
 
-  // ── A real icosahedron ──
-  const PHI = (1 + Math.sqrt(5)) / 2;
-  const VERTS = [[-1, PHI, 0], [1, PHI, 0], [-1, -PHI, 0], [1, -PHI, 0], [0, -1, PHI], [0, 1, PHI], [0, -1, -PHI], [0, 1, -PHI], [PHI, 0, -1], [PHI, 0, 1], [-PHI, 0, -1], [-PHI, 0, 1]]
-    .map(v => { const m = Math.hypot(v[0], v[1], v[2]); return [v[0] / m, v[1] / m, v[2] / m]; });
-  const TRIS = [[0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11], [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8], [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9], [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]];
   const v3 = {
     sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]],
     add: (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]],
@@ -10440,19 +10478,6 @@ onAuthStateChanged(auth, user => {
     cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]],
     norm: a => { const m = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / m, a[1] / m, a[2] / m]; },
   };
-  // Each face: vertex ids (outward winding), body-frame normal n, "up" u (centroid → first vertex), right v = n × u.
-  const FACES = TRIS.map(t => {
-    const a = VERTS[t[0]], b = VERTS[t[1]], c = VERTS[t[2]];
-    const cen = v3.mul(v3.add(v3.add(a, b), c), 1 / 3);
-    let n = v3.norm(v3.cross(v3.sub(b, a), v3.sub(c, a)));
-    if (v3.dot(n, cen) < 0) { n = v3.mul(n, -1); t = [t[0], t[2], t[1]]; }
-    const u = v3.norm(v3.sub(a, cen));
-    return { ids: t, cen, n, u, v: v3.cross(n, u), num: 0 };
-  });
-  // Numbering: opposite faces sum to 21, as on a real d20.
-  { let k = 1; FACES.forEach(f => { if (f.num) return; f.num = k; const opp = FACES.find(g => v3.dot(g.n, f.n) < -0.99); opp.num = 21 - k; k++; }); }
-  const faceOf = num => FACES.find(f => f.num === num);
-
   // ── Quaternions (x, y, z, w) ──
   const Q = {
     mul: (a, b) => [
@@ -10461,6 +10486,8 @@ onAuthStateChanged(auth, user => {
       a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3],
       a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2]],
     norm: q => { const m = Math.hypot(q[0], q[1], q[2], q[3]) || 1; return q.map(x => x / m); },
+    inv: q => [-q[0], -q[1], -q[2], q[3]],
+    axis: (ax, deg) => { const h = deg * Math.PI / 360, a = v3.norm(ax); return [a[0] * Math.sin(h), a[1] * Math.sin(h), a[2] * Math.sin(h), Math.cos(h)]; },
     slerp: (a, b, t) => {
       let d = a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
       if (d < 0) { b = b.map(x => -x); d = -d; }
@@ -10485,11 +10512,45 @@ onAuthStateChanged(auth, user => {
       return Q.norm(q);
     },
   };
-  // Orientation that puts face `num` flat toward the viewer with its numeral upright
-  // (screen x right, y down, z toward the viewer).
-  const restQuat = num => { const f = faceOf(num); return Q.fromMatrix([f.v, v3.mul(f.u, -1), f.n]); };
+  const IDENT = [0, 0, 0, 1];
   const applyM = (m, p) => [v3.dot(m[0], p), v3.dot(m[1], p), v3.dot(m[2], p)];
-  const project = p => { const s = CAM / (CAM - p[2]); return [p[0] * s * S, p[1] * s * S]; };
+
+  // ── Solids: unit circumradius, faces with a body-frame normal n, "up" u and right v = n × u ──
+  function faceFrame(ids, verts, upVertex) {
+    const pts = ids.map(i => verts[i]);
+    const cen = v3.mul(pts.reduce((a, b) => v3.add(a, b)), 1 / pts.length);
+    let n = v3.norm(v3.cross(v3.sub(pts[1], pts[0]), v3.sub(pts[2], pts[0])));
+    if (v3.dot(n, cen) < 0) { n = v3.mul(n, -1); ids = ids.slice().reverse(); }
+    const u = v3.norm(upVertex ? v3.sub(upVertex, cen) : v3.sub(pts[0], cen));
+    return { ids, cen, n, u, v: v3.cross(n, u), num: 0 };
+  }
+  const ICOSA = (() => {
+    const PHI = (1 + Math.sqrt(5)) / 2;
+    const verts = [[-1, PHI, 0], [1, PHI, 0], [-1, -PHI, 0], [1, -PHI, 0], [0, -1, PHI], [0, 1, PHI], [0, -1, -PHI], [0, 1, -PHI], [PHI, 0, -1], [PHI, 0, 1], [-PHI, 0, -1], [-PHI, 0, 1]].map(v3.norm);
+    const tris = [[0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11], [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8], [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9], [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]];
+    const faces = tris.map(t => faceFrame(t, verts));
+    let k = 1;   // opposite faces sum to 21, as on a real d20
+    faces.forEach(f => { if (f.num) return; f.num = k; faces.find(g => v3.dot(g.n, f.n) < -0.99).num = 21 - k; k++; });
+    return { kind: 'd20', sides: 20, verts, faces, scale: 95, restTilt: IDENT, marks: 'numerals' };
+  })();
+  const CUBE = (() => {
+    const s = 1 / Math.sqrt(3);
+    const verts = [];
+    for (const x of [-s, s]) for (const y of [-s, s]) for (const z of [-s, s]) verts.push([x, y, z]);
+    const idx = p => verts.findIndex(v => Math.abs(v[0] - p[0]) < 1e-9 && Math.abs(v[1] - p[1]) < 1e-9 && Math.abs(v[2] - p[2]) < 1e-9);
+    // Western pip layout: 1 opposite 6, 2 opposite 5, 3 opposite 4.
+    const spec = [[[0, 0, 1], 1], [[0, 0, -1], 6], [[0, -1, 0], 2], [[0, 1, 0], 5], [[1, 0, 0], 3], [[-1, 0, 0], 4]];
+    const faces = spec.map(([n, num]) => {
+      const u = Math.abs(n[1]) > 0.5 ? [1, 0, 0] : [0, -1, 0];   // an edge direction of that face
+      const v = v3.cross(n, u), cen = v3.mul(n, s);
+      const corners = [[1, 1], [-1, 1], [-1, -1], [1, -1]].map(([a, b]) => idx(v3.add(cen, v3.add(v3.mul(u, a * s), v3.mul(v, b * s)))));
+      const f = faceFrame(corners, verts, v3.add(cen, v3.mul(u, s)));
+      f.num = num; return f;
+    });
+    // At rest the cube leans back a touch so two sides show and it reads as a solid.
+    return { kind: 'd6', sides: 6, verts, faces, scale: 118, restTilt: Q.mul(Q.axis([0, 1, 0], 22), Q.axis([1, 0, 0], -24)), marks: 'pips' };
+  })();
+  const SOLIDS = { d20: ICOSA, d6: CUBE };
 
   // ── Looks ──
   const LOOKS = [
@@ -10504,68 +10565,19 @@ onAuthStateChanged(auth, user => {
   ];
   const LIGHT = v3.norm([-0.45, -0.65, 0.62]);
   const HALF = v3.norm(v3.add(LIGHT, [0, 0, 1]));
+  const LOOK_KEY = 'focus-d20-look', MODE_KEY = 'focus-dice-mode';
+  let lookIdx = 0;
+  try { const saved = parseInt(localStorage.getItem(LOOK_KEY), 10); if (saved >= 0 && saved < LOOKS.length) lookIdx = saved; } catch (e) {}
+  let look = LOOKS[lookIdx];
 
-  const facesG = $('die-faces'), overlay = $('die-overlay'), rootG = $('die-root');
-  const dieBtn = $('d20-die'), resultEl = $('d20-result'), historyEl = $('d20-history');
-  const lookName = $('look-name'), lookDesc = $('look-desc'), lookDots = $('look-dots'), lookBtn = $('look-btn');
-  const svg = dieBtn.querySelector('svg'), shadowEl = dieBtn.querySelector('.die-shadow');
-
+  const mk = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
   // Each face carries its own small, fixed misalignment, the way paint sits in a moulded die.
   function faceQuirk(n) {
     const h = Math.sin(n * 12.9898) * 43758.5453, f = h - Math.floor(h);
     const h2 = Math.sin(n * 78.233) * 12345.678, f2 = h2 - Math.floor(h2);
     return { rot: (f - 0.5) * 7, dx: (f2 - 0.5) * 3, dy: (f - 0.5) * 2.5 };
   }
-  // Build one group per face: polygon + engraved numeral (three copies) + 6/9 underline.
-  const mk = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
-  FACES.forEach(f => {
-    const g = mk('g', {});
-    f.poly = mk('polygon', { class: 'die-face' });
-    f.numWrap = mk('g', {});                       // affine map from face-local units to the screen
-    f.numG = mk('g', { class: 'die-num-g' });      // the pop target on a natural 20
-    const q = faceQuirk(f.num);
-    const inner = mk('g', { transform: `translate(${q.dx.toFixed(2)} ${q.dy.toFixed(2)}) rotate(${q.rot.toFixed(2)})` });
-    f.shadowT = mk('text', { class: 'die-num-shadow', x: -0.8, y: 4.4 });
-    f.hiT = mk('text', { class: 'die-num-hi', x: 0.8, y: 6.2 });
-    f.mainT = mk('text', { class: 'die-num', x: 0, y: 5.3 });
-    [f.shadowT, f.hiT, f.mainT].forEach(t => { t.textContent = f.num; inner.appendChild(t); });
-    if (f.num === 6 || f.num === 9) inner.appendChild(f.rule = mk('line', { class: 'die-num-rule', x1: -8.5, y1: 24, x2: 8.5, y2: 24 }));
-    f.numG.appendChild(inner); f.numWrap.appendChild(f.numG);
-    g.appendChild(f.poly); g.appendChild(f.numWrap); facesG.appendChild(g); f.g = g;
-  });
-
-  let lookIdx = 0;
-  // Deliberately NOT 'focus-digest-' keys: ?refresh wipes every digest cache and must not touch these.
-  const LOOK_KEY = 'focus-d20-look', HISTORY_KEY = 'focus-d20-rolls';
-  try {   // one-time move off the old digest-prefixed keys
-    for (const [oldK, newK] of [['focus-digest-d20-look', LOOK_KEY], ['focus-digest-d20-rolls', HISTORY_KEY]]) {
-      const v = localStorage.getItem(oldK);
-      if (v !== null) { if (localStorage.getItem(newK) === null) localStorage.setItem(newK, v); localStorage.removeItem(oldK); }
-    }
-  } catch (e) {}
-  try { const saved = parseInt(localStorage.getItem(LOOK_KEY), 10); if (saved >= 0 && saved < LOOKS.length) lookIdx = saved; } catch (e) {}
-  let look = LOOKS[lookIdx];
-  let showAllNumerals = true;
-
-  function applyLook() {
-    look = LOOKS[lookIdx];
-    FACES.forEach(f => {
-      f.poly.setAttribute('stroke', look.edge);
-      f.poly.setAttribute('stroke-width', look.edgeW);
-      f.poly.setAttribute('stroke-opacity', look.finish === 'gem' ? 0.55 : 1);
-      f.mainT.setAttribute('fill', look.num);
-      if (f.rule) f.rule.setAttribute('stroke', look.num);
-    });
-    overlay.setAttribute('fill', look.finish === 'gem' ? 'url(#d20-gem-light)' : look.finish === 'metal' ? 'url(#d20-metal-sheen)' : 'none');
-    facesG.setAttribute('filter', look.finish === 'neon' ? 'url(#d20-neon-glow)' : '');
-    svg.classList.toggle('neon', look.finish === 'neon');
-    svg.style.setProperty('--edge', look.edge);
-    lookName.textContent = look.name;
-    lookDesc.textContent = look.desc;
-    lookDots.innerHTML = LOOKS.map((_, i) => `<i class="${i === lookIdx ? 'on' : ''}"></i>`).join('');
-    render();
-  }
-
+  const PIPS = { 1: [[0, 0]], 2: [[-1, -1], [1, 1]], 3: [[-1, -1], [0, 0], [1, 1]], 4: [[-1, -1], [1, -1], [-1, 1], [1, 1]], 5: [[-1, -1], [1, -1], [0, 0], [-1, 1], [1, 1]], 6: [[-1, -1], [-1, 0], [-1, 1], [1, -1], [1, 0], [1, 1]] };
   // Convex hull (monotone chain) of the projected vertices, for the gem/metal sheen overlay.
   function hull(pts) {
     pts = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
@@ -10576,66 +10588,165 @@ onAuthStateChanged(auth, user => {
     return lower.slice(0, -1).concat(upper.slice(0, -1));
   }
 
-  // ── Render one orientation ──
-  let curQ = restQuat(20), curHop = 0, restFace = 20;
-  function render(q = curQ, hop = curHop, atRest = true) {
-    curQ = q; curHop = hop;
-    const m = Q.toMatrix(q);
-    const world = VERTS.map(p => applyM(m, p));
-    const scr = world.map(project);
-    rootG.setAttribute('transform', `translate(0 ${(-hop).toFixed(1)}) scale(${(1 + hop / 320).toFixed(3)})`);
-    FACES.forEach(f => {
-      const n = applyM(m, f.n);
-      if (n[2] <= 0.02) { f.g.style.display = 'none'; return; }
-      f.g.style.display = '';
-      f.poly.setAttribute('points', f.ids.map(i => `${scr[i][0].toFixed(1)},${scr[i][1].toFixed(1)}`).join(' '));
-      // Lambert + a moving highlight, on the look's base colour.
-      const d = Math.max(0, v3.dot(n, LIGHT));
-      const spec = Math.pow(Math.max(0, v3.dot(n, HALF)), look.finish === 'metal' ? 14 : 36) * look.spec;
-      const lum = Math.max(look.l * 0.42, look.l + (d - 0.62) * 42 * look.contrast) + spec * 45;
-      const sat = look.finish === 'neon' ? look.s : look.s - (0.62 - d) * 10 - spec * 30;
-      f.poly.setAttribute('fill', `hsl(${look.h} ${Math.max(0, sat).toFixed(0)}% ${Math.min(97, Math.max(4, lum)).toFixed(0)}%)`);
-      // Numeral: map face-local units (100 = one radius) onto the projected face.
-      const visible = atRest ? f.num === restFace || showAllNumerals : showAllNumerals;
-      if (!visible) { f.numWrap.style.display = 'none'; return; }
-      f.numWrap.style.display = '';
-      const C = project(applyM(m, f.cen));
-      const U = project(applyM(m, v3.add(f.cen, v3.mul(f.u, 0.3))));
-      const V = project(applyM(m, v3.add(f.cen, v3.mul(f.v, 0.3))));
-      const a = (V[0] - C[0]) / 30, b = (V[1] - C[1]) / 30, c = -(U[0] - C[0]) / 30, dd = -(U[1] - C[1]) / 30;
-      f.numWrap.setAttribute('transform', `matrix(${a.toFixed(4)} ${b.toFixed(4)} ${c.toFixed(4)} ${dd.toFixed(4)} ${C[0].toFixed(1)} ${C[1].toFixed(1)})`);
-      f.numWrap.setAttribute('opacity', Math.min(1, Math.max(0, (n[2] - 0.12) * 2.2)).toFixed(2));
-      f.numG.classList.toggle('front', atRest && f.num === restFace);
-    });
-    overlay.setAttribute('points', hull(scr).map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' '));
-    svg.classList.toggle('at-rest', atRest);
-    shadowEl.style.transform = `translateX(-50%) scale(${(1 - hop / 90).toFixed(3)})`;
-    shadowEl.style.opacity = Math.max(0.15, 0.8 - hop / 60).toFixed(2);
-  }
-  function showNumber(n) { restFace = n; render(restQuat(n), 0, true); }
+  // ── One die: its own SVG, faces, orientation and renderer ──
+  function createDie(kind) {
+    const solid = SOLIDS[kind], S = solid.scale;
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'die-btn'; btn.title = 'Roll';
+    btn.setAttribute('aria-label', kind === 'd6' ? 'Roll the six-sided die' : 'Roll the twenty-sided die');
+    btn.innerHTML = '<span class="die-shadow"></span><span class="die-3d"><svg viewBox="-118 -118 236 236" aria-hidden="true"><g class="die-root"><g class="die-faces"></g><polygon class="die-overlay" points="" fill="none" pointer-events="none"/></g></svg></span>';
+    const svg = btn.querySelector('svg'), rootG = svg.querySelector('.die-root'), facesG = svg.querySelector('.die-faces');
+    const overlay = svg.querySelector('.die-overlay'), shadowEl = btn.querySelector('.die-shadow');
+    const project = p => { const s = CAM / (CAM - p[2]); return [p[0] * s * S, p[1] * s * S]; };
 
-  lookBtn.addEventListener('click', () => {
+    // Face DOM: polygon + engraved mark (three copies: shadow, highlight, paint).
+    const faces = solid.faces.map(f => {
+      const g = mk('g', {}), poly = mk('polygon', { class: 'die-face' });
+      const numWrap = mk('g', {}), numG = mk('g', { class: 'die-num-g' });
+      const q = faceQuirk(f.num);
+      const inner = mk('g', { transform: `translate(${q.dx.toFixed(2)} ${q.dy.toFixed(2)}) rotate(${q.rot.toFixed(2)})` });
+      let shadowT, hiT, mainT, rule = null;
+      if (solid.marks === 'numerals') {
+        shadowT = mk('text', { class: 'die-num-shadow', x: -0.8, y: 4.4 });
+        hiT = mk('text', { class: 'die-num-hi', x: 0.8, y: 6.2 });
+        mainT = mk('text', { class: 'die-num', x: 0, y: 5.3 });
+        [shadowT, hiT, mainT].forEach(t => { t.textContent = f.num; });
+        if (f.num === 6 || f.num === 9) rule = mk('line', { class: 'die-num-rule', x1: -8.5, y1: 24, x2: 8.5, y2: 24 });
+      } else {
+        const pipGroup = (cls, dx, dy) => { const pg = mk('g', { class: cls }); PIPS[f.num].forEach(([a, b]) => pg.appendChild(mk('circle', { cx: a * 26 + dx, cy: b * 26 + dy, r: 8.5 }))); return pg; };
+        shadowT = pipGroup('die-num-shadow', -0.9, -0.9); hiT = pipGroup('die-num-hi', 0.9, 0.9); mainT = pipGroup('die-num', 0, 0);
+      }
+      [shadowT, hiT, mainT].forEach(t => inner.appendChild(t));
+      if (rule) inner.appendChild(rule);
+      numG.appendChild(inner); numWrap.appendChild(numG); g.appendChild(poly); g.appendChild(numWrap); facesG.appendChild(g);
+      return Object.assign({}, f, { g, poly, numWrap, numG, mainT, rule });
+    });
+
+    const restQuat = num => {
+      const f = faces.find(x => x.num === num);
+      return Q.mul(solid.restTilt, Q.fromMatrix([f.v, v3.mul(f.u, -1), f.n]));
+    };
+    const die = { kind, sides: solid.sides, btn, svg, curQ: restQuat(solid.sides), restFace: solid.sides };
+
+    die.applyLook = () => {
+      faces.forEach(f => {
+        f.poly.setAttribute('stroke', look.edge);
+        f.poly.setAttribute('stroke-width', look.edgeW);
+        f.poly.setAttribute('stroke-opacity', look.finish === 'gem' ? 0.55 : 1);
+        f.mainT.setAttribute('fill', look.num);
+        if (f.rule) f.rule.setAttribute('stroke', look.num);
+      });
+      overlay.setAttribute('fill', look.finish === 'gem' ? 'url(#d20-gem-light)' : look.finish === 'metal' ? 'url(#d20-metal-sheen)' : 'none');
+      facesG.setAttribute('filter', look.finish === 'neon' ? 'url(#d20-neon-glow)' : '');
+      svg.classList.toggle('neon', look.finish === 'neon');
+      svg.style.setProperty('--edge', look.edge);
+      die.render(die.curQ, 0, true);
+    };
+
+    die.render = (q, hop, atRest) => {
+      die.curQ = q;
+      const m = Q.toMatrix(q);
+      const scr = solid.verts.map(p => project(applyM(m, p)));
+      rootG.setAttribute('transform', `translate(0 ${(-hop).toFixed(1)}) scale(${(1 + hop / 320).toFixed(3)})`);
+      faces.forEach(f => {
+        const n = applyM(m, f.n);
+        if (n[2] <= 0.02) { f.g.style.display = 'none'; f.numG.classList.remove('front'); return; }
+        f.g.style.display = '';
+        f.poly.setAttribute('points', f.ids.map(i => `${scr[i][0].toFixed(1)},${scr[i][1].toFixed(1)}`).join(' '));
+        // Lambert + a moving highlight, on the look's base colour.
+        const d = Math.max(0, v3.dot(n, LIGHT));
+        const spec = Math.pow(Math.max(0, v3.dot(n, HALF)), look.finish === 'metal' ? 14 : 36) * look.spec;
+        const lum = Math.max(look.l * 0.42, look.l + (d - 0.62) * 42 * look.contrast) + spec * 45;
+        const sat = look.finish === 'neon' ? look.s : look.s - (0.62 - d) * 10 - spec * 30;
+        f.poly.setAttribute('fill', `hsl(${look.h} ${Math.max(0, sat).toFixed(0)}% ${Math.min(97, Math.max(4, lum)).toFixed(0)}%)`);
+        // Mark: map face-local units (100 = one radius) onto the projected face.
+        const C = project(applyM(m, f.cen));
+        const U = project(applyM(m, v3.add(f.cen, v3.mul(f.u, 0.3))));
+        const V = project(applyM(m, v3.add(f.cen, v3.mul(f.v, 0.3))));
+        const a = (V[0] - C[0]) / 30, b = (V[1] - C[1]) / 30, c = -(U[0] - C[0]) / 30, dd = -(U[1] - C[1]) / 30;
+        f.numWrap.setAttribute('transform', `matrix(${a.toFixed(4)} ${b.toFixed(4)} ${c.toFixed(4)} ${dd.toFixed(4)} ${C[0].toFixed(1)} ${C[1].toFixed(1)})`);
+        f.numWrap.setAttribute('opacity', Math.min(1, Math.max(0, (n[2] - 0.12) * 2.2)).toFixed(2));
+        f.numG.classList.toggle('front', atRest && f.num === die.restFace);
+      });
+      overlay.setAttribute('points', hull(scr).map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' '));
+      shadowEl.style.transform = `translateX(-50%) scale(${(1 - hop / 90).toFixed(3)})`;
+      shadowEl.style.opacity = Math.max(0.15, 0.8 - hop / 60).toFixed(2);
+    };
+    die.showNumber = n => { die.restFace = n; die.render(restQuat(n), 0, true); };
+    die.restQuat = restQuat;
+    return die;
+  }
+
+  // ── The dice on the card ──
+  const diceRow = $('dice-row'), resultEl = $('d20-result'), historyEl = $('d20-history');
+  const lookName = $('look-name'), lookDesc = $('look-desc'), lookDots = $('look-dots');
+  let mode = { kind: 'd20', count: 1 };
+  try { const m = JSON.parse(localStorage.getItem(MODE_KEY) || 'null'); if (m && SOLIDS[m.kind] && [1, 2, 3].includes(m.count)) mode = m; } catch (e) {}
+  let dice = [];
+  let rolling = false;
+
+  function buildDice() {
+    diceRow.replaceChildren();
+    dice = [];
+    const log = LOGS[mode.kind];
+    const recent = log.history.slice(-mode.count).map(r => r[0]);
+    for (let i = 0; i < mode.count; i++) {
+      const die = createDie(mode.kind);
+      die.applyLook();
+      die.showNumber(recent[i] || die.sides);
+      die.btn.addEventListener('click', () => roll());
+      diceRow.appendChild(die.btn);
+      dice.push(die);
+    }
+    diceRow.dataset.count = mode.count;
+    diceRow.dataset.kind = mode.kind;
+    document.querySelectorAll('.dice-kind').forEach(b => b.classList.toggle('active', b.dataset.kind === mode.kind));
+    document.querySelectorAll('.dice-count').forEach(b => b.classList.toggle('active', +b.dataset.count === mode.count));
+    $('d20-stats-btn').title = `Open the ${mode.kind.toUpperCase()} Rolls card in Analytics`;
+  }
+  function setMode(patch) {
+    if (rolling) return;
+    mode = Object.assign({}, mode, patch);
+    try { localStorage.setItem(MODE_KEY, JSON.stringify(mode)); } catch (e) {}
+    buildDice();
+    resultEl.textContent = 'Tap to roll';
+    renderHistoryLine();
+  }
+  document.querySelectorAll('.dice-kind').forEach(b => b.addEventListener('click', () => setMode({ kind: b.dataset.kind })));
+  document.querySelectorAll('.dice-count').forEach(b => b.addEventListener('click', () => setMode({ count: +b.dataset.count })));
+
+  function applyLook() {
+    look = LOOKS[lookIdx];
+    dice.forEach(d => d.applyLook());
+    lookName.textContent = look.name;
+    lookDesc.textContent = look.desc;
+    lookDots.innerHTML = LOOKS.map((_, i) => `<i class="${i === lookIdx ? 'on' : ''}"></i>`).join('');
+  }
+  $('look-btn').addEventListener('click', () => {
     lookIdx = (lookIdx + 1) % LOOKS.length;
     try { localStorage.setItem(LOOK_KEY, String(lookIdx)); } catch (e) {}
     applyLook();
   });
 
-  // ── History ──
-  // Every roll is a [face, timestamp] pair. localStorage holds a copy on this device; the
-  // signed-in user's Firestore doc holds the durable one, and the two are merged on sign-in
-  // so rolls from any device or browser end up in the same log. `clearedAt` lets a clear on
-  // one device win over the copies elsewhere.
+  // ── Roll logs ──
+  // Every die that lands is a [face, timestamp, rollTimestamp] entry: the timestamp is unique
+  // per die (rollTimestamp + die index) so entries dedupe cleanly; rollTimestamp groups the dice
+  // of one throw. localStorage holds a copy on this device; the signed-in user's Firestore doc
+  // holds the durable one, and the two are merged on sign-in. `clearedAt` lets a clear on one
+  // device win over the copies elsewhere.
   const HISTORY_CAP = 5000;
-  const CLEARED_KEY = 'focus-d20-cleared';
-  let history = [];
-  let clearedAt = 0;
-  const validRolls = raw => Array.isArray(raw) ? raw.filter(r => Array.isArray(r) && r[0] >= 1 && r[0] <= 20 && r[1] > 0) : [];
-  try {
-    history = validRolls(JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'));
-    clearedAt = parseInt(localStorage.getItem(CLEARED_KEY), 10) || 0;
-  } catch (e) {}
-
-  function mergeRolls(a, b) {
+  const LOGS = {
+    d20: { sides: 20, key: 'focus-d20-rolls', clearedKey: 'focus-d20-cleared', cloudRolls: 'rolls', cloudCleared: 'clearedAt', history: [], clearedAt: 0 },
+    d6:  { sides: 6,  key: 'focus-d6-rolls',  clearedKey: 'focus-d6-cleared',  cloudRolls: 'd6Rolls', cloudCleared: 'd6ClearedAt', history: [], clearedAt: 0 },
+  };
+  const validRolls = (raw, sides) => Array.isArray(raw) ? raw.filter(r => Array.isArray(r) && r[0] >= 1 && r[0] <= sides && r[1] > 0) : [];
+  for (const log of Object.values(LOGS)) {
+    try {
+      log.history = validRolls(JSON.parse(localStorage.getItem(log.key) || '[]'), log.sides);
+      log.clearedAt = parseInt(localStorage.getItem(log.clearedKey), 10) || 0;
+    } catch (e) {}
+  }
+  function mergeRolls(a, b, clearedAt) {
     const seen = new Set(), out = [];
     for (const r of a.concat(b)) {
       const k = r[0] + ':' + r[1];
@@ -10645,70 +10756,101 @@ onAuthStateChanged(auth, user => {
     out.sort((x, y) => x[1] - y[1]);
     return out.length > HISTORY_CAP ? out.slice(-HISTORY_CAP) : out;
   }
-
-  let cloudTimer = null;
-  function saveHistory() {
-    if (history.length > HISTORY_CAP) history = history.slice(-HISTORY_CAP);
-    try {
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-      localStorage.setItem(CLEARED_KEY, String(clearedAt));
-    } catch (e) {}
-    // Batch quick successive rolls into one cloud write.
-    clearTimeout(cloudTimer);
-    cloudTimer = setTimeout(saveToCloudNow, 1500);
+  function saveLocal(log) {
+    if (log.history.length > HISTORY_CAP) log.history = log.history.slice(-HISTORY_CAP);
+    try { localStorage.setItem(log.key, JSON.stringify(log.history)); localStorage.setItem(log.clearedKey, String(log.clearedAt)); } catch (e) {}
   }
+  let cloudTimer = null;
+  function scheduleCloudSave() { clearTimeout(cloudTimer); cloudTimer = setTimeout(saveToCloudNow, 1500); }   // batch quick successive rolls
   async function saveToCloudNow() {
     clearTimeout(cloudTimer); cloudTimer = null;
     if (!window._fbSaveD20) return;
-    try { await window._fbSaveD20({ rolls: history, clearedAt }); } catch (e) { /* offline: the local copy is still there */ }
+    const doc = {};
+    for (const log of Object.values(LOGS)) { doc[log.cloudRolls] = log.history; doc[log.cloudCleared] = log.clearedAt; }
+    try { await window._fbSaveD20(doc); } catch (e) { /* offline: the local copy is still there */ }
   }
-  // Runs once auth resolves: pull the cloud log, merge it with this device's, push the union back.
+  // Runs once auth resolves: pull the cloud logs, merge with this device's, push the union back.
   window._d20OnUserReady = async () => {
     if (!window._fbLoadD20) return;
     let cloud = null;
     try { cloud = await window._fbLoadD20(); } catch (e) { return; }
     if (!cloud) return;
-    const cloudRolls = validRolls(cloud.rolls);
-    clearedAt = Math.max(clearedAt, cloud.clearedAt || 0);
-    const before = history.length;
-    history = mergeRolls(history, cloudRolls);
-    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); localStorage.setItem(CLEARED_KEY, String(clearedAt)); } catch (e) {}
-    renderAnalytics();
-    if (history.length) { restFace = history[history.length - 1][0]; showNumber(restFace); renderResult(restFace); }
-    // Push back if this device knew rolls the cloud didn't, or the cloud doc doesn't exist yet.
-    if (history.length !== cloudRolls.length || before !== history.length || cloud.rolls === undefined) saveToCloudNow();
+    let pushBack = false;
+    for (const log of Object.values(LOGS)) {
+      const cloudRolls = validRolls(cloud[log.cloudRolls], log.sides);
+      log.clearedAt = Math.max(log.clearedAt, cloud[log.cloudCleared] || 0);
+      const before = log.history.length;
+      log.history = mergeRolls(log.history, cloudRolls, log.clearedAt);
+      saveLocal(log);
+      if (log.history.length !== cloudRolls.length || before !== log.history.length || cloud[log.cloudRolls] === undefined) pushBack = true;
+    }
+    cards.forEach(c => c.render());
+    if (!rolling) { buildDice(); renderHistoryLine(); }
+    if (pushBack) saveToCloudNow();
   };
   window.addEventListener('pagehide', () => { if (cloudTimer) saveToCloudNow(); });
 
-  function logRoll(n) { history.push([n, Date.now()]); saveHistory(); renderAnalytics(); }
-  function randomFace() {
+  function logRolls(kind, results) {
+    const log = LOGS[kind], ts = Date.now();
+    results.forEach((n, i) => log.history.push([n, ts + i, ts]));
+    saveLocal(log); scheduleCloudSave();
+    cards.forEach(c => { if (c.kind === kind) c.render(); });
+  }
+  function randomFace(sides) {
     if (window.crypto && crypto.getRandomValues) {
       const buf = new Uint32Array(1);
-      const limit = Math.floor(0x100000000 / 20) * 20;   // reject values that would bias the modulo
+      const limit = Math.floor(0x100000000 / sides) * sides;   // reject values that would bias the modulo
       do { crypto.getRandomValues(buf); } while (buf[0] >= limit);
-      return (buf[0] % 20) + 1;
+      return (buf[0] % sides) + 1;
     }
-    return Math.floor(Math.random() * 20) + 1;
-  }
-  function renderResult(n) {
-    const tag = n === 20 ? '<span class="tag crit">Natural 20</span>' : n === 1 ? '<span class="tag fumble">Natural 1</span>' : '';
-    resultEl.innerHTML = `Rolled ${n} ${tag}`;
-    historyEl.innerHTML = 'last · ' + (history.length ? history.slice(-6).reverse().map(x => `<span>${x[0]}</span>`).join(' · ') : '<span>—</span>');
-    $('d20-updated').textContent = history.length ? `${history.length} roll${history.length === 1 ? '' : 's'} logged` : 'Tap the die to roll';
+    return Math.floor(Math.random() * sides) + 1;
   }
 
-  function critBurst() {
+  // ── Result line and recent throws ──
+  function renderResult(results) {
+    const sides = LOGS[mode.kind].sides;
+    const tags = [];
+    if (mode.kind === 'd20') {
+      const nats = results.filter(n => n === 20).length, ones = results.filter(n => n === 1).length;
+      if (nats) tags.push(`<span class="tag crit">Natural 20${nats > 1 ? ' ×' + nats : ''}</span>`);
+      if (ones) tags.push(`<span class="tag fumble">Natural 1${ones > 1 ? ' ×' + ones : ''}</span>`);
+    } else if (results.length > 1 && results.every(n => n === sides)) {
+      tags.push('<span class="tag crit">All sixes</span>');
+    }
+    const total = results.reduce((a, b) => a + b, 0);
+    resultEl.innerHTML = results.length === 1
+      ? `Rolled ${results[0]} ${tags.join(' ')}`
+      : `${results.join(' + ')} = <b>${total}</b> ${tags.join(' ')}`;
+    renderHistoryLine();
+  }
+  function renderHistoryLine() {
+    const log = LOGS[mode.kind];
+    // Group entries by throw (newest first), show the last four throws.
+    const groups = [];
+    for (let i = log.history.length - 1; i >= 0 && groups.length < 4; i--) {
+      const r = log.history[i], id = r[2] || r[1];
+      if (groups.length && groups[groups.length - 1].id === id) groups[groups.length - 1].faces.unshift(r[0]);
+      else groups.push({ id, faces: [r[0]] });
+    }
+    historyEl.innerHTML = 'last · ' + (groups.length
+      ? groups.map(g => g.faces.length === 1 ? `<span>${g.faces[0]}</span>` : `<span>${g.faces.reduce((a, b) => a + b, 0)}</span> (${g.faces.join('+')})`).join(' · ')
+      : '<span>—</span>');
+    const n = log.history.length;
+    $('d20-updated').textContent = n ? `${n} ${mode.kind} roll${n === 1 ? '' : 's'} logged` : 'Tap the dice to roll';
+  }
+
+  function critBurst(btn) {
     const solar = '#ffa502';
     const colors = [solar, '#ffffff', '#ffe08a', solar];
     const frag = document.createDocumentFragment();
     for (const cls of ['crit-ring', 'crit-ring second']) {
       const r = document.createElement('span'); r.className = cls; frag.appendChild(r);
     }
-    const count = 26;
+    const count = 26, reach = Math.max(60, btn.offsetWidth * 0.45);
     for (let i = 0; i < count; i++) {
       const el = document.createElement('span');
       const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
-      const dist = 80 + Math.random() * 70;
+      const dist = reach + Math.random() * reach * 0.9;
       el.className = 'spark' + (i % 3 === 0 ? ' streak' : '');
       el.style.setProperty('--dx', (Math.cos(angle) * dist).toFixed(1) + 'px');
       el.style.setProperty('--dy', (Math.sin(angle) * dist).toFixed(1) + 'px');
@@ -10719,27 +10861,24 @@ onAuthStateChanged(auth, user => {
       el.style.setProperty('--delay', (Math.random() * 0.08).toFixed(2) + 's');
       frag.appendChild(el);
     }
-    dieBtn.appendChild(frag);
-    setTimeout(() => dieBtn.querySelectorAll('.spark, .crit-ring').forEach(e => e.remove()), 1500);
+    btn.appendChild(frag);
+    setTimeout(() => btn.querySelectorAll('.spark, .crit-ring').forEach(e => e.remove()), 1500);
   }
 
   // ── The roll: a toss, three bounces, a rolling stop ──
-  // The whole roll is simulated up front. The free tumble would end somewhere random, so the
-  // rotation that takes it from there to the result face is folded into the motion in
+  // Each die's whole roll is simulated up front. The free tumble would end somewhere random,
+  // so the rotation that takes it from there to the result face is folded into the motion in
   // proportion to how much the die has turned so far: hidden while it spins fast, finished by
   // the time it stops. Nothing is left to steer at the end.
-  let rolling = false;
   const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const rnd = (a, b) => a + Math.random() * (b - a);
   const rndAxis = () => v3.norm([rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)]);
   const BOUNCES = [{ t0: 0, dur: 0.44, peak: 34 }, { t0: 0.44, dur: 0.27, peak: 12 }, { t0: 0.71, dur: 0.15, peak: 4 }];
-  const T_END = 1.7, DT = 1 / 120;
-  const IDENT = [0, 0, 0, 1];
-  const qInv = q => [-q[0], -q[1], -q[2], q[3]];
+  const T_END = 1.7, DT = 1 / 120, STAGGER = 0.09;
 
-  function planRoll(target) {
+  function planRoll(die, target) {
     const frames = [];
-    let q = curQ, w = v3.mul(rndAxis(), rnd(20, 28)), bounced = 0, angle = 0;
+    let q = die.curQ, w = v3.mul(rndAxis(), rnd(20, 28)), bounced = 0, angle = 0;
     for (let t = 0; t <= T_END + 1e-9; t += DT) {
       let hop = 0, inAir = false;
       for (const b of BOUNCES) { if (t >= b.t0 && t < b.t0 + b.dur) { const u = (t - b.t0) / b.dur; hop = b.peak * 4 * u * (1 - u); inAir = true; } }
@@ -10754,174 +10893,189 @@ onAuthStateChanged(auth, user => {
       frames.push({ q, hop, angle });
     }
     const total = frames[frames.length - 1].angle;
-    const corr = Q.mul(target, qInv(frames[frames.length - 1].q));
+    const corr = Q.mul(target, Q.inv(frames[frames.length - 1].q));
     frames.forEach(fr => { fr.q = Q.mul(Q.slerp(IDENT, corr, fr.angle / total), fr.q); });
     frames[frames.length - 1].q = target;
     return frames;
   }
 
-  function roll(forced) {
-    if (rolling) return;
+  function roll() {
+    if (rolling || !dice.length) return;
     rolling = true;
-    const n = forced || randomFace();
-    dieBtn.classList.remove('crit', 'fumble');
+    const results = dice.map(d => randomFace(d.sides));
+    dice.forEach(d => d.btn.classList.remove('crit', 'fumble'));
     resultEl.textContent = 'Rolling…';
 
     const settle = () => {
-      showNumber(n);
-      logRoll(n);
-      renderResult(n);
-      if (n === 20) { dieBtn.classList.add('crit'); if (!reduced) critBurst(); }
-      if (n === 1) dieBtn.classList.add('fumble');
+      dice.forEach((d, i) => d.showNumber(results[i]));
+      logRolls(mode.kind, results);
+      renderResult(results);
+      const allMax = results.length > 1 && results.every(n => n === dice[0].sides);
+      dice.forEach((d, i) => {
+        const crit = mode.kind === 'd20' ? results[i] === 20 : allMax;
+        if (crit) { d.btn.classList.add('crit'); if (!reduced) critBurst(d.btn); }
+        if (mode.kind === 'd20' && results[i] === 1) d.btn.classList.add('fumble');
+      });
       rolling = false;
     };
     if (reduced) { settle(); return; }
 
-    const frames = planRoll(restQuat(n));
+    // Dice leave the hand a beat apart, each on its own plan.
+    const plans = dice.map((d, i) => ({ die: d, frames: planRoll(d, d.restQuat(results[i])), delay: i * STAGGER }));
     const start = performance.now();
     function frame(now) {
       const t = (now - start) / 1000;
-      if (t >= T_END) { settle(); return; }
-      const i = Math.max(0, Math.min(frames.length - 1, Math.floor(t / DT)));
-      render(frames[i].q, frames[i].hop, false);
+      let done = true;
+      plans.forEach(p => {
+        const tt = t - p.delay;
+        if (tt < 0) return;
+        if (tt >= T_END) { p.die.render(p.frames[p.frames.length - 1].q, 0, false); return; }
+        done = false;
+        const i = Math.max(0, Math.min(p.frames.length - 1, Math.floor(tt / DT)));
+        p.die.render(p.frames[i].q, p.frames[i].hop, false);
+      });
+      if (done) { settle(); return; }
       requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
   }
-  dieBtn.addEventListener('click', () => roll());
-  // Jump links between the die and its analytics card. The slide transition takes ~300ms,
+
+  // Jump links between the dice and their analytics cards. The slide transition takes ~300ms,
   // so the scroll waits for the page to be in place.
   $('d20-stats-btn').addEventListener('click', () => {
+    const target = $(mode.kind + '-rolls-card');
     showPage('analytics');
-    setTimeout(() => $('d20-rolls-card').scrollIntoView({ behavior: 'smooth', block: 'start' }), 350);
-  });
-  $('d20-roll-link').addEventListener('click', () => {
-    showPage('digest');
-    const tab = document.querySelector('.digest-sub-tab[data-subtab="gaming"]');
-    if (tab) tab.click();
-    setTimeout(() => $('d20-card').scrollIntoView({ behavior: 'smooth', block: 'start' }), 350);
+    setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'start' }), 350);
   });
 
-  // ── Analytics ──
-  const histSvg = $('d20-hist'), histWrap = $('d20-hist-wrap');
-  let view = 'faces';
+  // ── Analytics: one histogram card per die type ──
   const el = (tag, attrs, text) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; return e; };
+  const conv = (a, b) => { const out = Array(a.length + b.length - 1).fill(0); a.forEach((x, i) => b.forEach((y, j) => { out[i + j] += x * y; })); return out; };
+  // Chi-square 95% critical values by degrees of freedom (sides - 1).
+  const CHI2_95 = { 5: 11.07, 19: 30.14 };
 
-  // Probability mass of the sum of three d20s, by convolution.
-  const PMF3 = (() => {
-    let pmf = Array(21).fill(0).map((_, i) => i >= 1 ? 1 / 20 : 0);
-    const conv = (a, b) => { const out = Array(a.length + b.length - 1).fill(0); a.forEach((x, i) => b.forEach((y, j) => { out[i + j] += x * y; })); return out; };
-    return conv(conv(pmf, pmf), pmf);   // index = sum, 3..60
-  })();
-  const CHI2_95_DF19 = 30.14;
+  function histCard(kind) {
+    const log = LOGS[kind], sides = log.sides, prefix = kind;
+    const card = $(prefix + '-rolls-card');
+    const histSvg = $(prefix + '-hist'), histWrap = $(prefix + '-hist-wrap');
+    let view = 'faces';
+    const single = Array(sides + 1).fill(0).map((_, i) => i >= 1 ? 1 / sides : 0);
+    const pmf3 = conv(conv(single, single), single);   // index = sum, 3..3*sides
+    const fairMean = (sides + 1) / 2, sumMean = 3 * fairMean, chiCrit = CHI2_95[sides - 1];
 
-  function renderAnalytics() {
-    const faces = history.map(r => r[0]);
-    const n = faces.length;
-    $('d20-rolls-total').textContent = n;
-    $('d20-rolls-sub').textContent = n === 1 ? 'roll logged, all time' : 'rolls logged, all time';
-    const mean = n ? faces.reduce((a, b) => a + b, 0) / n : null;
-    $('d20-rolls-mean').textContent = mean == null ? '—' : mean.toFixed(2);
-    $('d20-rolls-nats').textContent = n ? `${faces.filter(x => x === 20).length} · ${faces.filter(x => x === 1).length}` : '—';
+    function render() {
+      const faces = log.history.map(r => r[0]);
+      const n = faces.length;
+      $(prefix + '-rolls-total').textContent = n;
+      $(prefix + '-rolls-sub').textContent = `${kind} ${n === 1 ? 'roll' : 'rolls'} logged, all time`;
+      const mean = n ? faces.reduce((a, b) => a + b, 0) / n : null;
+      $(prefix + '-rolls-mean').textContent = mean == null ? '—' : mean.toFixed(2);
+      $(prefix + '-rolls-nats').textContent = n ? `${faces.filter(x => x === sides).length} · ${faces.filter(x => x === 1).length}` : '—';
 
-    // Bins and expectations for the current view.
-    let bins, expected, labels, tick;
-    if (view === 'faces') {
-      bins = Array(20).fill(0); faces.forEach(f => bins[f - 1]++);
-      expected = Array(20).fill(n / 20);
-      labels = i => String(i + 1); tick = i => (i + 1) % 5 === 0 || i === 0;
-    } else {
-      const triples = Math.floor(n / 3);
-      bins = Array(58).fill(0);
-      for (let t = 0; t < triples; t++) bins[faces[3 * t] + faces[3 * t + 1] + faces[3 * t + 2] - 3]++;
-      expected = bins.map((_, i) => PMF3[i + 3] * triples);
-      labels = i => String(i + 3); tick = i => (i + 3) % 10 === 0 || i === 0 || i === 57;
+      let bins, expected, labels, tick;
+      if (view === 'faces') {
+        bins = Array(sides).fill(0); faces.forEach(f => bins[f - 1]++);
+        expected = Array(sides).fill(n / sides);
+        labels = i => String(i + 1); tick = i => sides <= 12 || (i + 1) % 5 === 0 || i === 0;
+      } else {
+        const triples = Math.floor(n / 3), width = 3 * sides - 2;
+        bins = Array(width).fill(0);
+        for (let t = 0; t < triples; t++) bins[faces[3 * t] + faces[3 * t + 1] + faces[3 * t + 2] - 3]++;
+        expected = bins.map((_, i) => pmf3[i + 3] * triples);
+        labels = i => String(i + 3); tick = i => width <= 20 || (i + 3) % 10 === 0 || i === 0 || i === width - 1;
+      }
+      const total = bins.reduce((a, b) => a + b, 0);
+      $(prefix + '-hist-empty').style.display = total > 0 ? 'none' : '';
+
+      // Draw, sized to the card so the bars fill the width on desktop.
+      const W = Math.max(332, Math.round(histWrap.clientWidth) || 0), H = 200, padL = 26, padR = 6, padT = 12, padB = 22;
+      histSvg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+      const plotW = W - padL - padR, plotH = H - padT - padB;
+      const maxV = Math.max(1, ...bins, ...expected) * 1.08;
+      const y = v => padT + plotH - (v / maxV) * plotH;
+      const slot = plotW / bins.length, gap = bins.length > 30 ? 1 : 2, barW = Math.min(bins.length > 30 ? 14 : 36, Math.max(1, slot - gap));
+      histSvg.replaceChildren();
+      const step = Math.max(1, Math.ceil(maxV / 3));
+      const gridUnit = step >= 50 ? Math.round(step / 50) * 50 : step >= 10 ? Math.round(step / 10) * 10 : step >= 5 ? 5 : step;
+      for (let v = gridUnit; v < maxV; v += gridUnit) {
+        histSvg.appendChild(el('line', { class: 'd20-hist-grid', x1: padL, x2: W - padR, y1: y(v), y2: y(v) }));
+        histSvg.appendChild(el('text', { class: 'd20-hist-axis', x: padL - 6, y: y(v) + 3, 'text-anchor': 'end' }, v));
+      }
+      histSvg.appendChild(el('line', { class: 'd20-hist-grid', x1: padL, x2: W - padR, y1: y(0), y2: y(0) }));
+      const r = Math.min(3, barW / 2);
+      bins.forEach((v, i) => {
+        const x = padL + i * slot + (slot - barW) / 2;
+        const top = y(v);
+        const hit = el('rect', { class: 'd20-hist-hit', x: padL + i * slot, y: padT, width: slot, height: plotH });
+        const d = v > 0 ? `M${x},${y(0)} V${top + r} a${r},${r} 0 0 1 ${r},-${r} h${barW - 2 * r} a${r},${r} 0 0 1 ${r},${r} V${y(0)} Z` : '';
+        const bar = el('path', { class: 'd20-hist-bar', d });
+        const label = labels(i), exp = expected[i];
+        hit.addEventListener('mouseenter', () => {
+          const tip = histWrap.querySelector('.d20-hist-tip') || histWrap.appendChild(Object.assign(document.createElement('div'), { className: 'd20-hist-tip' }));
+          const pct = total ? (100 * v / total).toFixed(1) + '%' : '0%';
+          tip.innerHTML = `<b>${view === 'faces' ? 'Face ' : 'Sum '}${label}</b> · ${v} <span>(${pct})</span><br><span>expected ${exp.toFixed(1)}</span>`;
+          const box = histWrap.getBoundingClientRect();
+          tip.style.left = ((padL + i * slot + slot / 2) * (box.width / W)) + 'px';
+          tip.style.top = (Math.min(top, y(exp)) * (box.height / H) - 8) + 'px';
+        });
+        hit.addEventListener('mouseleave', () => histWrap.querySelector('.d20-hist-tip')?.remove());
+        histSvg.appendChild(hit); histSvg.appendChild(bar);
+        if (tick(i)) histSvg.appendChild(el('text', { class: 'd20-hist-axis', x: padL + i * slot + slot / 2, y: H - 6, 'text-anchor': 'middle' }, label));
+      });
+      if (total > 0) {
+        const pts = expected.map((v, i) => `${(padL + i * slot + slot / 2).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+        histSvg.appendChild(el('polyline', { class: 'd20-hist-expected', points: pts }));
+      }
+
+      // Interpretation.
+      const out = $(prefix + '-rolls-interpret');
+      const pctFace = (100 / sides).toFixed(sides > 10 ? 0 : 1) + '%';
+      if (!n) { out.innerHTML = `A single fair ${kind} is <b>uniform</b>: every face settles toward ${pctFace}. The bell shape shows up in the <b>Sum of 3</b> view, where the central limit theorem takes over.`; return; }
+      if (view === 'faces') {
+        const chi2 = bins.reduce((acc, o, i) => acc + Math.pow(o - expected[i], 2) / expected[i], 0);
+        const minN = sides * 5;
+        const verdict = n < minN ? `Too early to judge fairness; the test needs about ${minN} rolls to mean much.` : chi2 < chiCrit ? 'Consistent with a fair die.' : 'Further from flat than 95% of fair dice would be at this sample size.';
+        out.innerHTML = `Uniform is the target here: each face should approach <b>${pctFace}</b> (${(n / sides).toFixed(1)} of ${n}). Chi-square <b>${chi2.toFixed(1)}</b> on ${sides - 1} df, fair threshold ${chiCrit}. ${verdict}`;
+      } else {
+        const triples = Math.floor(n / 3);
+        const sums = []; for (let t = 0; t < triples; t++) sums.push(faces[3 * t] + faces[3 * t + 1] + faces[3 * t + 2]);
+        const sMean = triples ? (sums.reduce((a, b) => a + b, 0) / triples).toFixed(1) : '—';
+        out.innerHTML = `Every three rolls become one sum from 3 to ${3 * sides}. Sums of independent rolls pile up in the middle, so this view drifts toward a bell around <b>${sumMean}</b> as it grows. <b>${triples}</b> sums so far, mean <b>${sMean}</b>.`;
+      }
     }
-    const total = bins.reduce((a, b) => a + b, 0);
-    $('d20-hist-empty').style.display = total > 0 ? 'none' : '';
 
-    // Draw, sized to the card so the bars fill the width on desktop.
-    const W = Math.max(332, Math.round(histWrap.clientWidth) || 0), H = 200, padL = 26, padR = 6, padT = 12, padB = 22;
-    histSvg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-    const plotW = W - padL - padR, plotH = H - padT - padB;
-    const maxV = Math.max(1, ...bins, ...expected) * 1.08;
-    const y = v => padT + plotH - (v / maxV) * plotH;
-    const slot = plotW / bins.length, gap = bins.length > 30 ? 1 : 2, barW = Math.min(bins.length > 30 ? 14 : 36, Math.max(1, slot - gap));
-    histSvg.replaceChildren();
-    // Recessive grid: three horizontal rules with left labels.
-    const step = Math.max(1, Math.ceil(maxV / 3));
-    const gridUnit = step >= 50 ? Math.round(step / 50) * 50 : step >= 10 ? Math.round(step / 10) * 10 : step >= 5 ? 5 : step;
-    for (let v = gridUnit; v < maxV; v += gridUnit) {
-      histSvg.appendChild(el('line', { class: 'd20-hist-grid', x1: padL, x2: W - padR, y1: y(v), y2: y(v) }));
-      histSvg.appendChild(el('text', { class: 'd20-hist-axis', x: padL - 6, y: y(v) + 3, 'text-anchor': 'end' }, v));
+    // Redraw when the card changes width, including when the Analytics tab first becomes visible.
+    if (window.ResizeObserver) {
+      let lastW = 0;
+      new ResizeObserver(() => { const w = Math.round(histWrap.clientWidth); if (w !== lastW) { lastW = w; render(); } }).observe(histWrap);
     }
-    histSvg.appendChild(el('line', { class: 'd20-hist-grid', x1: padL, x2: W - padR, y1: y(0), y2: y(0) }));
-    const r = Math.min(3, barW / 2);
-    bins.forEach((v, i) => {
-      const x = padL + i * slot + (slot - barW) / 2;
-      const top = y(v), h = y(0) - top;
-      // Hit area first so the sibling selector can light the bar.
-      const hit = el('rect', { class: 'd20-hist-hit', x: padL + i * slot, y: padT, width: slot, height: plotH });
-      const d = v > 0
-        ? `M${x},${y(0)} V${top + r} a${r},${r} 0 0 1 ${r},-${r} h${barW - 2 * r} a${r},${r} 0 0 1 ${r},${r} V${y(0)} Z`
-        : '';
-      const bar = el('path', { class: 'd20-hist-bar', d });
-      const label = labels(i), exp = expected[i];
-      const show = e => {
-        const tip = histWrap.querySelector('.d20-hist-tip') || histWrap.appendChild(Object.assign(document.createElement('div'), { className: 'd20-hist-tip' }));
-        const pct = total ? (100 * v / total).toFixed(1) + '%' : '0%';
-        tip.innerHTML = `<b>${view === 'faces' ? 'Face ' : 'Sum '}${label}</b> · ${v} <span>(${pct})</span><br><span>expected ${exp.toFixed(1)}</span>`;
-        const box = histWrap.getBoundingClientRect();
-        const sx = box.width / W;
-        tip.style.left = ((padL + i * slot + slot / 2) * sx) + 'px';
-        tip.style.top = (Math.min(top, y(exp)) * (box.height / H) - 8) + 'px';
-      };
-      hit.addEventListener('mouseenter', show);
-      hit.addEventListener('mouseleave', () => histWrap.querySelector('.d20-hist-tip')?.remove());
-      histSvg.appendChild(hit); histSvg.appendChild(bar);
-      if (tick(i)) histSvg.appendChild(el('text', { class: 'd20-hist-axis', x: padL + i * slot + slot / 2, y: H - 6, 'text-anchor': 'middle' }, label));
+    card.querySelectorAll('.d20-ctrl').forEach(b => b.addEventListener('click', () => {
+      view = b.dataset.view;
+      card.querySelectorAll('.d20-ctrl').forEach(x => x.classList.toggle('active', x === b));
+      render();
+    }));
+    $(prefix + '-rolls-clear').addEventListener('click', () => {
+      if (!log.history.length || !confirm(`Clear all logged ${kind} rolls?`)) return;
+      log.clearedAt = Date.now(); log.history = [];
+      saveLocal(log); saveToCloudNow(); render();
+      if (!rolling && mode.kind === kind) { buildDice(); renderHistoryLine(); }
     });
-    // Expected overlay: flat line for faces, bell for sums.
-    if (total > 0) {
-      const pts = expected.map((v, i) => `${(padL + i * slot + slot / 2).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
-      histSvg.appendChild(el('polyline', { class: 'd20-hist-expected', points: pts }));
-    }
-
-    // Interpretation.
-    const out = $('d20-rolls-interpret');
-    if (!n) { out.innerHTML = 'A single fair d20 is <b>uniform</b>: every face settles toward 5%. The bell shape you are looking for shows up in the <b>Sum of 3</b> view, where the central limit theorem takes over.'; return; }
-    if (view === 'faces') {
-      const chi2 = bins.reduce((acc, o, i) => acc + Math.pow(o - expected[i], 2) / expected[i], 0);
-      const verdict = n < 100 ? 'Too early to judge fairness; the test needs about 100 rolls to mean much.' : chi2 < CHI2_95_DF19 ? 'Consistent with a fair die.' : 'Further from flat than 95% of fair dice would be at this sample size.';
-      out.innerHTML = `Uniform is the target here: each face should approach <b>5%</b> (${(n / 20).toFixed(1)} of ${n}). Chi-square <b>${chi2.toFixed(1)}</b> on 19 df, fair threshold 30.1. ${verdict}`;
-    } else {
-      const triples = Math.floor(n / 3);
-      const sums = []; for (let t = 0; t < triples; t++) sums.push(faces[3 * t] + faces[3 * t + 1] + faces[3 * t + 2]);
-      const sMean = triples ? (sums.reduce((a, b) => a + b, 0) / triples).toFixed(1) : '—';
-      out.innerHTML = `Every three rolls become one sum from 3 to 60. Sums of independent rolls pile up in the middle, so this view drifts toward a bell around <b>31.5</b> as it grows. <b>${triples}</b> sums so far, mean <b>${sMean}</b>.`;
-    }
+    $(prefix + '-roll-link').addEventListener('click', () => {
+      if (!rolling && mode.kind !== kind) setMode({ kind });
+      showPage('digest');
+      const tab = document.querySelector('.digest-sub-tab[data-subtab="gaming"]');
+      if (tab) tab.click();
+      setTimeout(() => $('d20-card').scrollIntoView({ behavior: 'smooth', block: 'start' }), 350);
+    });
+    return { kind, render };
   }
+  const cards = ['d20', 'd6'].map(histCard);
 
-  // Redraw when the card changes width, including when the Analytics tab first becomes visible.
-  if (window.ResizeObserver) {
-    let lastW = 0;
-    new ResizeObserver(() => { const w = Math.round(histWrap.clientWidth); if (w !== lastW) { lastW = w; renderAnalytics(); } }).observe(histWrap);
-  }
-  document.querySelectorAll('.d20-ctrl').forEach(b => b.addEventListener('click', () => {
-    view = b.dataset.view;
-    document.querySelectorAll('.d20-ctrl').forEach(x => x.classList.toggle('active', x === b));
-    renderAnalytics();
-  }));
-  $('d20-rolls-clear').addEventListener('click', () => {
-    if (!history.length || !confirm('Clear all logged rolls?')) return;
-    clearedAt = Date.now(); history = []; saveHistory(); saveToCloudNow(); renderAnalytics(); renderResult(restFace);
-  });
-  // Initial state: the die rests on the last logged roll, or a 20 before any roll.
+  // Initial state: the dice rest on the last logged faces, or their top face before any roll.
+  buildDice();
   applyLook();
-  const first = history.length ? history[history.length - 1][0] : 20;
-  showNumber(first);
-  if (history.length) renderResult(first);
-  renderAnalytics();
+  renderHistoryLine();
+  cards.forEach(c => c.render());
 })();
 </script>
   <canvas id="complete-canvas"></canvas>
