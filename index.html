@@ -8118,7 +8118,7 @@ onAuthStateChanged(auth, user => {
 
   // Add ?fpidebug to the URL to list every stat ESPN sent (name · label · value)
   // under the tiles — the quickest way to see what a missing tile should match.
-  function fpiDebugOn() { try { return new URLSearchParams(window.location.search).has('fpidebug'); } catch (_) { return false; } }
+  function fpiDebugOn() { try { const q = new URLSearchParams(window.location.search); return q.has('fpidebug') || q.has('cfbdebug'); } catch (_) { return false; } }
   function renderFpiDebug() {
     if (!fpiDebugOn()) return '';
     const rows = fpiFlatten(window._fpiRawLast);
@@ -8127,7 +8127,8 @@ onAuthStateChanged(auth, user => {
     const keys = raw && typeof raw === 'object' ? Object.keys(raw).map(k => k + ':' + (Array.isArray(raw[k]) ? 'array[' + raw[k].length + ']' : raw[k] && typeof raw[k] === 'object' ? (raw[k].$ref ? 'ref ' + raw[k].$ref : 'object{' + Object.keys(raw[k]).join(',') + '}') : typeof raw[k])).join('\n') : '';
     let histTxt = '';
     try { const h = JSON.parse(localStorage.getItem(CFB_FPI_HIST_KEY) || '{}') || {}; histTxt = Object.keys(h).map(k => k + ': ' + (h[k].snaps || []).map(x => '#' + x.v + ' (' + new Date(x.ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ')').join(' → ')).join('\n'); } catch (_) {}
-    const body = (histTxt ? 'trend history (value · date recorded):\n' + esc(histTxt) + '\n\n' : '') + (keys ? 'top-level keys:\n' + esc(keys) + '\n\nstats:\n' : '') + (rows.length ? rows.map(r => esc(r.cat) + ' · ' + esc(r.name) + ' · ' + esc(r.label) + ' · ' + esc(r.value)).join('\n') : 'no FPI payload received');
+    const oddsTxt = (window._cfbOddsDebug || []).map(d => d.source + ' · ' + d.opp + ' (' + d.id + ') · ' + d.status).join('\n');
+    const body = (oddsTxt ? 'betting lines:\n' + esc(oddsTxt) + '\n\n' : '') + (histTxt ? 'trend history (value · date recorded):\n' + esc(histTxt) + '\n\n' : '') + (keys ? 'top-level keys:\n' + esc(keys) + '\n\nstats:\n' : '') + (rows.length ? rows.map(r => esc(r.cat) + ' · ' + esc(r.name) + ' · ' + esc(r.label) + ' · ' + esc(r.value)).join('\n') : 'no FPI payload received');
     return '<pre class="cfb-debug" style="font-size:9px;line-height:1.5;color:var(--text-muted);background:var(--surface2);border-radius:8px;padding:8px 10px;margin:0 0 12px;white-space:pre-wrap;word-break:break-word;">FPI DEBUG\n' + body + '</pre>';
   }
 
@@ -8364,6 +8365,46 @@ onAuthStateChanged(auth, user => {
 
   // Line for the next game from ESPN's scoreboard — the same host and fetch
   // path the Sports card uses for live scores. Best-effort; never throws.
+  // Did Cal cover? Line is Cal-relative (negative = favored).
+  function cfbCover(line, us, them) {
+    if (line === null || line === undefined || us === null || them === null) return null;
+    const m = us - them + line;
+    return m > 0 ? 'covered' : m < 0 ? 'lost' : 'push';
+  }
+
+  // Betting lines straight from ESPN's per-game odds endpoint, read in the
+  // browser for every game that doesn't have one yet (same host the FPI tiles
+  // use). Keeps closing lines on finished games, so cover marks work too.
+  // Best-effort: any miss just leaves that game without a line.
+  const CFB_ODDS_PROVIDER_PREF = ['58', '2000', '45', '31', '41', '25']; // ESPN BET first
+  window._cfbOddsDebug = [];
+  async function attachOddsFromCore(data) {
+    const ourAbbrev = (data.team && data.team.abbrev) || 'CAL';
+    const todo = (data.games || []).filter(g => !(g.odds && g.odds.line !== null && g.odds.line !== undefined));
+    await Promise.all(todo.map(async g => {
+      const dbg = { id: g.id, opp: g.opponent && g.opponent.abbrev, source: 'core', status: '' };
+      window._cfbOddsDebug.push(dbg);
+      try {
+        const url = 'https://sports.core.api.espn.com/v2/sports/football/leagues/college-football/events/'
+          + encodeURIComponent(g.id) + '/competitions/' + encodeURIComponent(g.id) + '/odds?limit=20&lang=en&region=us';
+        const r = await fetchWithTimeout(url, TIMEOUT_DEFAULT);
+        dbg.status = 'HTTP ' + r.status;
+        if (!r.ok) return;
+        const items = ((await r.json()) || {}).items || [];
+        dbg.status += ' · ' + items.length + ' book' + (items.length === 1 ? '' : 's');
+        if (!items.length) return;
+        const rank = o => { const i = CFB_ODDS_PROVIDER_PREF.indexOf(String(o && o.provider && o.provider.id)); return (i === -1 ? 99 : i) * 100 + (parseFloat(o && o.provider && o.provider.priority) || 50); };
+        const best = items.slice().sort((a, b) => rank(a) - rank(b))[0];
+        dbg.status += ' · ' + ((best.provider && best.provider.name) || '?') + ' "' + (best.details || '') + '" spread=' + best.spread;
+        const odds = cfbOddsFromEspn(best, ourAbbrev, g.opponent && g.opponent.abbrev, g.home);
+        if (!odds) { dbg.status += ' · unparsed'; return; }
+        if (g.completed && g.score) odds.cover = cfbCover(odds.line, g.score.us, g.score.them);
+        if (!(g.odds && g.odds.line !== null && g.odds.line !== undefined)) g.odds = odds;
+        dbg.status += ' → line ' + odds.line;
+      } catch (e) { dbg.status = 'failed: ' + (e && e.message || e); }
+    }));
+  }
+
   async function attachNextGameLine(data) {
     try {
       const now = Date.now();
@@ -8373,14 +8414,20 @@ onAuthStateChanged(auth, user => {
       const t = new Date(next.date).getTime();
       const url = 'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard'
         + '?groups=80&limit=400&dates=' + ymd(new Date(t - 864e5)) + '-' + ymd(new Date(t + 864e5));
+      const dbg = { id: next.id, opp: next.opponent && next.opponent.abbrev, source: 'scoreboard', status: '' };
+      window._cfbOddsDebug.push(dbg);
       const r = await fetchWithTimeout(url, TIMEOUT_DEFAULT);
+      dbg.status = 'HTTP ' + r.status;
       if (!r.ok) return;
       const sb = await r.json();
       const ev = (sb.events || []).find(e => String(e.id) === String(next.id));
+      dbg.status += ' · ' + (sb.events || []).length + ' events · game ' + (ev ? 'found' : 'NOT found');
       const o = ev && ev.competitions && ev.competitions[0] && ev.competitions[0].odds && ev.competitions[0].odds[0];
+      if (ev) dbg.status += ' · odds ' + (o ? '"' + (o.details || '') + '" spread=' + o.spread : 'absent');
       const odds = cfbOddsFromEspn(o, (data.team && data.team.abbrev) || 'CAL', next.opponent.abbrev, next.home);
-      if (odds) next.odds = odds;
-    } catch (_) { /* no line yet */ }
+      if (odds && !(next.odds && next.odds.line !== null && next.odds.line !== undefined)) next.odds = odds;
+      if (odds) dbg.status += ' → line ' + odds.line;
+    } catch (e) { /* no line yet */ }
   }
 
   // Current record for every opponent, from ESPN's team endpoint (same host
@@ -8432,7 +8479,9 @@ onAuthStateChanged(auth, user => {
         if (!data.team.record && proxied.team && proxied.team.record) data.team.record = proxied.team.record;
       }
       if (!data) throw new Error('schedule unavailable');
-      const [, , fpi] = await Promise.all([attachNextGameLine(data), attachOpponentRecords(data), fetchFpi()]);
+      window._cfbOddsDebug = data.games.filter(g => g.odds && g.odds.line !== null && g.odds.line !== undefined).map(g => ({ id: g.id, opp: g.opponent && g.opponent.abbrev, source: 'proxy', status: 'line ' + g.odds.line }));
+      const lines = (async () => { await attachOddsFromCore(data); await attachNextGameLine(data); })();
+      const [, , fpi] = await Promise.all([lines, attachOpponentRecords(data), fetchFpi()]);
       data.fpiTrend = fpi ? fpiWithTrend(fpi) : null;
 
       const html  = renderCalSchedule(data);
