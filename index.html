@@ -151,6 +151,48 @@
   html.navy .fever-price { color: #4a9edd; }
   html.navy .sanderson-bar { background: #2a5a8a; }
 
+  /* ── CAL THEME (Berkeley Blue #003262 · California Gold #FDB515) ── */
+  html.cal {
+    --bg:         #021a36;
+    --surface:    #003262;
+    --surface2:   #0a4176;
+    --border:     #1b5390;
+    --text:       #eaf1fb;
+    --text-muted: #8fb0d8;
+    --text-dim:   #3e6ea3;
+    --btn-bg: #0a4176;
+    --btn-border: #2261a3;
+    --btn-icon: #a7c6ea;
+    --win-color:  #fdb515;
+    --loss-color: #ef8a8a;
+    --live-color: #fdb515;
+
+    --color-flame:   #ff4757;
+    --color-solar:   #fdb515;
+    --color-neon:    #2ed573;
+    --color-electric:#3d9bff;
+    --color-plasma:  #c56cf0;
+    --color-cyber:   #22d3ee;
+
+    --danger:      #ff4757;
+    --danger-text: #ff7b88;
+  }
+
+  html.cal body { background: var(--bg); color: var(--text); }
+  html.cal header h1 { color: #fdb515 !important; }
+  html.cal header p, html.cal #current-date, html.cal #greeting { color: #eaf1fb !important; }
+  html.cal .mobile-tabs { background: #021a36; border-top: 1px solid var(--border); }
+  html.cal #login-screen { background: var(--bg); }
+  html.cal .task-checkbox:checked {
+    background: #fdb515;
+    border-color: #fdb515;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 10 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 4l3 3 5-6' stroke='%23003262' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-size: 65%; background-repeat: no-repeat; background-position: center;
+  }
+  html.cal .fever-price { color: #fdb515; }
+  html.cal .sanderson-bar { background: #fdb515; }
+  html.cal .nav-btn.active, html.cal .digest-sub-tab.active, html.cal .ctrl-btn.active { color: #fdb515; }
+
   /* Toggle button — visually matches nav pill */
   .theme-toggle {
     background: var(--surface2);
@@ -3050,6 +3092,7 @@
   :root { --d20-shadow: rgba(0,0,0,0.5); }
   html.light { --d20-shadow: rgba(0,0,0,0.14); }
   html.navy { --d20-shadow: rgba(0,0,0,0.55); }
+  html.cal { --d20-shadow: rgba(0,0,0,0.55); }
 
   .die-stage { display: flex; flex-direction: column; align-items: center; gap: 14px; }
   .die-btn {
@@ -5353,15 +5396,17 @@ onAuthStateChanged(auth, user => {
   })();
 
   // ── THEME ────────────────────────────────────────────────
-  const THEMES = ['dark', 'navy', 'light'];
+  const THEMES = ['dark', 'navy', 'cal', 'light'];
   const THEME_META = {
     dark:  { icon: '◑', label: 'Dark',  metaColor: '#161618' },
     navy:  { icon: '◈', label: 'Navy',  metaColor: '#0a0f1e' },
+    cal:   { icon: '◆', label: 'Cal',   metaColor: '#021a36' },
     light: { icon: '○', label: 'Light', metaColor: '#f4f4f5' },
   };
 
   function applyTheme(mode) {
-    document.documentElement.classList.remove('light', 'navy');
+    if (!THEME_META[mode]) mode = 'dark';
+    document.documentElement.classList.remove('light', 'navy', 'cal');
     if (mode !== 'dark') document.documentElement.classList.add(mode);
 
     const meta = document.querySelector('meta[name="theme-color"]');
@@ -10447,6 +10492,7 @@ onAuthStateChanged(auth, user => {
     { name: 'Brass',    desc: 'metal · engraved',     h: 40,  s: 62, l: 48, contrast: 0.9,  spec: 0.7,  edge: '#5a3d0e', edgeW: 1.0, num: '#3a2707', finish: 'metal' },
     { name: 'Bone',     desc: 'ivory · ink numeral',  h: 44,  s: 38, l: 88, contrast: 0.35, spec: 0.05, edge: '#6b5a3e', edgeW: 1.1, num: '#2b2419', finish: 'bone' },
     { name: 'Neon',     desc: 'wireframe · glow',     h: 182, s: 20, l: 9,  contrast: 0.4,  spec: 0.1,  edge: '#00d2d3', edgeW: 1.6, num: '#7ff7f7', finish: 'neon' },
+    { name: 'Cal',      desc: 'berkeley blue · gold', h: 211, s: 100, l: 24, contrast: 0.7,  spec: 0.3,  edge: '#fdb515', edgeW: 1.1, num: '#fdb515', finish: 'matte' },
   ];
   const LIGHT = v3.norm([-0.45, -0.65, 0.62]);
   const HALF = v3.norm(v3.add(LIGHT, [0, 0, 1]));
