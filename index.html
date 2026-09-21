@@ -3188,7 +3188,8 @@
 
   .die-result { display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 40px; }
   .die-result-main { font-family: 'DM Serif Display', serif; font-size: 18px; color: var(--text); text-align: center; }
-  .die-result-main b { font-weight: 400; font-size: 22px; }
+  .die-result-main b { font-weight: 400; font-size: 24px; }
+  .die-result-main .die-sum-parts { font-size: 13px; color: var(--text-muted); margin-left: 8px; vertical-align: 2px; }
   .die-result-main .tag {
     font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase;
     margin-left: 8px; padding: 2px 7px; border-radius: 999px;
@@ -10820,7 +10821,7 @@ onAuthStateChanged(auth, user => {
     const total = results.reduce((a, b) => a + b, 0);
     resultEl.innerHTML = results.length === 1
       ? `Rolled ${results[0]} ${tags.join(' ')}`
-      : `${results.join(' + ')} = <b>${total}</b> ${tags.join(' ')}`;
+      : `<b>${total}</b><span class="die-sum-parts">= ${results.join(' + ')}</span> ${tags.join(' ')}`;
     renderHistoryLine();
   }
   function renderHistoryLine() {
