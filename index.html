@@ -3231,7 +3231,9 @@
   .d20-hist-legend i { display: inline-block; width: 10px; height: 8px; vertical-align: -1px; margin-right: 5px; background: var(--text-muted); border-radius: 1px; }
   .d20-hist-legend i.dash { height: 0; border-top: 2px dashed var(--text-dim); background: none; vertical-align: 2px; }
   .d20-stat-interpret b { color: var(--text-muted); font-weight: 500; }
-  .d20-stat-footer { display: flex; justify-content: flex-end; margin-top: 12px; }
+  .d20-stat-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; }
+  .die-footer-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  #d20-card, #d20-rolls-card { scroll-margin-top: 16px; }
   .d20-link {
     font: inherit; font-size: 10px; background: none; border: 0; padding: 0; cursor: pointer;
     color: var(--text-muted); text-decoration: underline; text-underline-offset: 3px;
@@ -3610,7 +3612,10 @@ onAuthStateChanged(auth, user => {
           <span id="look-desc">matte · silver edge</span>
           <div class="look-dots" id="look-dots"></div>
         </div>
-        <button type="button" class="look-btn" id="look-btn" title="Next look" aria-label="Switch to the next die look">&#x21bb;</button>
+        <div class="die-footer-actions">
+          <button type="button" class="ctrl-btn" id="d20-stats-btn" title="Open the D20 Rolls card in Analytics">Stats &#x2197;</button>
+          <button type="button" class="look-btn" id="look-btn" title="Next look" aria-label="Switch to the next die look">&#x21bb;</button>
+        </div>
       </div>
     </div>
 
@@ -3977,7 +3982,10 @@ onAuthStateChanged(auth, user => {
     </div>
     <div class="d20-hist-legend"><span><i></i>Observed</span><span><i class="dash"></i>Expected for a fair die</span></div>
     <div class="stat-interpret d20-stat-interpret" id="d20-rolls-interpret"></div>
-    <div class="d20-stat-footer"><button type="button" class="d20-link" id="d20-rolls-clear">Clear roll history</button></div>
+    <div class="d20-stat-footer">
+      <button type="button" class="d20-link" id="d20-roll-link">Roll the die &#x2197;</button>
+      <button type="button" class="d20-link" id="d20-rolls-clear">Clear roll history</button>
+    </div>
   </div>
 
 </div>
@@ -10781,6 +10789,18 @@ onAuthStateChanged(auth, user => {
     requestAnimationFrame(frame);
   }
   dieBtn.addEventListener('click', () => roll());
+  // Jump links between the die and its analytics card. The slide transition takes ~300ms,
+  // so the scroll waits for the page to be in place.
+  $('d20-stats-btn').addEventListener('click', () => {
+    showPage('analytics');
+    setTimeout(() => $('d20-rolls-card').scrollIntoView({ behavior: 'smooth', block: 'start' }), 350);
+  });
+  $('d20-roll-link').addEventListener('click', () => {
+    showPage('digest');
+    const tab = document.querySelector('.digest-sub-tab[data-subtab="gaming"]');
+    if (tab) tab.click();
+    setTimeout(() => $('d20-card').scrollIntoView({ behavior: 'smooth', block: 'start' }), 350);
+  });
 
   // ── Analytics ──
   const histSvg = $('d20-hist'), histWrap = $('d20-hist-wrap');
