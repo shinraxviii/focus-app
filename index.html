@@ -7817,9 +7817,9 @@ onAuthStateChanged(auth, user => {
       { label: 'STRK', keys: ['streak', 'STRK'] },
       { label: 'L10',  keys: ['Last Ten Games', 'L10'] },
     ],
+    // OVR replaces separate W / L so the overall record sits beside CONF
     football: [
-      { label: 'W',    keys: ['wins', 'W'] },
-      { label: 'L',    keys: ['losses', 'L'] },
+      { label: 'OVR',  keys: ['overall', 'Total', 'OVER'], fallback: standingsRecordFromWL },
       { label: 'CONF', keys: ['vsConf', 'CONF', 'vs. Conf.'] },
       { label: 'PF',   keys: ['pointsFor', 'PF'] },
       { label: 'PA',   keys: ['pointsAgainst', 'PA'] },
@@ -7853,6 +7853,23 @@ onAuthStateChanged(auth, user => {
       }
     }
     return null;
+  }
+
+  // Column value for an entry: the first matching stat, else the column's
+  // fallback (if any), else null.
+  function standingsCell(entry, col) {
+    return standingsStat(entry, col.keys) || (col.fallback ? col.fallback(entry) : null);
+  }
+
+  // "W-L" (or "W-L-T") built from the wins / losses / ties stats, for feeds
+  // that don't carry an overall record summary.
+  function standingsRecordFromWL(entry) {
+    const w = standingsStat(entry, ['wins', 'W']);
+    const l = standingsStat(entry, ['losses', 'L']);
+    if (!w || !l) return null;
+    const t = standingsStat(entry, ['ties', 'T']);
+    const rec = w.displayValue + '-' + l.displayValue + (t && parseFloat(t.displayValue) > 0 ? '-' + t.displayValue : '');
+    return { displayValue: rec };
   }
 
   // Every node in the ESPN tree that carries a standings table.
@@ -7916,6 +7933,9 @@ onAuthStateChanged(auth, user => {
     if (t.sport === 'basketball' || t.sport === 'baseball') {
       const gb = standingsStat(me, ['gamesBehind', 'GB']);
       if (gb && myIdx > 0 && gb.displayValue !== '-' && gb.displayValue !== '0') parts.push(gb.displayValue + ' GB');
+    } else if (t.sport === 'football') {
+      const ovr = standingsStat(me, ['overall', 'Total', 'OVER']) || standingsRecordFromWL(me);
+      if (ovr) parts.push(ovr.displayValue + ' overall');
     } else if (t.sport === 'hockey' || t.sport === 'soccer') {
       const mine = num(me, ['points', 'PTS', 'P']);
       const top  = num(entries[0], ['points', 'PTS', 'P']);
@@ -7957,7 +7977,7 @@ onAuthStateChanged(auth, user => {
 
     // Keep only columns at least one row can fill
     const cols = (STANDINGS_COLUMNS[t.sport] || STANDINGS_COLUMNS.basketball).filter(function(c) {
-      return entries.some(function(e) { return standingsStat(e, c.keys); });
+      return entries.some(function(e) { return standingsCell(e, c); });
     });
     const gridCols = '24px 16px minmax(0,1fr) ' + cols.map(function(c) { return c.label.length > 2 ? 'var(--st-w-wide)' : 'var(--st-w)'; }).join(' ');
 
@@ -7981,7 +8001,7 @@ onAuthStateChanged(auth, user => {
         + '<span class="st-rank' + (note ? ' st-rank--note' : '') + '"' + rankStyle + rankTitle + '>' + (i + 1) + '</span>'
         + (logo ? '<img class="st-logo" src="' + logo + '" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">' : '<span></span>')
         + '<span class="st-team"><span class="st-team-name">' + esc(name) + '</span><span class="st-team-abbr">' + esc(abbr) + '</span></span>'
-        + cols.map(function(c) { const s = standingsStat(e, c.keys); return '<span class="st-stat">' + esc(s ? s.displayValue : '—') + '</span>'; }).join('')
+        + cols.map(function(c) { const s = standingsCell(e, c); return '<span class="st-stat">' + esc(s ? s.displayValue : '—') + '</span>'; }).join('')
         + '</' + tag + '>';
     };
 
