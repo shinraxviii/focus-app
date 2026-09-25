@@ -3204,7 +3204,8 @@
     display: flex; justify-content: space-between; align-items: center;
     margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); gap: 12px;
   }
-  .look-name { display: flex; flex-direction: column; gap: 3px; }
+  .look-picker { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .look-name { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .look-name b { font-weight: 500; font-size: 12px; color: var(--text); }
   .look-name span { font-size: 9px; letter-spacing: 0.06em; color: var(--text-muted); }
   .look-dots { display: flex; gap: 5px; margin-top: 2px; }
@@ -3621,14 +3622,16 @@ onAuthStateChanged(auth, user => {
         </div>
       </div>
       <div class="die-footer">
-        <div class="look-name">
-          <b id="look-name">Obsidian</b>
-          <span id="look-desc">matte · silver edge</span>
-          <div class="look-dots" id="look-dots"></div>
+        <div class="look-picker">
+          <button type="button" class="look-btn" id="look-btn" title="Next look" aria-label="Switch to the next die look">&#x21bb;</button>
+          <div class="look-name">
+            <b id="look-name">Obsidian</b>
+            <span id="look-desc">matte · silver edge</span>
+            <div class="look-dots" id="look-dots"></div>
+          </div>
         </div>
         <div class="die-footer-actions">
           <button type="button" class="ctrl-btn" id="d20-stats-btn" title="Open the rolls card in Analytics">Stats &#x2197;</button>
-          <button type="button" class="look-btn" id="look-btn" title="Next look" aria-label="Switch to the next die look">&#x21bb;</button>
         </div>
       </div>
     </div>
