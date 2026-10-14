@@ -1825,6 +1825,49 @@
   }
   .reddit-sub-input::placeholder { color: var(--text-muted); }
 
+  /* Standard Meta */
+  .edhrec-tabs.meta-tabs { padding: 0 0 10px; }
+  .meta-summary {
+    display: flex; justify-content: space-between; gap: 8px;
+    font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--text-muted); padding: 0 6px 8px;
+  }
+  .meta-list { display: flex; gap: 24px; }
+  .meta-col { flex: 1; min-width: 0; }
+  .meta-item { border-top: 1px solid var(--border); min-width: 0; }
+  .meta-row {
+    all: unset; box-sizing: border-box; width: 100%;
+    display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 10px; align-items: center;
+    padding: 10px 6px; min-height: 58px; cursor: pointer; border-radius: 4px;
+  }
+  .meta-row:hover { background: color-mix(in srgb, var(--surface2) 60%, transparent); }
+  .meta-row:focus-visible { outline: 2px solid var(--color-electric); outline-offset: 2px; }
+  .meta-rank { font-size: 10px; color: var(--text-dim); text-align: right; font-variant-numeric: tabular-nums; }
+  .meta-name-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .meta-name-line .card-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .meta-pips { display: inline-flex; gap: 3px; flex: none; }
+  .meta-pip { width: 9px; height: 9px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0,0,0,.3); }
+  .meta-pip.W { background: #efe6c4; } .meta-pip.U { background: #3d8fd6; } .meta-pip.B { background: #5b4f5a; }
+  .meta-pip.R { background: #d9533b; } .meta-pip.G { background: #3f9a5a; }
+  .meta-track { height: 3px; border-radius: 2px; background: var(--surface2); margin-top: 6px; overflow: hidden; }
+  .meta-fill { height: 100%; border-radius: 2px; background: color-mix(in srgb, var(--color-electric) 55%, transparent); }
+  .meta-row .card-price, .meta-row .card-price-sub { font-variant-numeric: tabular-nums; }
+  .meta-trend.up { color: #22c55e; } .meta-trend.down { color: #ef4444; }
+  .meta-detail { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 2px 6px 12px 32px; }
+  .meta-stat { background: var(--surface2); border-radius: 6px; padding: 8px 10px; min-width: 0; }
+  .meta-stat b { display: block; font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 15px; font-variant-numeric: tabular-nums; }
+  .meta-stat span { font-size: 8.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+  .meta-link { grid-column: 1 / -1; font-size: 10px; color: var(--color-electric); text-decoration: none; }
+  .meta-link:hover { text-decoration: underline; }
+  .meta-note {
+    margin-top: 12px; padding: 9px 10px; border: 1px solid var(--border); border-radius: 6px;
+    font-size: 9.5px; line-height: 1.5; color: var(--text-muted);
+  }
+  .meta-note b { color: var(--text); font-weight: 500; }
+  @media (max-width: 700px) {
+    .meta-list { flex-direction: column; gap: 0; }
+  }
+
   /* EDHREC Commander Recs */
   .edhrec-row { text-decoration: none; color: inherit; }
   .edhrec-syn.up { color: #22c55e; }
@@ -3678,6 +3721,21 @@ onAuthStateChanged(auth, user => {
       <div class="card-list" id="mtg-list">
         <span class="digest-loading">Loading...</span>
       </div>
+    </div>
+
+    <!-- STANDARD META: static snapshot in STANDARD_META until a live proxy feed exists -->
+    <div class="digest-card full-width" id="meta-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title">Standard Meta</span>
+        <span class="digest-card-updated" id="meta-updated"></span>
+      </div>
+      <div class="edhrec-tabs meta-tabs" id="meta-tabs" role="tablist">
+        <button type="button" class="edhrec-tab" role="tab" data-src="events" aria-selected="true">Events</button>
+        <button type="button" class="edhrec-tab" role="tab" data-src="arena" aria-selected="false">Arena BO1</button>
+      </div>
+      <div class="meta-summary"><span id="meta-summary"></span><span>Share · 7d</span></div>
+      <div class="meta-list" id="meta-list"></div>
+      <div class="meta-note" id="meta-note"></div>
     </div>
   </div>
 
@@ -7496,6 +7554,124 @@ onAuthStateChanged(auth, user => {
     const last = localStorage.getItem('focus-digest-edhrec-last') || EDHREC_DEFAULT;
     input.value = last;
     loadEdhrec(last);
+  })();
+
+  // ── STANDARD META (Digest › TCG) ──────────────────────────
+  // Static snapshot for now. Only the top three Events shares are real
+  // (MTGDecks, Oct 13 2026); the remaining rows are placeholders until a
+  // focus-proxy route scrapes MTGDecks / Aetherhub on a daily schedule.
+  const STANDARD_META = {
+    events: {
+      updated: 'Oct 13 · via MTGDecks', summary: '1,563 decks · 30 days', metric: 'Top 8s',
+      link: 'https://mtgdecks.net/Standard',
+      decks: [
+        { name: 'Izzet Spellementals', c: 'UR',  share: 11.9, d: 0.8,  n: 186, price: 385, m: 41 },
+        { name: 'Mono-Green Landfall', c: 'G',   share: 11.6, d: -2.4, n: 181, price: 240, m: 38 },
+        { name: 'Dimir Midrange',      c: 'UB',  share: 8.5,  d: 1.1,  n: 133, price: 460, m: 29 },
+        { name: 'Izzet Lessons',       c: 'UR',  share: 7.2,  d: -0.3, n: 112, price: 410, m: 21 },
+        { name: 'Selesnya Aggro',      c: 'GW',  share: 6.4,  d: 0.5,  n: 100, price: 295, m: 17 },
+        { name: 'Jeskai Lessons',      c: 'URW', share: 5.1,  d: 1.6,  n: 80,  price: 520, m: 15 },
+        { name: 'Golgari Midrange',    c: 'BG',  share: 4.3,  d: 0.0,  n: 67,  price: 445, m: 9 },
+        { name: 'Mono-Red Aggro',      c: 'R',   share: 3.8,  d: -0.4, n: 59,  price: 120, m: 6 }
+      ]
+    },
+    arena: {
+      updated: '30 days · via Aetherhub', summary: '48,210 matches · BO1', metric: 'Win rate',
+      link: 'https://aetherhub.com/Metagame/Standard-BO1/',
+      decks: [
+        { name: 'Mono-Green Landfall', c: 'G',   share: 14.2, d: -1.8, n: 6845, price: 240, m: '53.1%' },
+        { name: 'Selesnya Aggro',      c: 'GW',  share: 12.0, d: 0.9,  n: 5785, price: 295, m: '52.4%' },
+        { name: 'Izzet Spellementals', c: 'UR',  share: 10.4, d: 1.2,  n: 5014, price: 385, m: '51.0%' },
+        { name: 'Mono-Red Aggro',      c: 'R',   share: 8.8,  d: 0.3,  n: 4242, price: 120, m: '50.2%' },
+        { name: 'Dimir Midrange',      c: 'UB',  share: 6.1,  d: 0.7,  n: 2941, price: 460, m: '52.9%' },
+        { name: 'Izzet Lessons',       c: 'UR',  share: 5.7,  d: -0.6, n: 2748, price: 410, m: '49.6%' },
+        { name: 'Jeskai Lessons',      c: 'URW', share: 4.9,  d: 0.4,  n: 2362, price: 520, m: '50.8%' },
+        { name: 'Golgari Midrange',    c: 'BG',  share: 4.1,  d: -0.2, n: 1977, price: 445, m: '49.9%' }
+      ]
+    },
+    note: '<b>Preview data.</b> Top three Events shares are from MTGDecks (Oct 13); the rest are placeholders until the live feed is built. '
+      + '<b>Oct 12 B&amp;R:</b> no Standard changes.'
+  };
+  const META_COLOR_ORDER = 'WUBRG';
+  const metaState = { src: 'events', open: -1 };
+
+  function metaPips(c) {
+    return c.split('')
+      .sort(function(a, b) { return META_COLOR_ORDER.indexOf(a) - META_COLOR_ORDER.indexOf(b); })
+      .map(function(x) { return '<span class="meta-pip ' + x + '" aria-hidden="true"></span>'; })
+      .join('');
+  }
+
+  function metaTrend(d) {
+    if (d > 0.05) return '<div class="card-price-sub meta-trend up">\u25B2 ' + d.toFixed(1) + '</div>';
+    if (d < -0.05) return '<div class="card-price-sub meta-trend down">\u25BC ' + Math.abs(d).toFixed(1) + '</div>';
+    return '<div class="card-price-sub">\u2013 0.0</div>';
+  }
+
+  function renderStandardMeta() {
+    const listEl = document.getElementById('meta-list');
+    if (!listEl) return;
+    const src = STANDARD_META[metaState.src];
+    document.getElementById('meta-updated').textContent = src.updated;
+    document.getElementById('meta-summary').textContent = src.summary;
+    document.getElementById('meta-note').innerHTML = STANDARD_META.note;
+    const tabs = document.querySelectorAll('#meta-tabs .edhrec-tab');
+    for (let i = 0; i < tabs.length; i++) {
+      tabs[i].setAttribute('aria-selected', tabs[i].dataset.src === metaState.src ? 'true' : 'false');
+    }
+    // Two independent columns (top half left), so an expanded row only
+    // pushes down its own column. They stack on narrow screens.
+    const half = Math.ceil(src.decks.length / 2);
+    const max = src.decks[0].share;
+    let html = '<div class="meta-col">';
+    src.decks.forEach(function(k, i) {
+      if (i === half) html += '</div><div class="meta-col">';
+      const open = metaState.open === i;
+      const tier = i < 3 ? 'Tier 1' : (i < 6 ? 'Tier 2' : 'Tier 3');
+      const count = metaState.src === 'arena' ? k.n.toLocaleString() + ' matches' : k.n + ' decks';
+      html += '<div class="meta-item">'
+        + '<button type="button" class="meta-row" data-i="' + i + '" aria-expanded="' + open + '">'
+        + '<span class="meta-rank">' + (i + 1) + '</span>'
+        + '<span style="min-width:0"><span class="meta-name-line"><span class="meta-pips">' + metaPips(k.c) + '</span>'
+        + '<span class="card-name">' + esc(k.name) + '</span></span>'
+        + '<div class="card-set">' + tier + ' \u00B7 ' + count + '</div>'
+        + '<div class="meta-track"><div class="meta-fill" style="width:' + (k.share / max * 100).toFixed(1) + '%"></div></div></span>'
+        + '<span><div class="card-price">' + k.share.toFixed(1) + '%</div>' + metaTrend(k.d) + '</span>'
+        + '</button>';
+      if (open) {
+        html += '<div class="meta-detail">'
+          + '<div class="meta-stat"><b>' + esc(String(k.m)) + '</b><span>' + src.metric + '</span></div>'
+          + '<div class="meta-stat"><b>$' + k.price + '</b><span>Paper</span></div>'
+          + '<div class="meta-stat"><b>' + (k.d >= 0 ? '+' : '') + k.d.toFixed(1) + '</b><span>Pts / 7d</span></div>'
+          + '<a class="meta-link" href="' + escUrl(src.link) + '" target="_blank" rel="noopener">View sample lists \u2197</a>'
+          + '</div>';
+      }
+      html += '</div>';
+    });
+    listEl.innerHTML = html + '</div>';
+  }
+
+  (function initStandardMeta() {
+    const listEl = document.getElementById('meta-list');
+    const tabsEl = document.getElementById('meta-tabs');
+    if (!listEl || !tabsEl) return;
+    listEl.addEventListener('click', function(e) {
+      const row = e.target.closest('.meta-row');
+      if (!row) return;
+      const i = +row.dataset.i;
+      metaState.open = metaState.open === i ? -1 : i;
+      renderStandardMeta();
+      const again = listEl.querySelector('.meta-row[data-i="' + i + '"]');
+      if (again) again.focus();
+    });
+    tabsEl.addEventListener('click', function(e) {
+      const tab = e.target.closest('.edhrec-tab');
+      if (!tab) return;
+      metaState.src = tab.dataset.src;
+      metaState.open = -1;
+      renderStandardMeta();
+    });
+    renderStandardMeta();
   })();
 
   // ── FEVER LA EVENTS ───────────────────────────────────────
