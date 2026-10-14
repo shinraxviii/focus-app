@@ -1825,6 +1825,53 @@
   }
   .reddit-sub-input::placeholder { color: var(--text-muted); }
 
+  /* Standard Meta */
+  .edhrec-tabs.meta-tabs { padding: 0 0 10px; }
+  .meta-summary {
+    display: flex; justify-content: space-between; gap: 8px;
+    font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--text-muted); padding: 0 6px 8px;
+  }
+  .meta-list { display: flex; gap: 24px; }
+  .meta-col { flex: 1; min-width: 0; }
+  .meta-item { border-top: 1px solid var(--border); min-width: 0; }
+  .meta-row {
+    all: unset; box-sizing: border-box; width: 100%;
+    display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 10px; align-items: center;
+    padding: 10px 6px; min-height: 58px; cursor: pointer; border-radius: 4px;
+  }
+  .meta-row:hover { background: color-mix(in srgb, var(--surface2) 60%, transparent); }
+  .meta-row:focus-visible { outline: 2px solid var(--color-electric); outline-offset: 2px; }
+  .meta-rank { font-size: 10px; color: var(--text-dim); text-align: right; font-variant-numeric: tabular-nums; }
+  .meta-name-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .meta-name-line .card-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .meta-pips { display: inline-flex; gap: 3px; flex: none; }
+  .meta-pip { width: 9px; height: 9px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0,0,0,.3); }
+  .meta-pip.W { background: #efe6c4; } .meta-pip.U { background: #3d8fd6; } .meta-pip.B { background: #5b4f5a; }
+  .meta-pip.R { background: #d9533b; } .meta-pip.G { background: #3f9a5a; }
+  .meta-track { height: 3px; border-radius: 2px; background: var(--surface2); margin-top: 6px; overflow: hidden; }
+  .meta-fill { height: 100%; border-radius: 2px; background: color-mix(in srgb, var(--color-electric) 55%, transparent); }
+  .meta-row .card-price, .meta-row .card-price-sub { font-variant-numeric: tabular-nums; }
+  .meta-trend.up { color: #22c55e; } .meta-trend.down { color: #ef4444; }
+  .meta-detail { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 2px 6px 12px 32px; }
+  .meta-stat { background: var(--surface2); border-radius: 6px; padding: 8px 10px; min-width: 0; }
+  .meta-stat b { display: block; font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 15px; font-variant-numeric: tabular-nums; }
+  .meta-stat span { font-size: 8.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+  .meta-keycards { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .meta-keycard { display: block; min-width: 0; border-radius: 4px; overflow: hidden; }
+  .meta-keycard img { display: block; width: 100%; height: auto; aspect-ratio: 146 / 204; object-fit: cover; }
+  .meta-keycard-text { font-size: 9px; color: var(--text-muted); background: var(--surface2); padding: 6px; text-decoration: none; }
+  .meta-link { grid-column: 1 / -1; font-size: 10px; color: var(--color-electric); text-decoration: none; }
+  .meta-link:hover { text-decoration: underline; }
+  .meta-note {
+    margin-top: 12px; padding: 9px 10px; border: 1px solid var(--border); border-radius: 6px;
+    font-size: 9.5px; line-height: 1.5; color: var(--text-muted);
+  }
+  .meta-note b { color: var(--text); font-weight: 500; }
+  @media (max-width: 700px) {
+    .meta-list { flex-direction: column; gap: 0; }
+  }
+
   /* EDHREC Commander Recs */
   .edhrec-row { text-decoration: none; color: inherit; }
   .edhrec-syn.up { color: #22c55e; }
@@ -3679,6 +3726,21 @@ onAuthStateChanged(auth, user => {
         <span class="digest-loading">Loading...</span>
       </div>
     </div>
+
+    <!-- STANDARD META: Events from focus-proxy /api/standard-meta (MTGO), Arena via claudeSearch -->
+    <div class="digest-card full-width" id="meta-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title">Standard Meta</span>
+        <span class="digest-card-updated" id="meta-updated"></span>
+      </div>
+      <div class="edhrec-tabs meta-tabs" id="meta-tabs" role="tablist">
+        <button type="button" class="edhrec-tab" role="tab" data-src="events" aria-selected="true">Events</button>
+        <button type="button" class="edhrec-tab" role="tab" data-src="arena" aria-selected="false">Arena BO1</button>
+      </div>
+      <div class="meta-summary"><span id="meta-summary"></span><span id="meta-trend-label">Share</span></div>
+      <div class="meta-list" id="meta-list"><span class="digest-loading">Loading...</span></div>
+      <div class="meta-note" id="meta-note"></div>
+    </div>
   </div>
 
   <!-- HOBBIES -->
@@ -5163,6 +5225,7 @@ onAuthStateChanged(auth, user => {
   const TMDB_PROXY_URL       = 'https://focus-proxy.vercel.app/api/tmdb';
   const BOOKS_PROXY_URL      = 'https://focus-proxy.vercel.app/api/books';
   const CFB_PROXY_URL        = 'https://focus-proxy.vercel.app/api/cfb';
+  const STANDARD_META_PROXY_URL = 'https://focus-proxy.vercel.app/api/standard-meta';
 
   // ── TIMEOUT CONSTANTS ─────────────────────────────────────────
   const TIMEOUT_SHORT   = 4000;  // individual ticker fetches
@@ -7496,6 +7559,249 @@ onAuthStateChanged(auth, user => {
     const last = localStorage.getItem('focus-digest-edhrec-last') || EDHREC_DEFAULT;
     input.value = last;
     loadEdhrec(last);
+  })();
+
+  // ── STANDARD META (Digest › TCG) ──────────────────────────
+  // Events: the last 7 days of MTGO Leagues and Challenges, grouped into
+  // archetypes by the focus-proxy /api/standard-meta route. Arena: there's no
+  // official Arena data, so that tab asks claudeSearch, and only once the tab
+  // is opened. The 7-day trend comes from daily share snapshots kept in this
+  // browser (META_HISTORY_KEY); anything older than META_HISTORY_DAYS is
+  // pruned on every save so the history never grows past a week.
+  const META_EVENTS_TTL   = 6 * 60 * 60 * 1000;
+  const META_ARENA_TTL    = 24 * 60 * 60 * 1000;
+  const META_HISTORY_KEY  = 'focus-standard-meta-history';
+  const META_HISTORY_DAYS = 7;
+  const META_COLOR_ORDER  = 'WUBRG';
+  const metaState = { src: 'events', open: -1, rows: { events: null, arena: null }, info: { events: null, arena: null }, loading: {} };
+
+  function metaDayKey(d) {
+    // Local calendar day, so "today" matches the user's clock.
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function metaHistoryRead() {
+    try { return JSON.parse(localStorage.getItem(META_HISTORY_KEY)) || {}; } catch(e) { return {}; }
+  }
+
+  // Save today's shares for one tab, drop days outside the window, and return
+  // the oldest remaining snapshot from before today (the trend baseline).
+  function metaRecordSnapshot(src, rows) {
+    const hist = metaHistoryRead();
+    const today = new Date();
+    const todayKey = metaDayKey(today);
+    const oldest = metaDayKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() - (META_HISTORY_DAYS - 1)));
+    const days = hist[src] || {};
+    const snap = {};
+    rows.forEach(function(r) { snap[r.name] = r.share; });
+    days[todayKey] = snap;
+    Object.keys(days).forEach(function(k) { if (k < oldest) delete days[k]; });
+    hist[src] = days;
+    try { localStorage.setItem(META_HISTORY_KEY, JSON.stringify(hist)); } catch(e) {}
+    const past = Object.keys(days).filter(function(k) { return k < todayKey; }).sort();
+    return past.length ? { day: past[0], shares: days[past[0]] } : null;
+  }
+
+  // Attach d (share change vs the baseline) to each row. null = no baseline
+  // yet; 'new' = the archetype wasn't in the baseline snapshot.
+  function metaApplyTrend(src, rows) {
+    const base = metaRecordSnapshot(src, rows);
+    metaState.info[src] = Object.assign({}, metaState.info[src], { baseDay: base ? base.day : null });
+    rows.forEach(function(r) {
+      if (!base) r.d = null;
+      else if (base.shares[r.name] == null) r.d = 'new';
+      else r.d = Math.round((r.share - base.shares[r.name]) * 10) / 10;
+    });
+    return rows;
+  }
+
+  function metaPips(c) {
+    return String(c || '').split('')
+      .filter(function(x) { return META_COLOR_ORDER.indexOf(x) !== -1; })
+      .sort(function(a, b) { return META_COLOR_ORDER.indexOf(a) - META_COLOR_ORDER.indexOf(b); })
+      .map(function(x) { return '<span class="meta-pip ' + x + '" aria-hidden="true"></span>'; })
+      .join('');
+  }
+
+  function metaTrend(d) {
+    if (d === 'new') return '<div class="card-price-sub">new</div>';
+    if (d == null) return '<div class="card-price-sub">–</div>';
+    if (d > 0.05) return '<div class="card-price-sub meta-trend up">▲ ' + d.toFixed(1) + '</div>';
+    if (d < -0.05) return '<div class="card-price-sub meta-trend down">▼ ' + Math.abs(d).toFixed(1) + '</div>';
+    return '<div class="card-price-sub">– 0.0</div>';
+  }
+
+  // A key card whose image won't load shows its name instead.
+  function metaImgFailed(img) {
+    const a = img.parentNode;
+    a.classList.add('meta-keycard-text');
+    a.textContent = img.alt;
+  }
+
+  function metaTier(share) { return share >= 8 ? 'Tier 1' : (share >= 4 ? 'Tier 2' : 'Tier 3'); }
+
+  function renderStandardMeta() {
+    const listEl = document.getElementById('meta-list');
+    if (!listEl) return;
+    const src = metaState.src;
+    const rows = metaState.rows[src];
+    const info = metaState.info[src] || {};
+    const tabs = document.querySelectorAll('#meta-tabs .edhrec-tab');
+    for (let i = 0; i < tabs.length; i++) {
+      tabs[i].setAttribute('aria-selected', tabs[i].dataset.src === src ? 'true' : 'false');
+    }
+    document.getElementById('meta-updated').textContent = info.updated || '';
+    document.getElementById('meta-summary').textContent = info.summary || '';
+    document.getElementById('meta-trend-label').textContent = info.baseDay ? 'Share · since ' + info.baseDay.slice(5).replace('-', '/') : 'Share';
+    document.getElementById('meta-note').textContent = info.note || '';
+    document.getElementById('meta-note').hidden = !info.note;
+    if (!rows) {
+      listEl.innerHTML = '<span class="digest-loading">' + (metaState.loading[src] ? 'Loading...' : (info.error || 'No data')) + '</span>';
+      return;
+    }
+    // Two independent columns (top half left), so an expanded row only
+    // pushes down its own column. They stack on narrow screens.
+    const half = Math.ceil(rows.length / 2);
+    const max = rows[0] ? rows[0].share : 1;
+    let html = '<div class="meta-col">';
+    rows.forEach(function(k, i) {
+      if (i === half) html += '</div><div class="meta-col">';
+      const open = metaState.open === i;
+      html += '<div class="meta-item">'
+        + '<button type="button" class="meta-row" data-i="' + i + '" aria-expanded="' + open + '">'
+        + '<span class="meta-rank">' + (i + 1) + '</span>'
+        + '<span style="min-width:0"><span class="meta-name-line"><span class="meta-pips">' + metaPips(k.colors) + '</span>'
+        + '<span class="card-name">' + esc(k.name) + '</span></span>'
+        + '<div class="card-set">' + metaTier(k.share) + (k.count ? ' · ' + esc(k.count) : '') + '</div>'
+        + '<div class="meta-track"><div class="meta-fill" style="width:' + Math.min(100, k.share / max * 100).toFixed(1) + '%"></div></div></span>'
+        + '<span><div class="card-price">' + k.share.toFixed(1) + '%</div>' + metaTrend(k.d) + '</span>'
+        + '</button>';
+      if (open) {
+        let stats = '';
+        k.stats.forEach(function(s) { stats += '<div class="meta-stat"><b>' + esc(s[0]) + '</b><span>' + esc(s[1]) + '</span></div>'; });
+        let cards = '';
+        (k.keyCards || []).forEach(function(c) {
+          cards += c.image
+            ? '<a class="meta-keycard" href="' + escUrl('https://scryfall.com/search?q=' + encodeURIComponent('!"' + c.name + '"')) + '" target="_blank" rel="noopener" title="' + esc(c.name) + '">'
+              + '<img src="' + escUrl(c.image) + '" alt="' + esc(c.name) + '" loading="lazy" onerror="metaImgFailed(this)"></a>'
+            : '<span class="meta-keycard meta-keycard-text">' + esc(c.name) + '</span>';
+        });
+        html += '<div class="meta-detail">' + stats
+          + (cards ? '<div class="meta-keycards">' + cards + '</div>' : '')
+          + (k.link ? '<a class="meta-link" href="' + escUrl(k.link) + '" target="_blank" rel="noopener">' + esc(k.linkLabel || 'View sample lists') + ' ↗</a>' : '')
+          + '</div>';
+      }
+      html += '</div>';
+    });
+    listEl.innerHTML = html + '</div>';
+  }
+
+  function metaEventsRows(data) {
+    return (data.archetypes || []).map(function(a) {
+      return {
+        name: a.name, colors: a.colors, share: a.share,
+        count: a.decks + ' decks',
+        stats: [[String(a.top8s), 'Top 8s'], [a.price != null ? '$' + a.price : '—', 'Paper'], [a.decks + '/' + data.decks, 'Decks']],
+        keyCards: a.keyCards || [],
+        link: a.sampleUrl, linkLabel: 'Sample list on MTGO'
+      };
+    });
+  }
+
+  async function loadMetaEvents() {
+    const show = function(entry, stale) {
+      const data = entry.data;
+      metaState.rows.events = metaApplyTrend('events', metaEventsRows(data));
+      metaState.info.events = Object.assign({}, metaState.info.events, {
+        updated: 'MTGO · ' + cacheAge(new Date(data.updated).getTime()) + (stale ? ' · stale' : ''),
+        summary: data.decks + ' decks · ' + data.events + ' events · ' + data.days + ' days',
+        note: 'MTGO Leagues and Challenges. Archetypes are grouped and named automatically from the decklists.'
+      });
+      renderStandardMeta();
+    };
+    const fresh = cacheGet('standard-meta-events', META_EVENTS_TTL);
+    if (fresh) return show(fresh, false);
+    const stale = cacheGetStale('standard-meta-events');
+    if (stale) show(stale, true);
+    else { metaState.loading.events = true; renderStandardMeta(); }
+    try {
+      // Building the meta reads ~20 MTGO pages, so a cold proxy cache is slow.
+      const r = await fetchWithTimeout(STANDARD_META_PROXY_URL, 30000);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const data = await r.json();
+      if (!data.archetypes || !data.archetypes.length) throw new Error('empty');
+      cacheSet('standard-meta-events', data);
+      show({ data: data }, false);
+    } catch(e) {
+      if (!stale) metaState.info.events = { error: 'Couldn’t load MTGO results. Try again later.' };
+    }
+    metaState.loading.events = false;
+    renderStandardMeta();
+  }
+
+  async function loadMetaArena() {
+    const show = function(entry, stale) {
+      const data = entry.data;
+      metaState.rows.arena = metaApplyTrend('arena', data.rows.map(function(a) {
+        return {
+          name: a.name, colors: a.colors, share: a.share,
+          count: a.matches ? Number(a.matches).toLocaleString() + ' matches' : '',
+          stats: [[typeof a.winRate === 'number' ? a.winRate.toFixed(1) + '%' : '—', 'Win rate'], [a.matches ? Number(a.matches).toLocaleString() : '—', 'Matches']],
+          keyCards: [], link: data.url || null, linkLabel: 'Source'
+        };
+      }));
+      metaState.info.arena = Object.assign({}, metaState.info.arena, {
+        updated: (data.source ? data.source + ' · ' : '') + cacheAge(entry.ts || Date.now()) + (stale ? ' · stale' : ''),
+        summary: 'Arena BO1',
+        note: 'Pulled by web search once a day. Figures vary between sites.'
+      });
+      renderStandardMeta();
+    };
+    const fresh = cacheGet('standard-meta-arena', META_ARENA_TTL);
+    if (fresh) return show(fresh, false);
+    const stale = cacheGetStale('standard-meta-arena');
+    if (stale) show(stale, true);
+    else { metaState.loading.arena = true; renderStandardMeta(); }
+    try {
+      const raw = await claudeSearch('Current MTG Arena Best-of-One Standard ladder metagame from a stats site such as Aetherhub, Untapped.gg or MTGA Zone. '
+        + 'Return ONLY a JSON object: {"source":"Aetherhub","url":"https://...","rows":[{"name":"Mono-Green Landfall","colors":"G","share":12.3,"winRate":53.1,"matches":1234}]} '
+        + 'with the top 8 archetypes by share. colors uses WUBRG letters. share and winRate are percentages; use null when unknown.', 900);
+      const data = JSON.parse(raw);
+      const rows = (data.rows || []).filter(function(a) { return a && a.name && typeof a.share === 'number'; })
+        .sort(function(a, b) { return b.share - a.share; });
+      if (!rows.length) throw new Error('empty');
+      data.rows = rows;
+      cacheSet('standard-meta-arena', data);
+      show({ data: data, ts: Date.now() }, false);
+    } catch(e) {
+      if (!stale) metaState.info.arena = { error: 'Couldn’t load Arena data. Try again later.' };
+    }
+    metaState.loading.arena = false;
+    renderStandardMeta();
+  }
+
+  (function initStandardMeta() {
+    const listEl = document.getElementById('meta-list');
+    const tabsEl = document.getElementById('meta-tabs');
+    if (!listEl || !tabsEl) return;
+    listEl.addEventListener('click', function(e) {
+      const row = e.target.closest('.meta-row');
+      if (!row) return;
+      const i = +row.dataset.i;
+      metaState.open = metaState.open === i ? -1 : i;
+      renderStandardMeta();
+      const again = listEl.querySelector('.meta-row[data-i="' + i + '"]');
+      if (again) again.focus();
+    });
+    tabsEl.addEventListener('click', function(e) {
+      const tab = e.target.closest('.edhrec-tab');
+      if (!tab) return;
+      metaState.src = tab.dataset.src;
+      metaState.open = -1;
+      renderStandardMeta();
+      if (metaState.src === 'arena' && !metaState.rows.arena && !metaState.loading.arena) loadMetaArena();
+    });
+    loadMetaEvents();
   })();
 
   // ── FEVER LA EVENTS ───────────────────────────────────────
