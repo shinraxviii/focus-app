@@ -3713,7 +3713,7 @@ onAuthStateChanged(auth, user => {
       </div>
     </div>
 
-    <!-- STANDARD META: Events from focus-proxy /api/standard-meta (MTGO), Arena via claudeSearch -->
+    <!-- STANDARD META: Events from focus-proxy /api/standard-meta (MTGO), Arena from /api/arena-meta (Untapped.gg) -->
     <div class="digest-card" id="meta-card">
       <div class="digest-card-header">
         <span class="digest-card-title">Standard Meta</span>
@@ -5238,6 +5238,7 @@ onAuthStateChanged(auth, user => {
   const CFB_PROXY_URL        = 'https://focus-proxy.vercel.app/api/cfb';
   const SORCERY_PRICES_URL = 'https://focus-proxy.vercel.app/api/sorcery';
   const STANDARD_META_PROXY_URL = 'https://focus-proxy.vercel.app/api/standard-meta';
+  const ARENA_META_PROXY_URL    = 'https://focus-proxy.vercel.app/api/arena-meta';
 
   // ── TIMEOUT CONSTANTS ─────────────────────────────────────────
   const TIMEOUT_SHORT   = 4000;  // individual ticker fetches
@@ -7658,13 +7659,12 @@ onAuthStateChanged(auth, user => {
 
   // ── STANDARD META (Digest › Magic) ────────────────────────
   // Events: the last 7 days of MTGO Leagues and Challenges, grouped into
-  // archetypes by the focus-proxy /api/standard-meta route. Arena: there's no
-  // official Arena data, so that tab asks claudeSearch, and only once the tab
-  // is opened. The 7-day trend comes from daily share snapshots kept in this
+  // archetypes by the focus-proxy /api/standard-meta route. Arena: BO1 ladder
+  // stats from Untapped.gg via /api/arena-meta, loaded once the tab is opened. The 7-day trend comes from daily share snapshots kept in this
   // browser (META_HISTORY_KEY); anything older than META_HISTORY_DAYS is
   // pruned on every save so the history never grows past a week.
   const META_EVENTS_TTL   = 6 * 60 * 60 * 1000;
-  const META_ARENA_TTL    = 24 * 60 * 60 * 1000;
+  const META_ARENA_TTL    = 6 * 60 * 60 * 1000;
   const META_HISTORY_KEY  = 'focus-standard-meta-history';
   const META_HISTORY_DAYS = 7;
   const META_COLOR_ORDER  = 'WUBRG';
@@ -7834,45 +7834,37 @@ onAuthStateChanged(auth, user => {
   async function loadMetaArena() {
     const show = function(entry, stale) {
       const data = entry.data;
-      // Aetherhub names Arena decks by color only, so several rows can share
-      // a name; number the repeats so each row (and its trend) stays distinct.
-      const seen = {};
       metaState.rows.arena = metaApplyTrend('arena', data.rows.map(function(a) {
-        seen[a.name] = (seen[a.name] || 0) + 1;
         const stats = [];
         if (typeof a.winRate === 'number') stats.push([a.winRate.toFixed(1) + '%', 'Win rate']);
-        if (a.matches) stats.push([Number(a.matches).toLocaleString(), 'Matches']);
-        if (typeof a.price === 'number') stats.push(['$' + Math.round(a.price), 'Paper']);
+        if (a.games) stats.push([Number(a.games).toLocaleString(), 'Games']);
         return {
-          name: seen[a.name] > 1 ? a.name + ' ' + seen[a.name] : a.name, colors: a.colors, share: a.share,
-          count: a.matches ? Number(a.matches).toLocaleString() + ' matches' : '',
+          name: a.name, colors: a.colors, share: a.share,
+          count: a.games ? Number(a.games).toLocaleString() + ' games' : '',
           stats: stats,
-          keyCards: [], link: data.url || null, linkLabel: 'Source'
+          keyCards: a.keyCards || [], link: data.url || null, linkLabel: 'Full stats on Untapped.gg'
         };
       }));
       metaState.info.arena = Object.assign({}, metaState.info.arena, {
-        updated: (data.source ? data.source + ' · ' : '') + cacheAge(entry.ts || Date.now()) + (stale ? ' · stale' : ''),
-        summary: 'Arena BO1',
-        note: 'Pulled by web search once a day. Figures vary between sites.'
+        updated: 'Untapped.gg · ' + cacheAge(new Date(data.updated).getTime()) + (stale ? ' · stale' : ''),
+        summary: 'Arena BO1 · last ' + data.days + ' days',
+        note: 'MTG Arena Best-of-One ladder games tracked by Untapped.gg, all ranks.'
       });
       renderStandardMeta();
     };
-    const fresh = cacheGet('standard-meta-arena', META_ARENA_TTL);
+    // v2 key: entries cached under the old key came from web search.
+    const fresh = cacheGet('standard-meta-arena2', META_ARENA_TTL);
     if (fresh) return show(fresh, false);
-    const stale = cacheGetStale('standard-meta-arena');
+    const stale = cacheGetStale('standard-meta-arena2');
     if (stale) show(stale, true);
     else { metaState.loading.arena = true; renderStandardMeta(); }
     try {
-      const raw = await claudeSearch('Current MTG Arena Best-of-One Standard ladder metagame from a stats site such as Aetherhub, Untapped.gg or MTGA Zone. '
-        + 'Return ONLY a JSON object: {"source":"Aetherhub","url":"https://...","rows":[{"name":"Mono-Green Landfall","colors":"G","share":12.3,"winRate":53.1,"matches":1234,"price":250}]} '
-        + 'with the top 8 archetypes by share. colors uses WUBRG letters. share and winRate are percentages; price is the paper deck price in USD. Use null when a value isn\u2019t published; never estimate.', 900);
-      const data = JSON.parse(raw);
-      const rows = (data.rows || []).filter(function(a) { return a && a.name && typeof a.share === 'number'; })
-        .sort(function(a, b) { return b.share - a.share; });
-      if (!rows.length) throw new Error('empty');
-      data.rows = rows;
-      cacheSet('standard-meta-arena', data);
-      show({ data: data, ts: Date.now() }, false);
+      const r = await fetchWithTimeout(ARENA_META_PROXY_URL, 30000);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const data = await r.json();
+      if (!data.rows || !data.rows.length) throw new Error('empty');
+      cacheSet('standard-meta-arena2', data);
+      show({ data: data }, false);
     } catch(e) {
       if (!stale) metaState.info.arena = { error: 'Couldn’t load Arena data. Try again later.' };
     }
