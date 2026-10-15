@@ -1832,8 +1832,7 @@
     font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase;
     color: var(--text-muted); padding: 0 6px 8px;
   }
-  .meta-list { display: flex; gap: 24px; }
-  .meta-col { flex: 1; min-width: 0; }
+  .meta-list { display: flex; flex-direction: column; }
   .meta-item { border-top: 1px solid var(--border); min-width: 0; }
   .meta-row {
     all: unset; box-sizing: border-box; width: 100%;
@@ -1868,9 +1867,6 @@
     font-size: 9.5px; line-height: 1.5; color: var(--text-muted);
   }
   .meta-note b { color: var(--text); font-weight: 500; }
-  @media (max-width: 700px) {
-    .meta-list { flex-direction: column; gap: 0; }
-  }
 
   /* EDHREC Commander Recs */
   .edhrec-row { text-decoration: none; color: inherit; }
@@ -3473,7 +3469,8 @@ onAuthStateChanged(auth, user => {
   <div class="digest-sub-tabs" id="digest-sub-tabs">
     <button class="digest-sub-tab active" data-subtab="frontpage">Front Page</button>
     <button class="digest-sub-tab" data-subtab="sports">Sports</button>
-    <button class="digest-sub-tab" data-subtab="gaming">TCG</button>
+    <button class="digest-sub-tab" data-subtab="gaming">Magic</button>
+    <button class="digest-sub-tab" data-subtab="sorcery">Sorcery</button>
     <button class="digest-sub-tab" data-subtab="hobbies">Hobbies</button>
     <button class="digest-sub-tab" data-subtab="motivation">Quotes</button>
   </div>
@@ -3596,7 +3593,7 @@ onAuthStateChanged(auth, user => {
     </div>
   </div>
 
-  <!-- GAMING -->
+  <!-- MAGIC -->
   <div class="digest-grid digest-subtab-content" id="subtab-gaming" style="display:none;">
     <!-- MTG RANDOM CARD -->
     <div class="digest-card">
@@ -3605,17 +3602,6 @@ onAuthStateChanged(auth, user => {
         <span class="digest-card-updated" id="mtg-random-updated">via Scryfall</span>
       </div>
       <div class="sorcery-viewer" id="mtg-random-viewer">
-        <span class="digest-loading">Loading...</span>
-      </div>
-    </div>
-
-    <!-- SORCERY: CONTESTED REALM -->
-    <div class="digest-card">
-      <div class="digest-card-header">
-        <span class="digest-card-title">Sorcery: Contested Realm</span>
-        <span class="digest-card-updated" id="sorcery-updated">via Curiosa</span>
-      </div>
-      <div class="sorcery-viewer" id="sorcery-viewer">
         <span class="digest-loading">Loading...</span>
       </div>
     </div>
@@ -3705,21 +3691,13 @@ onAuthStateChanged(auth, user => {
       </div>
     </div>
 
-    <!-- SEALED PRODUCT PRICES: Magic via MTGStocks, Sorcery via focus-proxy /api/sorcery (TCGCSV) -->
+    <!-- SEALED PRODUCT PRICES -->
     <div class="digest-card">
       <div class="digest-card-header">
-        <span class="digest-card-title" id="sealed-title">Sealed</span>
+        <span class="digest-card-title">Sealed</span>
         <span class="digest-card-updated" id="sealed-updated">via MTGStocks</span>
-        <span class="digest-card-updated" id="sorcery-prices-updated" hidden>via TCGplayer</span>
-      </div>
-      <div class="edhrec-tabs meta-tabs" id="sealed-tabs" role="tablist">
-        <button type="button" class="edhrec-tab" role="tab" data-game="magic" aria-selected="true">Magic</button>
-        <button type="button" class="edhrec-tab" role="tab" data-game="sorcery" aria-selected="false">Sorcery</button>
       </div>
       <div id="sealed-list">
-        <span class="digest-loading">Loading...</span>
-      </div>
-      <div id="sorcery-prices-list" hidden>
         <span class="digest-loading">Loading...</span>
       </div>
     </div>
@@ -3735,8 +3713,8 @@ onAuthStateChanged(auth, user => {
       </div>
     </div>
 
-    <!-- STANDARD META: Events from focus-proxy /api/standard-meta (MTGO), Arena via claudeSearch -->
-    <div class="digest-card full-width" id="meta-card">
+    <!-- STANDARD META: Events from focus-proxy /api/standard-meta (MTGO), Arena from /api/arena-meta (Untapped.gg) -->
+    <div class="digest-card" id="meta-card">
       <div class="digest-card-header">
         <span class="digest-card-title">Standard Meta</span>
         <span class="digest-card-updated" id="meta-updated"></span>
@@ -3748,6 +3726,31 @@ onAuthStateChanged(auth, user => {
       <div class="meta-summary"><span id="meta-summary"></span><span id="meta-trend-label">Share</span></div>
       <div class="meta-list" id="meta-list"><span class="digest-loading">Loading...</span></div>
       <div class="meta-note" id="meta-note"></div>
+    </div>
+  </div>
+
+  <!-- SORCERY -->
+  <div class="digest-grid digest-subtab-content" id="subtab-sorcery" style="display:none;">
+    <!-- SORCERY: CONTESTED REALM -->
+    <div class="digest-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title">Sorcery: Contested Realm</span>
+        <span class="digest-card-updated" id="sorcery-updated">via Curiosa</span>
+      </div>
+      <div class="sorcery-viewer" id="sorcery-viewer">
+        <span class="digest-loading">Loading...</span>
+      </div>
+    </div>
+
+    <!-- SORCERY PRICES: focus-proxy /api/sorcery (TCGCSV mirror of TCGplayer) -->
+    <div class="digest-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title">Sorcery Prices</span>
+        <span class="digest-card-updated" id="sorcery-prices-updated">via TCGplayer</span>
+      </div>
+      <div id="sorcery-prices-list">
+        <span class="digest-loading">Loading...</span>
+      </div>
     </div>
   </div>
 
@@ -4065,7 +4068,7 @@ onAuthStateChanged(auth, user => {
     </div>
     <div class="d20-hist-wrap" id="d20-hist-wrap">
       <svg id="d20-hist" viewBox="0 0 332 200" aria-label="Histogram of d20 rolls"></svg>
-      <div class="d20-hist-empty" id="d20-hist-empty" style="display:none;">Roll the die in the TCG tab and the distribution fills in here</div>
+      <div class="d20-hist-empty" id="d20-hist-empty" style="display:none;">Roll the die in the Magic tab and the distribution fills in here</div>
     </div>
     <div class="d20-hist-legend"><span><i></i>Observed</span><span><i class="dash"></i>Expected for a fair die</span></div>
     <div class="stat-interpret d20-stat-interpret" id="d20-rolls-interpret"></div>
@@ -5235,6 +5238,7 @@ onAuthStateChanged(auth, user => {
   const CFB_PROXY_URL        = 'https://focus-proxy.vercel.app/api/cfb';
   const SORCERY_PRICES_URL = 'https://focus-proxy.vercel.app/api/sorcery';
   const STANDARD_META_PROXY_URL = 'https://focus-proxy.vercel.app/api/standard-meta';
+  const ARENA_META_PROXY_URL    = 'https://focus-proxy.vercel.app/api/arena-meta';
 
   // ── TIMEOUT CONSTANTS ─────────────────────────────────────────
   const TIMEOUT_SHORT   = 4000;  // individual ticker fetches
@@ -7570,7 +7574,7 @@ onAuthStateChanged(auth, user => {
     loadEdhrec(last);
   })();
 
-  // ── SORCERY PRICES (Sealed card › Sorcery tab) ─────────────
+  // ── SORCERY PRICES (Digest › Sorcery) ──────────────────────
   // Today's TCGplayer prices from focus-proxy /api/sorcery (TCGCSV, refreshed
   // daily). TCGCSV has no history, so the sparkline and change come from one
   // snapshot a day kept in this browser; snapshots older than
@@ -7651,47 +7655,16 @@ onAuthStateChanged(auth, user => {
     }
   }
 
-  // Magic | Sorcery tabs on the Sealed card. The choice is remembered per
-  // browser; both lists load up front so the Sorcery history fills in daily
-  // even on days the tab isn't opened.
-  (function initSealedTabs() {
-    const tabsEl = document.getElementById('sealed-tabs');
-    if (!tabsEl) return;
-    const panes = {
-      magic:   { list: 'sealed-list',         status: 'sealed-updated',         title: 'Sealed' },
-      sorcery: { list: 'sorcery-prices-list', status: 'sorcery-prices-updated', title: 'Sorcery' }
-    };
-    function show(game) {
-      if (!panes[game]) game = 'magic';
-      Object.keys(panes).forEach(function(k) {
-        document.getElementById(panes[k].list).hidden = k !== game;
-        document.getElementById(panes[k].status).hidden = k !== game;
-      });
-      document.getElementById('sealed-title').textContent = panes[game].title;
-      tabsEl.querySelectorAll('.edhrec-tab').forEach(function(t) {
-        t.setAttribute('aria-selected', t.dataset.game === game ? 'true' : 'false');
-      });
-      try { localStorage.setItem('focus-sealed-tab', game); } catch(e) {}
-    }
-    tabsEl.addEventListener('click', function(e) {
-      const tab = e.target.closest('.edhrec-tab');
-      if (tab) show(tab.dataset.game);
-    });
-    let saved = 'magic';
-    try { saved = localStorage.getItem('focus-sealed-tab') || 'magic'; } catch(e) {}
-    show(saved);
-    loadSorceryPrices();
-  })();
+  loadSorceryPrices();
 
-  // ── STANDARD META (Digest › TCG) ──────────────────────────
+  // ── STANDARD META (Digest › Magic) ────────────────────────
   // Events: the last 7 days of MTGO Leagues and Challenges, grouped into
-  // archetypes by the focus-proxy /api/standard-meta route. Arena: there's no
-  // official Arena data, so that tab asks claudeSearch, and only once the tab
-  // is opened. The 7-day trend comes from daily share snapshots kept in this
+  // archetypes by the focus-proxy /api/standard-meta route. Arena: BO1 ladder
+  // stats from Untapped.gg via /api/arena-meta, loaded once the tab is opened. The 7-day trend comes from daily share snapshots kept in this
   // browser (META_HISTORY_KEY); anything older than META_HISTORY_DAYS is
   // pruned on every save so the history never grows past a week.
   const META_EVENTS_TTL   = 6 * 60 * 60 * 1000;
-  const META_ARENA_TTL    = 24 * 60 * 60 * 1000;
+  const META_ARENA_TTL    = 6 * 60 * 60 * 1000;
   const META_HISTORY_KEY  = 'focus-standard-meta-history';
   const META_HISTORY_DAYS = 7;
   const META_COLOR_ORDER  = 'WUBRG';
@@ -7781,13 +7754,9 @@ onAuthStateChanged(auth, user => {
       listEl.innerHTML = '<span class="digest-loading">' + (metaState.loading[src] ? 'Loading...' : (info.error || 'No data')) + '</span>';
       return;
     }
-    // Two independent columns (top half left), so an expanded row only
-    // pushes down its own column. They stack on narrow screens.
-    const half = Math.ceil(rows.length / 2);
     const max = rows[0] ? rows[0].share : 1;
-    let html = '<div class="meta-col">';
+    let html = '';
     rows.forEach(function(k, i) {
-      if (i === half) html += '</div><div class="meta-col">';
       const open = metaState.open === i;
       html += '<div class="meta-item">'
         + '<button type="button" class="meta-row" data-i="' + i + '" aria-expanded="' + open + '">'
@@ -7815,7 +7784,7 @@ onAuthStateChanged(auth, user => {
       }
       html += '</div>';
     });
-    listEl.innerHTML = html + '</div>';
+    listEl.innerHTML = html;
   }
 
   function metaEventsRows(data) {
@@ -7847,8 +7816,9 @@ onAuthStateChanged(auth, user => {
     if (stale) show(stale, true);
     else { metaState.loading.events = true; renderStandardMeta(); }
     try {
-      // Building the meta reads ~20 MTGO pages, so a cold proxy cache is slow.
-      const r = await fetchWithTimeout(STANDARD_META_PROXY_URL, 30000);
+      // A cold proxy build reads ~20 mtgo.com pages and can take most of the
+      // proxy's 60s limit when mtgo.com is slow, so wait that long.
+      const r = await fetchWithTimeout(STANDARD_META_PROXY_URL, 60000);
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const data = await r.json();
       if (!data.archetypes || !data.archetypes.length) throw new Error('empty');
@@ -7865,36 +7835,36 @@ onAuthStateChanged(auth, user => {
     const show = function(entry, stale) {
       const data = entry.data;
       metaState.rows.arena = metaApplyTrend('arena', data.rows.map(function(a) {
+        const stats = [];
+        if (typeof a.winRate === 'number') stats.push([a.winRate.toFixed(1) + '%', 'Win rate']);
+        if (a.games) stats.push([Number(a.games).toLocaleString(), 'Games']);
         return {
           name: a.name, colors: a.colors, share: a.share,
-          count: a.matches ? Number(a.matches).toLocaleString() + ' matches' : '',
-          stats: [[typeof a.winRate === 'number' ? a.winRate.toFixed(1) + '%' : '—', 'Win rate'], [a.matches ? Number(a.matches).toLocaleString() : '—', 'Matches']],
-          keyCards: [], link: data.url || null, linkLabel: 'Source'
+          count: a.games ? Number(a.games).toLocaleString() + ' games' : '',
+          stats: stats,
+          keyCards: a.keyCards || [], link: data.url || null, linkLabel: 'Full stats on Untapped.gg'
         };
       }));
       metaState.info.arena = Object.assign({}, metaState.info.arena, {
-        updated: (data.source ? data.source + ' · ' : '') + cacheAge(entry.ts || Date.now()) + (stale ? ' · stale' : ''),
-        summary: 'Arena BO1',
-        note: 'Pulled by web search once a day. Figures vary between sites.'
+        updated: 'Untapped.gg · ' + cacheAge(new Date(data.updated).getTime()) + (stale ? ' · stale' : ''),
+        summary: 'Arena BO1 · last ' + data.days + ' days',
+        note: 'MTG Arena Best-of-One ladder games tracked by Untapped.gg, all ranks.'
       });
       renderStandardMeta();
     };
-    const fresh = cacheGet('standard-meta-arena', META_ARENA_TTL);
+    // v2 key: entries cached under the old key came from web search.
+    const fresh = cacheGet('standard-meta-arena2', META_ARENA_TTL);
     if (fresh) return show(fresh, false);
-    const stale = cacheGetStale('standard-meta-arena');
+    const stale = cacheGetStale('standard-meta-arena2');
     if (stale) show(stale, true);
     else { metaState.loading.arena = true; renderStandardMeta(); }
     try {
-      const raw = await claudeSearch('Current MTG Arena Best-of-One Standard ladder metagame from a stats site such as Aetherhub, Untapped.gg or MTGA Zone. '
-        + 'Return ONLY a JSON object: {"source":"Aetherhub","url":"https://...","rows":[{"name":"Mono-Green Landfall","colors":"G","share":12.3,"winRate":53.1,"matches":1234}]} '
-        + 'with the top 8 archetypes by share. colors uses WUBRG letters. share and winRate are percentages; use null when unknown.', 900);
-      const data = JSON.parse(raw);
-      const rows = (data.rows || []).filter(function(a) { return a && a.name && typeof a.share === 'number'; })
-        .sort(function(a, b) { return b.share - a.share; });
-      if (!rows.length) throw new Error('empty');
-      data.rows = rows;
-      cacheSet('standard-meta-arena', data);
-      show({ data: data, ts: Date.now() }, false);
+      const r = await fetchWithTimeout(ARENA_META_PROXY_URL, 30000);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const data = await r.json();
+      if (!data.rows || !data.rows.length) throw new Error('empty');
+      cacheSet('standard-meta-arena2', data);
+      show({ data: data }, false);
     } catch(e) {
       if (!stale) metaState.info.arena = { error: 'Couldn’t load Arena data. Try again later.' };
     }
