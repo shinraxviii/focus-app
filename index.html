@@ -3698,8 +3698,8 @@ onAuthStateChanged(auth, user => {
         <span class="digest-card-updated" id="meta-updated"></span>
       </div>
       <div class="edhrec-tabs meta-tabs" id="meta-tabs" role="tablist">
-        <button type="button" class="edhrec-tab" role="tab" data-src="events" aria-selected="true">Events</button>
-        <button type="button" class="edhrec-tab" role="tab" data-src="arena" aria-selected="false">Arena BO1</button>
+        <button type="button" class="edhrec-tab" role="tab" data-src="arena" aria-selected="true">Arena BO1</button>
+        <button type="button" class="edhrec-tab" role="tab" data-src="events" aria-selected="false">Events</button>
       </div>
       <div class="meta-summary"><span id="meta-summary"></span><span id="meta-trend-label">Share</span></div>
       <div class="meta-list" id="meta-list"><span class="digest-loading">Loading...</span></div>
@@ -7699,8 +7699,8 @@ onAuthStateChanged(auth, user => {
 
   // ── STANDARD META (Digest › Magic) ────────────────────────
   // Events: the last 7 days of MTGO Leagues and Challenges, grouped into
-  // archetypes by the focus-proxy /api/standard-meta route. Arena: BO1 ladder
-  // stats from Untapped.gg via /api/arena-meta, loaded once the tab is opened. The 7-day trend comes from daily share snapshots kept in this
+  // archetypes by the focus-proxy /api/standard-meta route. Arena (the first
+  // tab): BO1 ladder stats from Untapped.gg via /api/arena-meta. The 7-day trend comes from daily share snapshots kept in this
   // browser (META_HISTORY_KEY); anything older than META_HISTORY_DAYS is
   // pruned on every save so the history never grows past a week.
   const META_EVENTS_TTL   = 6 * 60 * 60 * 1000;
@@ -7708,7 +7708,7 @@ onAuthStateChanged(auth, user => {
   const META_HISTORY_KEY  = 'focus-standard-meta-history';
   const META_HISTORY_DAYS = 7;
   const META_COLOR_ORDER  = 'WUBRG';
-  const metaState = { src: 'events', open: -1, rows: { events: null, arena: null }, info: { events: null, arena: null }, loading: {} };
+  const metaState = { src: 'arena', open: -1, rows: { events: null, arena: null }, info: { events: null, arena: null }, loading: {} };
 
   function metaDayKey(d) {
     // Local calendar day, so "today" matches the user's clock.
@@ -7931,8 +7931,10 @@ onAuthStateChanged(auth, user => {
       metaState.src = tab.dataset.src;
       metaState.open = -1;
       renderStandardMeta();
-      if (metaState.src === 'arena' && !metaState.rows.arena && !metaState.loading.arena) loadMetaArena();
     });
+    // Arena opens first. Both load up front (each is cached for 6h) so the
+    // trend snapshots for both tabs keep accumulating daily.
+    loadMetaArena();
     loadMetaEvents();
   })();
 
