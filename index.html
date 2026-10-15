@@ -3705,13 +3705,21 @@ onAuthStateChanged(auth, user => {
       </div>
     </div>
 
-    <!-- SEALED PRODUCT PRICES -->
+    <!-- SEALED PRODUCT PRICES: Magic via MTGStocks, Sorcery via focus-proxy /api/sorcery (TCGCSV) -->
     <div class="digest-card">
       <div class="digest-card-header">
-        <span class="digest-card-title">Sealed</span>
+        <span class="digest-card-title" id="sealed-title">Sealed</span>
         <span class="digest-card-updated" id="sealed-updated">via MTGStocks</span>
+        <span class="digest-card-updated" id="sorcery-prices-updated" hidden>via TCGplayer</span>
+      </div>
+      <div class="edhrec-tabs meta-tabs" id="sealed-tabs" role="tablist">
+        <button type="button" class="edhrec-tab" role="tab" data-game="magic" aria-selected="true">Magic</button>
+        <button type="button" class="edhrec-tab" role="tab" data-game="sorcery" aria-selected="false">Sorcery</button>
       </div>
       <div id="sealed-list">
+        <span class="digest-loading">Loading...</span>
+      </div>
+      <div id="sorcery-prices-list" hidden>
         <span class="digest-loading">Loading...</span>
       </div>
     </div>
@@ -5225,6 +5233,7 @@ onAuthStateChanged(auth, user => {
   const TMDB_PROXY_URL       = 'https://focus-proxy.vercel.app/api/tmdb';
   const BOOKS_PROXY_URL      = 'https://focus-proxy.vercel.app/api/books';
   const CFB_PROXY_URL        = 'https://focus-proxy.vercel.app/api/cfb';
+  const SORCERY_PRICES_URL = 'https://focus-proxy.vercel.app/api/sorcery';
   const STANDARD_META_PROXY_URL = 'https://focus-proxy.vercel.app/api/standard-meta';
 
   // ── TIMEOUT CONSTANTS ─────────────────────────────────────────
@@ -7559,6 +7568,119 @@ onAuthStateChanged(auth, user => {
     const last = localStorage.getItem('focus-digest-edhrec-last') || EDHREC_DEFAULT;
     input.value = last;
     loadEdhrec(last);
+  })();
+
+  // ── SORCERY PRICES (Sealed card › Sorcery tab) ─────────────
+  // Today's TCGplayer prices from focus-proxy /api/sorcery (TCGCSV, refreshed
+  // daily). TCGCSV has no history, so the sparkline and change come from one
+  // snapshot a day kept in this browser; snapshots older than
+  // SORCERY_HISTORY_DAYS are pruned on every save.
+  const SORCERY_PRICES_TTL   = 6 * 60 * 60 * 1000;
+  const SORCERY_HISTORY_KEY  = 'focus-sorcery-price-history';
+  const SORCERY_HISTORY_DAYS = 30;
+
+  // Save today's prices and return { tcgId: [oldest … today] }.
+  function sorceryRecordHistory(results) {
+    let hist = {};
+    try { hist = JSON.parse(localStorage.getItem(SORCERY_HISTORY_KEY)) || {}; } catch(e) {}
+    const today = new Date();
+    const oldest = metaDayKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() - (SORCERY_HISTORY_DAYS - 1)));
+    const snap = {};
+    results.forEach(function(r) { if (r.price != null) snap[r.tcgId] = Number(r.price); });
+    hist[metaDayKey(today)] = snap;
+    Object.keys(hist).forEach(function(k) { if (k < oldest) delete hist[k]; });
+    try { localStorage.setItem(SORCERY_HISTORY_KEY, JSON.stringify(hist)); } catch(e) {}
+    const series = {};
+    Object.keys(hist).sort().forEach(function(day) {
+      Object.keys(hist[day]).forEach(function(id) { (series[id] = series[id] || []).push(hist[day][id]); });
+    });
+    return series;
+  }
+
+  function renderSorceryPrices(data) {
+    const el = document.getElementById('sorcery-prices-list');
+    if (!el) return;
+    const series = sorceryRecordHistory(data.results || []);
+    const rows = (data.results || []).filter(function(r) { return r.price != null; })
+      .sort(function(a, b) { return Number(b.price) - Number(a.price); });
+    if (!rows.length) { el.innerHTML = '<span class="digest-loading">No prices available</span>'; return; }
+    let html = '';
+    rows.forEach(function(r) {
+      const prices = series[r.tcgId] || [];
+      let deltaHtml = '<div class="sealed-delta">' + (prices.length >= 2 ? '' : 'new') + '</div>';
+      if (prices.length >= 2) {
+        const old = prices[0], cur = prices[prices.length - 1];
+        const delta = old > 0 ? ((cur - old) / old) * 100 : 0;
+        deltaHtml = '<div class="sealed-delta ' + (delta >= 0 ? 'up' : 'down') + '">' + (delta >= 0 ? '+' : '') + delta.toFixed(1) + '%</div>';
+      }
+      // "median listing" flags an item priced from listings because it has
+      // no recent sales.
+      const sub = r.set + ' · ' + r.label + (r.basis === 'mid' ? ' · median listing' : '');
+      html += '<a class="sealed-row" href="' + escUrl(r.url) + '" target="_blank" rel="noopener">'
+        + '<div class="sealed-info"><div class="sealed-name">' + esc(r.name) + '</div>'
+        + '<div class="sealed-set">' + esc(sub) + '</div></div>'
+        + '<span class="sealed-spark">' + drawSparkline(prices, 60, 24) + '</span>'
+        + '<div style="text-align:right"><div class="sealed-price">$' + Math.round(Number(r.price)).toLocaleString() + '</div>'
+        + deltaHtml + '</div>'
+        + '</a>';
+    });
+    el.innerHTML = html;
+  }
+
+  async function loadSorceryPrices() {
+    const statusEl = document.getElementById('sorcery-prices-updated');
+    const el = document.getElementById('sorcery-prices-list');
+    const label = function(data, stale) {
+      const ts = data.updated ? Date.parse(data.updated.replace(/\+0000$/, 'Z')) : NaN;
+      return 'via TCGplayer' + (isNaN(ts) ? '' : ' · ' + cacheAge(ts)) + (stale ? ' · stale' : '');
+    };
+    const fresh = cacheGet('sorcery-prices', SORCERY_PRICES_TTL);
+    if (fresh) { renderSorceryPrices(fresh.data); if (statusEl) statusEl.textContent = label(fresh.data, false); return; }
+    const stale = cacheGetStale('sorcery-prices');
+    if (stale) { renderSorceryPrices(stale.data); if (statusEl) statusEl.textContent = label(stale.data, true); }
+    try {
+      const r = await fetchWithTimeout(SORCERY_PRICES_URL, TIMEOUT_DEFAULT);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const data = await r.json();
+      if (!data.results || !data.results.length) throw new Error('empty');
+      cacheSet('sorcery-prices', data);
+      renderSorceryPrices(data);
+      if (statusEl) statusEl.textContent = label(data, false);
+    } catch(e) {
+      if (!stale && el) el.innerHTML = '<span class="digest-loading">Couldn’t load Sorcery prices</span>';
+    }
+  }
+
+  // Magic | Sorcery tabs on the Sealed card. The choice is remembered per
+  // browser; both lists load up front so the Sorcery history fills in daily
+  // even on days the tab isn't opened.
+  (function initSealedTabs() {
+    const tabsEl = document.getElementById('sealed-tabs');
+    if (!tabsEl) return;
+    const panes = {
+      magic:   { list: 'sealed-list',         status: 'sealed-updated',         title: 'Sealed' },
+      sorcery: { list: 'sorcery-prices-list', status: 'sorcery-prices-updated', title: 'Sorcery' }
+    };
+    function show(game) {
+      if (!panes[game]) game = 'magic';
+      Object.keys(panes).forEach(function(k) {
+        document.getElementById(panes[k].list).hidden = k !== game;
+        document.getElementById(panes[k].status).hidden = k !== game;
+      });
+      document.getElementById('sealed-title').textContent = panes[game].title;
+      tabsEl.querySelectorAll('.edhrec-tab').forEach(function(t) {
+        t.setAttribute('aria-selected', t.dataset.game === game ? 'true' : 'false');
+      });
+      try { localStorage.setItem('focus-sealed-tab', game); } catch(e) {}
+    }
+    tabsEl.addEventListener('click', function(e) {
+      const tab = e.target.closest('.edhrec-tab');
+      if (tab) show(tab.dataset.game);
+    });
+    let saved = 'magic';
+    try { saved = localStorage.getItem('focus-sealed-tab') || 'magic'; } catch(e) {}
+    show(saved);
+    loadSorceryPrices();
   })();
 
   // ── STANDARD META (Digest › TCG) ──────────────────────────
