@@ -3684,32 +3684,10 @@ onAuthStateChanged(auth, user => {
       </div>
       <div class="edhrec-tabs" id="edhrec-tabs">
         <button type="button" class="edhrec-tab" data-section="newcards" aria-selected="true">New Cards</button>
-        <button type="button" class="edhrec-tab" data-section="highsynergycards" aria-selected="false">High Synergy</button>
+        <button type="button" class="edhrec-tab" data-section="highliftcards" aria-selected="false">High Lift</button>
       </div>
       <div class="card-list" id="edhrec-list">
         <span class="digest-loading">Enter a commander above</span>
-      </div>
-    </div>
-
-    <!-- SEALED PRODUCT PRICES -->
-    <div class="digest-card">
-      <div class="digest-card-header">
-        <span class="digest-card-title">Sealed</span>
-        <span class="digest-card-updated" id="sealed-updated">via MTGStocks</span>
-      </div>
-      <div id="sealed-list">
-        <span class="digest-loading">Loading...</span>
-      </div>
-    </div>
-
-    <!-- MTG CARDS -->
-    <div class="digest-card">
-      <div class="digest-card-header">
-        <span class="digest-card-title">Singles</span>
-        <span class="digest-card-updated" id="mtg-updated">via Scryfall</span>
-      </div>
-      <div class="card-list" id="mtg-list">
-        <span class="digest-loading">Loading...</span>
       </div>
     </div>
 
@@ -3726,6 +3704,28 @@ onAuthStateChanged(auth, user => {
       <div class="meta-summary"><span id="meta-summary"></span><span id="meta-trend-label">Share</span></div>
       <div class="meta-list" id="meta-list"><span class="digest-loading">Loading...</span></div>
       <div class="meta-note" id="meta-note"></div>
+    </div>
+
+    <!-- MTG CARDS -->
+    <div class="digest-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title">Singles</span>
+        <span class="digest-card-updated" id="mtg-updated">via Scryfall</span>
+      </div>
+      <div class="card-list" id="mtg-list">
+        <span class="digest-loading">Loading...</span>
+      </div>
+    </div>
+
+    <!-- SEALED PRODUCT PRICES -->
+    <div class="digest-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title">Sealed</span>
+        <span class="digest-card-updated" id="sealed-updated">via MTGStocks</span>
+      </div>
+      <div id="sealed-list">
+        <span class="digest-loading">Loading...</span>
+      </div>
     </div>
   </div>
 
@@ -7207,8 +7207,10 @@ onAuthStateChanged(auth, user => {
   // EDHREC exposes a public JSON API at json.edhrec.com with permissive CORS,
   // so the commander pages can be queried straight from the browser — no proxy
   // route needed. For a given commander we pull two of its sections — "New
-  // Cards" (recently printed cards now recommended) and "High Synergy" (the
-  // signature build-arounds) — and let a tab toggle switch between them.
+  // Cards" (recently printed cards now recommended) and "High Lift" (cards
+  // played far more often with this commander than elsewhere — EDHREC's
+  // replacement for its old "High Synergy" section) — and let a tab toggle
+  // switch between them.
   const EDHREC_JSON_URL = 'https://json.edhrec.com/pages/commanders/';
   // Quick-pick commanders (the user's decks). Edit this list to change chips.
   const EDHREC_COMMANDERS = [
@@ -7219,7 +7221,7 @@ onAuthStateChanged(auth, user => {
     'Valgavoth, Harrower of Souls'
   ];
   const EDHREC_DEFAULT = EDHREC_COMMANDERS[0];
-  const EDHREC_SECTION_LABEL = { newcards: 'New Cards', highsynergycards: 'High Synergy' };
+  const EDHREC_SECTION_LABEL = { newcards: 'New Cards', highliftcards: 'High Lift' };
   // Active view: the loaded commander's data + which section tab is showing.
   const edhrecState = { data: null, section: 'newcards' };
 
@@ -7274,10 +7276,16 @@ onAuthStateChanged(auth, user => {
       else if (num != null) inclStr = 'in ' + Number(num).toLocaleString() + ' decks';
 
       const syn = (typeof c.synergy === 'number') ? c.synergy : null;
-      // The headline number is the synergy %. Only fall back to the inclusion
-      // figure when a card has no synergy score at all.
+      const lift = (typeof c.lift === 'number') ? c.lift : null;
+      // The headline is the stat the section is ranked by: lift (×) on High
+      // Lift, synergy % elsewhere. Fall back to inclusion when neither exists.
       let big, bigClass, sub, subLine = '';
-      if (syn != null) {
+      if (edhrecState.section === 'highliftcards' && lift != null) {
+        big = lift.toFixed(1) + '\u00D7';
+        bigClass = 'card-price';
+        sub = 'lift';
+        if (inclStr) subLine = '<div class="card-set">' + esc(inclStr) + '</div>';
+      } else if (syn != null) {
         big = (syn >= 0 ? '+' : '') + Math.round(syn * 100) + '%';
         bigClass = 'card-price edhrec-syn ' + (syn >= 0 ? 'up' : 'down');
         sub = 'synergy';
@@ -7311,13 +7319,14 @@ onAuthStateChanged(auth, user => {
     const slug = edhrecSlug(name);
     if (!slug) return;
     setEdhrecActiveChip(name);
-    // Bumped to edhrec2- so entries cached by the older single-section version
-    // (which stored {cards}) are treated as a miss and refetched.
-    const cacheKey = 'edhrec2-' + slug;
+    // Bumped to edhrec3- so entries cached before EDHREC replaced "High
+    // Synergy" with "High Lift" (stored with an empty highsynergycards list)
+    // are treated as a miss and refetched.
+    const cacheKey = 'edhrec3-' + slug;
     const force = opts && opts.force;
     // Cache each commander for 24h so re-picking a recent one is instant.
     const cached = !force && cacheGet(cacheKey, 24 * 60 * 60 * 1000);
-    if (cached && cached.data && (cached.data.newcards || cached.data.highsynergycards)) {
+    if (cached && cached.data && (cached.data.newcards || cached.data.highliftcards)) {
       edhrecState.data = cached.data;
       renderEdhrecList();
       return;
@@ -7342,11 +7351,11 @@ onAuthStateChanged(auth, user => {
         newcards: findList(function(l) {
           return l.tag === 'newcards' || /new cards/i.test(l.header || '');
         }),
-        highsynergycards: findList(function(l) {
-          return l.tag === 'highsynergycards' || /high.?synergy/i.test(l.header || '');
+        highliftcards: findList(function(l) {
+          return l.tag === 'highliftcards' || /high.?lift/i.test(l.header || '');
         })
       };
-      if (!data.newcards.length && !data.highsynergycards.length) throw new Error('no cards');
+      if (!data.newcards.length && !data.highliftcards.length) throw new Error('no cards');
       cacheSet(cacheKey, data, name);
       edhrecState.data = data;
       renderEdhrecList();
