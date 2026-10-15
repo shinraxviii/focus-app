@@ -3691,28 +3691,6 @@ onAuthStateChanged(auth, user => {
       </div>
     </div>
 
-    <!-- SEALED PRODUCT PRICES -->
-    <div class="digest-card">
-      <div class="digest-card-header">
-        <span class="digest-card-title">Sealed</span>
-        <span class="digest-card-updated" id="sealed-updated">via MTGStocks</span>
-      </div>
-      <div id="sealed-list">
-        <span class="digest-loading">Loading...</span>
-      </div>
-    </div>
-
-    <!-- MTG CARDS -->
-    <div class="digest-card">
-      <div class="digest-card-header">
-        <span class="digest-card-title">Singles</span>
-        <span class="digest-card-updated" id="mtg-updated">via Scryfall</span>
-      </div>
-      <div class="card-list" id="mtg-list">
-        <span class="digest-loading">Loading...</span>
-      </div>
-    </div>
-
     <!-- STANDARD META: Events from focus-proxy /api/standard-meta (MTGO), Arena from /api/arena-meta (Untapped.gg) -->
     <div class="digest-card" id="meta-card">
       <div class="digest-card-header">
@@ -3726,6 +3704,28 @@ onAuthStateChanged(auth, user => {
       <div class="meta-summary"><span id="meta-summary"></span><span id="meta-trend-label">Share</span></div>
       <div class="meta-list" id="meta-list"><span class="digest-loading">Loading...</span></div>
       <div class="meta-note" id="meta-note"></div>
+    </div>
+
+    <!-- MTG CARDS -->
+    <div class="digest-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title">Singles</span>
+        <span class="digest-card-updated" id="mtg-updated">via Scryfall</span>
+      </div>
+      <div class="card-list" id="mtg-list">
+        <span class="digest-loading">Loading...</span>
+      </div>
+    </div>
+
+    <!-- SEALED PRODUCT PRICES -->
+    <div class="digest-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title">Sealed</span>
+        <span class="digest-card-updated" id="sealed-updated">via MTGStocks</span>
+      </div>
+      <div id="sealed-list">
+        <span class="digest-loading">Loading...</span>
+      </div>
     </div>
   </div>
 
