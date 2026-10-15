@@ -5415,7 +5415,7 @@ onAuthStateChanged(auth, user => {
   async function refreshDigest() {
     // Tier 1: Always force-refresh (fast-changing, free APIs)
     localStorage.removeItem('focus-digest-stocks');
-    localStorage.removeItem('focus-digest-reddit2');
+    localStorage.removeItem('focus-digest-reddit3');
     localStorage.removeItem('focus-digest-sealed-prices');
     localStorage.removeItem('focus-digest-' + CFB_CACHE_KEY);
     Object.keys(localStorage)
@@ -5804,9 +5804,41 @@ onAuthStateChanged(auth, user => {
     }).join('');
   }
 
-  // Fetch a single subreddit's posts through the proxy. Returns [] on any
-  // failure (throttle, timeout, bad JSON) so callers can retry.
+  // Reddit increasingly blocks anonymous feed requests from cloud servers, so
+  // the proxy (on Vercel) fails for every sub most of the time. The browser
+  // asks Reddit directly first: its public .json listings allow cross-origin
+  // GETs, and the request comes from the user's own connection. Same post
+  // shape as the proxy returns: 6 newest non-pinned posts.
+  const REDDIT_DIRECT_PER_SUB = 6;
+  async function fetchSubDirect(sub) {
+    try {
+      const r = await fetchWithTimeout('https://www.reddit.com/r/' + encodeURIComponent(sub)
+        + '/hot.json?limit=25&raw_json=1', TIMEOUT_DEFAULT);
+      if (!r.ok) return [];
+      const json = await r.json();
+      const kids = (json && json.data && json.data.children) || [];
+      return kids
+        .map(function(k) { return k && k.data; })
+        .filter(function(d) { return d && d.title && !d.stickied; })
+        .map(function(d) {
+          return {
+            title: d.title,
+            sub: 'r/' + (d.subreddit || sub),
+            url: 'https://www.reddit.com' + d.permalink,
+            time: (d.created_utc || 0) * 1000
+          };
+        })
+        .sort(function(a, b) { return b.time - a.time; })
+        .slice(0, REDDIT_DIRECT_PER_SUB);
+    } catch (e) { return []; }
+  }
+
+  // Fetch a single subreddit's posts: straight from Reddit, then through the
+  // proxy. Returns [] on any failure (throttle, timeout, bad JSON) so callers
+  // can retry.
   async function fetchOneSub(sub) {
+    const direct = await fetchSubDirect(sub);
+    if (direct.length) return direct;
     try {
       const r = await fetchWithTimeout(REDDIT_PROXY_URL + '?subs=' + encodeURIComponent(sub), TIMEOUT_LONG);
       if (!r.ok) return [];
@@ -5859,14 +5891,13 @@ onAuthStateChanged(auth, user => {
       redditEl.innerHTML = renderReddit(posts);
       const statusLabel = asOfNow();
       document.getElementById('reddit-status').textContent = statusLabel;
-      cacheSet('reddit2', redditEl.innerHTML, statusLabel);
+      cacheSet('reddit3', redditEl.innerHTML, statusLabel);
     } catch(e) {
-      // Reddit proxy failed — falling back to static data
-      // Proxy failed — fall back to static data
+      // Everything failed: show the built-in sample posts, but don't cache
+      // them, so the next load tries Reddit again instead of serving samples
+      // as real posts for 3 hours.
       redditEl.innerHTML = renderReddit(REDDIT_FALLBACK);
-      const statusLabel = 'Cached · ' + subs.map(function(s) { return 'r/' + s; }).join(', ');
-      document.getElementById('reddit-status').textContent = statusLabel;
-      cacheSet('reddit2', redditEl.innerHTML, statusLabel);
+      document.getElementById('reddit-status').textContent = 'Offline \u00B7 sample posts';
     }
   }
 
@@ -5878,7 +5909,7 @@ onAuthStateChanged(auth, user => {
 
     // Load cached versions immediately (fresh or stale)
     const cachedStocks   = cacheGet('stocks',      60 * 60 * 1000);       // 1hr
-    const cachedReddit   = cacheGet('reddit2',      3 * 60 * 60 * 1000);   // 3hrs
+    const cachedReddit   = cacheGet('reddit3',      3 * 60 * 60 * 1000);   // 3hrs
     const cachedDeals    = cacheGet('deals',        4 * 60 * 60 * 1000);  // 4hrs
     if (cachedStocks) {
       stocksEl.innerHTML = cachedStocks.data;
