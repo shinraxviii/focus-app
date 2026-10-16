@@ -3545,11 +3545,15 @@ onAuthStateChanged(auth, user => {
       </div>
     </div>
 
-    <!-- CAL FOOTBALL SCHEDULE — season is set by CAL_FOOTBALL_SEASON in the script -->
+    <!-- SCHEDULE: the dropdown lists SPORTS_TEAMS; Cal Football's season is set by CAL_FOOTBALL_SEASON in the script -->
     <div class="digest-card full-width" id="cal-schedule-card">
       <div class="digest-card-header">
-        <span class="digest-card-title" id="cal-schedule-title">Cal Football</span>
+        <span class="digest-card-title" id="cal-schedule-title">Schedule</span>
         <span class="digest-card-updated" id="cal-schedule-updated"></span>
+      </div>
+      <div class="standings-controls">
+        <select id="schedule-team" class="standings-select" aria-label="Team to show the schedule for"></select>
+        <span class="standings-summary" id="schedule-summary"></span>
       </div>
       <div class="cfb-list" id="cal-schedule-list">
         <span class="digest-loading">Loading...</span>
@@ -4275,6 +4279,7 @@ onAuthStateChanged(auth, user => {
     await loadPrefsFromCloud();
     renderRedditTags(); // refresh tags after cloud prefs loaded
     applyStandingsPick(); // the Standings team picked on another device
+    applySchedulePick();  // same for the Schedule card
     loadDigest(); // preload digest data in background
     if (window._d20OnUserReady) window._d20OnUserReady(); // merge the roll log from the cloud
   };
@@ -5361,7 +5366,7 @@ onAuthStateChanged(auth, user => {
     loadDigest._sessionLoaded = true;
     loadSports();
     loadStandings();
-    loadCalSchedule();
+    loadSchedule();
     await loadLiveData();
     await loadDailyData();
   }
@@ -5375,7 +5380,7 @@ onAuthStateChanged(auth, user => {
     localStorage.removeItem('focus-digest-sealed-prices');
     localStorage.removeItem('focus-digest-' + CFB_CACHE_KEY);
     Object.keys(localStorage)
-      .filter(function(k) { return k.startsWith('focus-digest-standings-'); })
+      .filter(function(k) { return k.startsWith('focus-digest-standings-') || k.startsWith('focus-digest-sched-'); })
       .forEach(function(k) { localStorage.removeItem(k); });
 
     // Tier 2: Refresh if older than 1 hour
@@ -5397,7 +5402,7 @@ onAuthStateChanged(auth, user => {
     await Promise.all([
       loadSports(),
       loadStandings(),
-      loadCalSchedule(),
+      loadSchedule(),
       loadLiveData(),
       loadDailyData(),
       loadSealedPrices(),
@@ -5553,6 +5558,7 @@ onAuthStateChanged(auth, user => {
       'sports':       ['🏀', "Scoreboard went offline"],
       'cfb':          ['🐻', "Cal schedule went offline"],
       'standings':    ['📊', "Standings went offline"],
+      'schedule':     ['📅', "Schedule went offline"],
       'weather':      ['🌫', "Sky report unavailable"],
     };
     const [emoji, msg] = map[key] || ['😵', "Something went sideways"];
@@ -5611,6 +5617,8 @@ onAuthStateChanged(auth, user => {
       const prefs = { redditSubs: getRedditSubs() };
       const standingsTeam = getStandingsTeamName();
       if (standingsTeam) prefs.standingsTeam = standingsTeam;
+      const scheduleTeam = getScheduleTeamName();
+      if (scheduleTeam) prefs.scheduleTeam = scheduleTeam;
       await window._fbSavePrefs(prefs);
     } catch(e) { /* silent fail, localStorage is the fallback */ }
   }
@@ -5623,6 +5631,9 @@ onAuthStateChanged(auth, user => {
       }
       if (prefs && typeof prefs.standingsTeam === 'string' && prefs.standingsTeam) {
         localStorage.setItem(STANDINGS_TEAM_KEY, prefs.standingsTeam);
+      }
+      if (prefs && typeof prefs.scheduleTeam === 'string' && prefs.scheduleTeam) {
+        localStorage.setItem(SCHEDULE_TEAM_KEY, prefs.scheduleTeam);
       }
     } catch(e) { /* silent fail */ }
   }
@@ -8759,11 +8770,16 @@ onAuthStateChanged(auth, user => {
     return tiles ? '<div class="cfb-stats">' + tiles + '</div>' : '';
   }
 
-  function renderCalSchedule(data) {
-    const games = (data && data.games) || [];
+  // With a team (any SPORTS_TEAMS entry but Cal Football), renders that
+  // team's ESPN schedule: same rows, no betting lines or FPI tiles, and long
+  // seasons trimmed to recent results plus the next few games.
+  function renderCalSchedule(data, team) {
+    const generic = !!team;
+    const win = generic ? scheduleWindow((data && data.games) || []) : null;
+    const games = generic ? win.games : ((data && data.games) || []);
     const abbrev = (data && data.team && data.team.abbrev) || 'CAL';
     if (!games.length) {
-      return '<span class="digest-loading">No ' + CAL_FOOTBALL_SEASON + ' games posted yet</span>';
+      return '<span class="digest-loading">No ' + (generic ? '' : CAL_FOOTBALL_SEASON + ' ') + 'games posted yet</span>';
     }
     const now = Date.now();
     const nextGame = games.find(g => g.state === 'pre' && new Date(g.date).getTime() > now - 6 * 3600e3);
@@ -8790,7 +8806,7 @@ onAuthStateChanged(auth, user => {
       const logoUrl = escUrl(opp.logo || '');
       const logo = logoUrl ? '<img class="cfb-logo" src="' + logoUrl + '" alt="" loading="lazy" onerror="this.style.display=\'none\'">' : '';
       const place = [venue.name, [venue.city, venue.state].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
-      const meta = [dateStr, place || (g.home ? 'Berkeley, CA' : ''), (!g.completed && g.broadcast) ? g.broadcast : '']
+      const meta = [dateStr, place || (g.home && !generic ? 'Berkeley, CA' : ''), (!g.completed && g.broadcast) ? g.broadcast : '']
         .filter(Boolean).map(esc).join(' · ');
       const week = g.week ? '<span class="cfb-week">' + (g.seasonType === 3 ? 'BOWL' : 'WK ' + esc(g.week)) + '</span>' : '';
 
@@ -8798,7 +8814,15 @@ onAuthStateChanged(auth, user => {
       const lineTxt = cfbLineText(g, abbrev);
       const ouTxt = g.odds && g.odds.overUnder !== null && g.odds.overUnder !== undefined ? 'O/U ' + g.odds.overUnder : '';
       let main, mainClass, color, sub;
-      if (isLive) {
+      if (generic) {
+        // No betting lines here: live clock, final detail, or nothing.
+        if (isLive) { main = 'LIVE'; mainClass = 'cfb-result'; color = 'var(--live-color)'; sub = '<span class="sport-live-clock">' + esc(g.detail || 'In progress') + '</span>'; }
+        else if (g.completed) {
+          main = g.result || '—'; mainClass = 'cfb-result';
+          color = g.result === 'W' ? 'var(--win-color)' : g.result === 'L' ? 'var(--loss-color)' : 'var(--text-muted)';
+          sub = esc(g.detail && g.detail !== 'Final' && g.detail !== 'FT' ? g.detail : '');
+        } else { main = timeStr; mainClass = 'cfb-result--next'; color = isNext ? '#1e90ff' : 'var(--text-muted)'; sub = ''; }
+      } else if (isLive) {
         main = 'LIVE'; mainClass = 'cfb-result'; color = 'var(--live-color)';
         sub = '<span class="sport-live-clock">' + esc(g.detail || 'In progress') + '</span>' + (lineTxt ? ' · ' + esc(lineTxt) : '');
       } else if (g.completed) {
@@ -8813,7 +8837,7 @@ onAuthStateChanged(auth, user => {
         main = timeStr; mainClass = 'cfb-result--next'; color = isNext ? '#1e90ff' : 'var(--text-muted)';
         sub = [lineTxt ? esc(lineTxt) : 'line TBD', ouTxt ? esc(ouTxt) : ''].filter(Boolean).join(' · ');
       }
-      const score = g.score ? '<span class="cfb-score">' + esc(g.score.us) + '–' + esc(g.score.them) + '</span>' : '';
+      const score = g.score ? '<span class="cfb-score">' + esc(String(g.score.us)) + '–' + esc(String(g.score.them)) + '</span>' : '';
       const rowClass = isLive ? ' cfb-row--live' : isNext ? ' cfb-row--next' : '';
       const safeUrl = escUrl(g.url);
       const tag = safeUrl ? 'a' : 'div';
@@ -8835,6 +8859,14 @@ onAuthStateChanged(auth, user => {
     const half = rows.length > 4 ? Math.ceil(rows.length / 2) : rows.length;
     const cols = [rows.slice(0, half), rows.slice(half)].filter(c => c.length)
       .map(c => '<div class="cfb-col">' + c.join('') + '</div>').join('');
+    if (generic) {
+      const link = escUrl(data.link || '');
+      return '<div class="cfb-cols">' + cols + '</div>'
+        + '<div class="cfb-footer">'
+        +   '<span>' + (win.trimmed ? 'Recent and upcoming games · ' : '') + 'times shown in your local time</span>'
+        +   (link ? '<a href="' + link + '" target="_blank" rel="noopener" class="digest-section-link">Full schedule on ESPN ↗</a>' : '')
+        + '</div>';
+    }
     const oddsSrc = (games.find(g => g.odds && g.odds.provider) || { odds: {} }).odds.provider;
     return renderFpiTiles(data.fpiTrend) + renderFpiDebug() + '<div class="cfb-cols">' + cols + '</div>'
       + '<div class="cfb-footer">'
@@ -8999,10 +9031,11 @@ onAuthStateChanged(auth, user => {
 
   async function loadCalSchedule() {
     const list  = document.getElementById('cal-schedule-list');
-    const title = document.getElementById('cal-schedule-title');
+    const summary = document.getElementById('schedule-summary');
     const upd   = document.getElementById('cal-schedule-updated');
     if (!list) return;
-    if (title) title.textContent = 'Cal Football ' + CAL_FOOTBALL_SEASON;
+    if (summary) summary.textContent = CAL_FOOTBALL_SEASON + ' season';
+    const token = loadSchedule._token;
 
     const cached = cacheGet(CFB_CACHE_KEY, CFB_CACHE_TTL);
     if (cached) {
@@ -9011,6 +9044,8 @@ onAuthStateChanged(auth, user => {
       return;
     }
 
+    list.innerHTML = '<span class="digest-loading">Loading...</span>';
+    if (upd) upd.textContent = '';
     try {
       // Schedule, scores, times and venues come straight from ESPN in the
       // browser — the same endpoint and fetch path the Sports card uses.
@@ -9038,10 +9073,12 @@ onAuthStateChanged(auth, user => {
 
       const html  = renderCalSchedule(data);
       const label = calScheduleLabel(data);
+      if (data.games.length && !fpiDebugOn()) cacheSet(CFB_CACHE_KEY, html, label);
+      if (token !== loadSchedule._token) return;  // the dropdown moved on
       list.innerHTML = html;
       if (upd) upd.textContent = label;
-      if (data.games.length && !fpiDebugOn()) cacheSet(CFB_CACHE_KEY, html, label);
     } catch (e) {
+      if (token !== loadSchedule._token) return;
       const stale = cacheGetStale(CFB_CACHE_KEY);
       list.innerHTML = stale
         ? stale.data + '<div class="digest-stale">stale · ' + cacheAge(stale.ts) + '</div>'
@@ -9050,6 +9087,199 @@ onAuthStateChanged(auth, user => {
   }
   window.loadCalSchedule = loadCalSchedule;     // console debugging
   window.renderCalSchedule = renderCalSchedule; // console debugging
+
+  // ── SCHEDULE CARD: TEAM DROPDOWN ───────────────────────────
+  // The dropdown lists SPORTS_TEAMS, like Standings, with its own pick.
+  // Cal Football keeps its full card above (betting lines, FPI tiles, proxy
+  // fallback); every other team gets its ESPN team schedule. The pick is
+  // stored by team name and synced with the other prefs.
+  const SCHEDULE_TEAM_KEY = 'focus-schedule-team';
+  const SCHEDULE_DEFAULT_TEAM = 'Cal Football'; // shown until a team is picked from the dropdown
+  const SCHED_CACHE_TTL = 10 * 60 * 1000;
+  const SCHED_RECENT = 5, SCHED_UPCOMING = 8;    // long seasons show a window around today
+
+  function scheduleSavedIndex() {
+    let raw = null;
+    try { raw = localStorage.getItem(SCHEDULE_TEAM_KEY); } catch (_) {}
+    const byName = raw ? SPORTS_TEAMS.findIndex(function(t) { return t.name === raw; }) : -1;
+    if (byName >= 0) return byName;
+    const def = SPORTS_TEAMS.findIndex(function(t) { return t.name === SCHEDULE_DEFAULT_TEAM; });
+    return def >= 0 ? def : 0;
+  }
+
+  function getScheduleTeamName() {
+    let raw = null;
+    try { raw = localStorage.getItem(SCHEDULE_TEAM_KEY); } catch (_) {}
+    if (!raw) return null;
+    const t = SPORTS_TEAMS[scheduleSavedIndex()];
+    return t ? t.name : null;
+  }
+
+  function scheduleSelectedTeam() {
+    const sel = document.getElementById('schedule-team');
+    const idx = sel ? parseInt(sel.value, 10) : NaN;
+    return SPORTS_TEAMS[isNaN(idx) ? scheduleSavedIndex() : idx] || SPORTS_TEAMS[scheduleSavedIndex()];
+  }
+
+  (function initScheduleSelect() {
+    const sel = document.getElementById('schedule-team');
+    if (!sel) return;
+    sel.innerHTML = SPORTS_TEAMS.map(function(t, i) {
+      return '<option value="' + i + '">' + esc(t.name) + '</option>';
+    }).join('');
+    sel.value = String(scheduleSavedIndex());
+    sel.addEventListener('change', function() {
+      const t = SPORTS_TEAMS[parseInt(sel.value, 10)];
+      try { if (t) localStorage.setItem(SCHEDULE_TEAM_KEY, t.name); } catch (_) {}
+      savePrefsToCloud();
+      loadSchedule();
+    });
+  })();
+
+  // Re-select the saved team after cloud prefs land; reload only if it changed.
+  function applySchedulePick() {
+    const sel = document.getElementById('schedule-team');
+    if (!sel) return;
+    const want = String(scheduleSavedIndex());
+    if (sel.value === want) return;
+    sel.value = want;
+    loadSchedule();
+  }
+
+  function isCalFootball(t) {
+    return t.league_path === 'college-football' && String(t.espnId) === CAL_FOOTBALL_ESPN_ID;
+  }
+
+  function loadSchedule() {
+    loadSchedule._token = (loadSchedule._token || 0) + 1;
+    const t = scheduleSelectedTeam();
+    if (!t) return Promise.resolve();
+    return isCalFootball(t) ? loadCalSchedule() : loadTeamSchedule(t);
+  }
+  window.loadSchedule = loadSchedule;  // console debugging
+
+  // ESPN site paths for a team (game pages, the team's schedule page).
+  function espnSiteSlug(t) {
+    return t.sport === 'soccer' ? 'soccer' : t.league_path;  // nba, mlb, nhl, college paths
+  }
+
+  // One ESPN team-schedule response → the game objects renderCalSchedule reads.
+  function parseTeamSchedule(t, sd) {
+    const scoreOf = c => {
+      const v = c && c.score && typeof c.score === 'object' ? (c.score.value ?? c.score.displayValue) : (c && c.score);
+      const n = parseFloat(v); return Number.isFinite(n) ? n : null;
+    };
+    const isUs = c => String(c.id) === String(t.espnId) || String(c.team && c.team.id) === String(t.espnId)
+      || (c.team && c.team.abbreviation === t.abbrev);
+    return (sd.events || []).map(ev => {
+      const comp = ev.competitions && ev.competitions[0];
+      if (!comp) return null;
+      const us = (comp.competitors || []).find(isUs);
+      const them = (comp.competitors || []).find(c => c !== us);
+      if (!us || !them) return null;
+      const st = (comp.status && comp.status.type) || {};
+      const state = st.state === 'in' ? 'in' : (st.completed || st.state === 'post') ? 'post' : 'pre';
+      const s1 = scoreOf(us), s2 = scoreOf(them);
+      const hasScore = state !== 'pre' && s1 !== null && s2 !== null;
+      const rank = them.curatedRank && them.curatedRank.current;
+      const result = state !== 'post' ? null
+        : us.winner === true ? 'W' : them.winner === true ? 'L'
+        : hasScore ? (s1 > s2 ? 'W' : s1 < s2 ? 'L' : 'D') : null;
+      return {
+        id: String(ev.id), week: t.sport === 'football' ? (ev.week && ev.week.number) : null,
+        seasonType: ev.seasonType && ev.seasonType.type,
+        date: ev.date, timeValid: comp.timeValid !== false, state, completed: state === 'post',
+        detail: st.shortDetail || '', home: us.homeAway === 'home', neutral: comp.neutralSite === true,
+        opponent: { id: String((them.team && them.team.id) || them.id || ''),
+                    logo: (them.team && them.team.logos && them.team.logos[0] && them.team.logos[0].href) || (them.team && them.team.logo) || '',
+                    name: them.team && them.team.displayName, short: them.team && (them.team.shortDisplayName || them.team.displayName),
+                    abbrev: them.team && them.team.abbreviation, rank: rank >= 1 && rank <= 25 ? rank : null,
+                    record: (Array.isArray(them.record) && them.record[0] && them.record[0].summary) || (them.records && them.records[0] && them.records[0].summary) || '' },
+        venue: { name: comp.venue && comp.venue.fullName, city: comp.venue && comp.venue.address && comp.venue.address.city,
+                 state: comp.venue && comp.venue.address && comp.venue.address.state },
+        broadcast: (comp.broadcasts && comp.broadcasts[0] && comp.broadcasts[0].media && comp.broadcasts[0].media.shortName) || '',
+        score: hasScore ? { us: s1, them: s2 } : null,
+        result,
+        odds: null,
+        url: 'https://www.espn.com/' + espnSiteSlug(t) + '/game/_/gameId/' + encodeURIComponent(ev.id),
+      };
+    }).filter(Boolean);
+  }
+
+  // ESPN's team schedule. The default request is the regular season (or, for
+  // soccer, results so far), so the postseason / upcoming fixtures are asked
+  // for alongside it and merged in. Extra requests are best-effort.
+  async function fetchTeamSchedule(t) {
+    const base = 'https://site.api.espn.com/apis/site/v2/sports/' + t.sport + '/' + t.league_path
+      + '/teams/' + encodeURIComponent(t.espnId) + '/schedule';
+    const extra = t.sport === 'soccer' ? '?fixture=true' : '?seasontype=3';
+    const get = url => fetchWithTimeout(url, TIMEOUT_DEFAULT).then(r => {
+      if (!r.ok) throw new Error('ESPN schedule ' + r.status);
+      return r.json();
+    });
+    const [main, more] = await Promise.all([get(base), get(base + extra).catch(() => null)]);
+    const byId = {};
+    [main, more].filter(Boolean).forEach(sd => parseTeamSchedule(t, sd).forEach(g => { byId[g.id] = g; }));
+    const games = Object.values(byId).sort((a, b) => new Date(a.date) - new Date(b.date));
+    const team = main.team || {};
+    // Team page ".../team/_/name/lal/..." → its schedule page ".../team/schedule/_/name/lal/...".
+    const page = team.clubhouse || ((team.links || []).map(l => l && l.href).find(h => /\/team\/_\//.test(h || '')) || '');
+    const schedPage = t.sport === 'soccer' ? 'fixtures' : 'schedule';
+    const link = /\/team\/_\//.test(page) ? page.replace('/team/_/', '/team/' + schedPage + '/_/')
+      : 'https://www.espn.com/' + espnSiteSlug(t) + '/team/' + schedPage + '/_/id/' + encodeURIComponent(t.espnId);
+    return {
+      team: { abbrev: team.abbreviation || t.abbrev,
+              record: team.recordSummary || (team.record && team.record.items && team.record.items[0] && team.record.items[0].summary) || '' },
+      link,
+      games,
+    };
+  }
+
+  // A pro season is 80+ games: show the last few results and the next few.
+  function scheduleWindow(games) {
+    if (games.length <= SCHED_RECENT + SCHED_UPCOMING) return { games, trimmed: false };
+    let firstOpen = games.findIndex(g => !g.completed);
+    if (firstOpen < 0) firstOpen = games.length;
+    const start = Math.max(0, firstOpen - SCHED_RECENT);
+    return { games: games.slice(start, start + SCHED_RECENT + SCHED_UPCOMING), trimmed: true };
+  }
+
+  async function loadTeamSchedule(t) {
+    const list    = document.getElementById('cal-schedule-list');
+    const summary = document.getElementById('schedule-summary');
+    const upd     = document.getElementById('cal-schedule-updated');
+    if (!list) return;
+    const token = loadSchedule._token;
+    const key = 'sched-' + t.league_path + '-' + t.espnId;
+    if (summary) summary.textContent = t.league;
+
+    const cached = cacheGet(key, SCHED_CACHE_TTL);
+    if (cached) {
+      list.innerHTML = cached.data;
+      if (upd) upd.textContent = cached.label || '';
+      return;
+    }
+
+    list.innerHTML = '<span class="digest-loading">Loading...</span>';
+    if (upd) upd.textContent = '';
+    try {
+      const data = await fetchTeamSchedule(t);
+      const html  = renderCalSchedule(data, t);
+      const record = String(data.team.record || '').replace(/-/g, '–');
+      const label = [record, asOfNow()].filter(Boolean).join(' · ');
+      if (data.games.length) cacheSet(key, html, label);
+      if (token !== loadSchedule._token) return;  // the dropdown moved on
+      list.innerHTML = html;
+      if (upd) upd.textContent = label;
+    } catch (e) {
+      if (token !== loadSchedule._token) return;
+      const stale = cacheGetStale(key);
+      list.innerHTML = stale
+        ? stale.data + '<div class="digest-stale">stale · ' + cacheAge(stale.ts) + '</div>'
+        : _errorHTML('schedule');
+    }
+  }
+  window.loadTeamSchedule = loadTeamSchedule;   // console debugging
 
   // ── ANALYTICS
   // ── ANALYTICS ────────────────────────────────────────────────
