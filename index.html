@@ -3254,6 +3254,11 @@
   .d20-stat-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; }
   .die-footer-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
   #d20-card, #d20-rolls-card, #d6-rolls-card { scroll-margin-top: 16px; }
+  /* D20 and D6 roll analytics sit side by side on desktop, stacked on phones. */
+  @media (min-width: 701px) {
+    .dice-rolls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+    .dice-rolls-grid > .stat-card { margin-top: 0; min-width: 0; }
+  }
   .d20-link {
     font: inherit; font-size: 10px; background: none; border: 0; padding: 0; cursor: pointer;
     color: var(--text-muted); text-decoration: underline; text-underline-offset: 3px;
@@ -4007,6 +4012,7 @@ onAuthStateChanged(auth, user => {
   </div>
 
   <!-- D20 ROLLS -->
+  <div class="dice-rolls-grid">
   <div class="analytics-card stat-card" id="d20-rolls-card">
     <div class="stat-card-header">
       <div>
@@ -4066,6 +4072,7 @@ onAuthStateChanged(auth, user => {
       <button type="button" class="d20-link" id="d6-rolls-clear">Clear roll history</button>
     </div>
   </div>
+  </div><!-- /dice-rolls-grid -->
 
 </div>
 
