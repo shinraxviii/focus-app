@@ -5616,9 +5616,9 @@ onAuthStateChanged(auth, user => {
     try {
       const prefs = { redditSubs: getRedditSubs() };
       const standingsTeam = getStandingsTeamName();
-      if (standingsTeam) prefs.standingsTeam = standingsTeam;
+      if (standingsTeam) { prefs.standingsTeam = standingsTeam; prefs.standingsPickedAt = sportsPickAt(STANDINGS_TEAM_KEY); }
       const scheduleTeam = getScheduleTeamName();
-      if (scheduleTeam) prefs.scheduleTeam = scheduleTeam;
+      if (scheduleTeam) { prefs.scheduleTeam = scheduleTeam; prefs.schedulePickedAt = sportsPickAt(SCHEDULE_TEAM_KEY); }
       await window._fbSavePrefs(prefs);
     } catch(e) { /* silent fail, localStorage is the fallback */ }
   }
@@ -5630,10 +5630,10 @@ onAuthStateChanged(auth, user => {
         localStorage.setItem('focus-digest-reddit-subs', JSON.stringify(prefs.redditSubs));
       }
       if (prefs && typeof prefs.standingsTeam === 'string' && prefs.standingsTeam) {
-        localStorage.setItem(STANDINGS_TEAM_KEY, prefs.standingsTeam);
+        sportsPickSet(STANDINGS_TEAM_KEY, prefs.standingsTeam, prefs.standingsPickedAt);
       }
       if (prefs && typeof prefs.scheduleTeam === 'string' && prefs.scheduleTeam) {
-        localStorage.setItem(SCHEDULE_TEAM_KEY, prefs.scheduleTeam);
+        sportsPickSet(SCHEDULE_TEAM_KEY, prefs.scheduleTeam, prefs.schedulePickedAt);
       }
     } catch(e) { /* silent fail */ }
   }
@@ -7995,6 +7995,50 @@ onAuthStateChanged(auth, user => {
     { name: 'Venezia FC',   league: 'Serie A', sport: 'soccer',     league_path: 'ita.1',                  espnId: '17530', abbrev: 'VEN' },
   ];
 
+  // Which team the Standings and Schedule dropdowns open on, by time of year.
+  // Each window runs from its start date until the next one starts:
+  // Cal Football 9/1–12/15, Cal Basketball 12/16–3/1, Dodgers 3/2–8/31.
+  // A manual pick sticks (and syncs) until the next window starts.
+  const SPORTS_SEASONS = [
+    { month: 3,  day: 2,  team: 'LA Dodgers' },
+    { month: 9,  day: 1,  team: 'Cal Football' },
+    { month: 12, day: 16, team: 'Cal Basketball' },
+  ];
+  // The current window: its team and the local-time moment it started.
+  function sportsSeason(now) {
+    now = now || new Date();
+    let best = null;
+    [now.getFullYear(), now.getFullYear() - 1].forEach(function(y) {
+      SPORTS_SEASONS.forEach(function(w) {
+        const start = new Date(y, w.month - 1, w.day);
+        if (start <= now && (!best || start > best.start)) best = { team: w.team, start: start };
+      });
+    });
+    return best;
+  }
+  function sportsSeasonDefaultIndex() {
+    const i = SPORTS_TEAMS.findIndex(function(t) { return t.name === sportsSeason().team; });
+    return i >= 0 ? i : 0;
+  }
+  // A saved dropdown pick, or null once a new window has started since it was made.
+  function sportsPickGet(key) {
+    try {
+      const raw = localStorage.getItem(key);
+      const at = parseInt(localStorage.getItem(key + '-at'), 10);
+      if (!raw || !(at >= sportsSeason().start.getTime())) return null;
+      return raw;
+    } catch (_) { return null; }
+  }
+  function sportsPickAt(key) {
+    try { return sportsPickGet(key) ? parseInt(localStorage.getItem(key + '-at'), 10) : null; } catch (_) { return null; }
+  }
+  function sportsPickSet(key, name, at) {
+    try {
+      localStorage.setItem(key, name);
+      if (at) localStorage.setItem(key + '-at', String(at)); else localStorage.removeItem(key + '-at');
+    } catch (_) {}
+  }
+
   async function loadSports() {
     const list = document.getElementById('sports-list');
 
@@ -8196,13 +8240,10 @@ onAuthStateChanged(auth, user => {
   // full table) with the team's row highlighted. Adding a team to
   // SPORTS_TEAMS adds it to the dropdown automatically.
   // The pick is stored by team name (not dropdown position) and synced with
-  // the other prefs, so every device shows the same team.
+  // the other prefs, so every device shows the same team. With no pick in the
+  // current season window, it opens on that window's team (SPORTS_SEASONS).
   const STANDINGS_TEAM_KEY = 'focus-standings-team';
-  const STANDINGS_DEFAULT_TEAM = 'Cal Football'; // shown until a team is picked from the dropdown
-  function standingsDefaultIndex() {
-    const i = SPORTS_TEAMS.findIndex(function(t) { return t.name === STANDINGS_DEFAULT_TEAM; });
-    return i >= 0 ? i : 0;
-  }
+  function standingsDefaultIndex() { return sportsSeasonDefaultIndex(); }
 
   // Columns per sport. Each column tries the listed ESPN stat names /
   // abbreviations in order; a column no entry can fill is dropped, so the
@@ -8449,28 +8490,22 @@ onAuthStateChanged(auth, user => {
     sel.value = String(standingsSavedIndex());
     sel.addEventListener('change', function() {
       const t = SPORTS_TEAMS[parseInt(sel.value, 10)];
-      try { if (t) localStorage.setItem(STANDINGS_TEAM_KEY, t.name); } catch (_) {}
+      if (t) sportsPickSet(STANDINGS_TEAM_KEY, t.name, Date.now());
       savePrefsToCloud();
       loadStandings();
     });
   })();
 
-  // Index of the saved team. Older saves held the dropdown index, so a bare
-  // number is still read as one.
+  // Index of the saved team, or the season's team when there is no pick
+  // from the current window.
   function standingsSavedIndex() {
-    let raw = null;
-    try { raw = localStorage.getItem(STANDINGS_TEAM_KEY); } catch (_) {}
-    if (raw == null || raw === '') return standingsDefaultIndex();
-    const byName = SPORTS_TEAMS.findIndex(function(t) { return t.name === raw; });
-    if (byName >= 0) return byName;
-    const n = /^\d+$/.test(raw) ? parseInt(raw, 10) : NaN;
-    return n >= 0 && n < SPORTS_TEAMS.length ? n : standingsDefaultIndex();
+    const raw = sportsPickGet(STANDINGS_TEAM_KEY);
+    const byName = raw ? SPORTS_TEAMS.findIndex(function(t) { return t.name === raw; }) : -1;
+    return byName >= 0 ? byName : standingsDefaultIndex();
   }
 
   function getStandingsTeamName() {
-    let raw = null;
-    try { raw = localStorage.getItem(STANDINGS_TEAM_KEY); } catch (_) {}
-    if (raw == null || raw === '') return null;
+    if (!sportsPickGet(STANDINGS_TEAM_KEY)) return null;
     const t = SPORTS_TEAMS[standingsSavedIndex()];
     return t ? t.name : null;
   }
@@ -9092,25 +9127,20 @@ onAuthStateChanged(auth, user => {
   // The dropdown lists SPORTS_TEAMS, like Standings, with its own pick.
   // Cal Football keeps its full card above (betting lines, FPI tiles, proxy
   // fallback); every other team gets its ESPN team schedule. The pick is
-  // stored by team name and synced with the other prefs.
+  // stored by team name and synced with the other prefs; with no pick in the
+  // current season window, it opens on that window's team (SPORTS_SEASONS).
   const SCHEDULE_TEAM_KEY = 'focus-schedule-team';
-  const SCHEDULE_DEFAULT_TEAM = 'Cal Football'; // shown until a team is picked from the dropdown
   const SCHED_CACHE_TTL = 10 * 60 * 1000;
   const SCHED_RECENT = 5, SCHED_UPCOMING = 8;    // long seasons show a window around today
 
   function scheduleSavedIndex() {
-    let raw = null;
-    try { raw = localStorage.getItem(SCHEDULE_TEAM_KEY); } catch (_) {}
+    const raw = sportsPickGet(SCHEDULE_TEAM_KEY);
     const byName = raw ? SPORTS_TEAMS.findIndex(function(t) { return t.name === raw; }) : -1;
-    if (byName >= 0) return byName;
-    const def = SPORTS_TEAMS.findIndex(function(t) { return t.name === SCHEDULE_DEFAULT_TEAM; });
-    return def >= 0 ? def : 0;
+    return byName >= 0 ? byName : sportsSeasonDefaultIndex();
   }
 
   function getScheduleTeamName() {
-    let raw = null;
-    try { raw = localStorage.getItem(SCHEDULE_TEAM_KEY); } catch (_) {}
-    if (!raw) return null;
+    if (!sportsPickGet(SCHEDULE_TEAM_KEY)) return null;
     const t = SPORTS_TEAMS[scheduleSavedIndex()];
     return t ? t.name : null;
   }
@@ -9130,7 +9160,7 @@ onAuthStateChanged(auth, user => {
     sel.value = String(scheduleSavedIndex());
     sel.addEventListener('change', function() {
       const t = SPORTS_TEAMS[parseInt(sel.value, 10)];
-      try { if (t) localStorage.setItem(SCHEDULE_TEAM_KEY, t.name); } catch (_) {}
+      if (t) sportsPickSet(SCHEDULE_TEAM_KEY, t.name, Date.now());
       savePrefsToCloud();
       loadSchedule();
     });
