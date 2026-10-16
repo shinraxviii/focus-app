@@ -4274,6 +4274,7 @@ onAuthStateChanged(auth, user => {
     await loadFromCloud();
     await loadPrefsFromCloud();
     renderRedditTags(); // refresh tags after cloud prefs loaded
+    applyStandingsPick(); // the Standings team picked on another device
     loadDigest(); // preload digest data in background
     if (window._d20OnUserReady) window._d20OnUserReady(); // merge the roll log from the cloud
   };
@@ -5608,6 +5609,8 @@ onAuthStateChanged(auth, user => {
   async function savePrefsToCloud() {
     try {
       const prefs = { redditSubs: getRedditSubs() };
+      const standingsTeam = getStandingsTeamName();
+      if (standingsTeam) prefs.standingsTeam = standingsTeam;
       await window._fbSavePrefs(prefs);
     } catch(e) { /* silent fail, localStorage is the fallback */ }
   }
@@ -5617,6 +5620,9 @@ onAuthStateChanged(auth, user => {
       const prefs = await window._fbLoadPrefs();
       if (prefs && prefs.redditSubs && prefs.redditSubs.length) {
         localStorage.setItem('focus-digest-reddit-subs', JSON.stringify(prefs.redditSubs));
+      }
+      if (prefs && typeof prefs.standingsTeam === 'string' && prefs.standingsTeam) {
+        localStorage.setItem(STANDINGS_TEAM_KEY, prefs.standingsTeam);
       }
     } catch(e) { /* silent fail */ }
   }
@@ -8178,6 +8184,8 @@ onAuthStateChanged(auth, user => {
   // is the ESPN standings group that team sits in (conference, league, or
   // full table) with the team's row highlighted. Adding a team to
   // SPORTS_TEAMS adds it to the dropdown automatically.
+  // The pick is stored by team name (not dropdown position) and synced with
+  // the other prefs, so every device shows the same team.
   const STANDINGS_TEAM_KEY = 'focus-standings-team';
   const STANDINGS_DEFAULT_TEAM = 'Cal Football'; // shown until a team is picked from the dropdown
   function standingsDefaultIndex() {
@@ -8427,15 +8435,44 @@ onAuthStateChanged(auth, user => {
     sel.innerHTML = SPORTS_TEAMS.map(function(t, i) {
       return '<option value="' + i + '">' + esc(t.name) + '</option>';
     }).join('');
-    let saved = NaN;
-    try { saved = parseInt(localStorage.getItem(STANDINGS_TEAM_KEY), 10); } catch (_) {}
-    if (isNaN(saved) || saved < 0 || saved >= SPORTS_TEAMS.length) saved = standingsDefaultIndex();
-    sel.value = String(saved);
+    sel.value = String(standingsSavedIndex());
     sel.addEventListener('change', function() {
-      try { localStorage.setItem(STANDINGS_TEAM_KEY, sel.value); } catch (_) {}
+      const t = SPORTS_TEAMS[parseInt(sel.value, 10)];
+      try { if (t) localStorage.setItem(STANDINGS_TEAM_KEY, t.name); } catch (_) {}
+      savePrefsToCloud();
       loadStandings();
     });
   })();
+
+  // Index of the saved team. Older saves held the dropdown index, so a bare
+  // number is still read as one.
+  function standingsSavedIndex() {
+    let raw = null;
+    try { raw = localStorage.getItem(STANDINGS_TEAM_KEY); } catch (_) {}
+    if (raw == null || raw === '') return standingsDefaultIndex();
+    const byName = SPORTS_TEAMS.findIndex(function(t) { return t.name === raw; });
+    if (byName >= 0) return byName;
+    const n = /^\d+$/.test(raw) ? parseInt(raw, 10) : NaN;
+    return n >= 0 && n < SPORTS_TEAMS.length ? n : standingsDefaultIndex();
+  }
+
+  function getStandingsTeamName() {
+    let raw = null;
+    try { raw = localStorage.getItem(STANDINGS_TEAM_KEY); } catch (_) {}
+    if (raw == null || raw === '') return null;
+    const t = SPORTS_TEAMS[standingsSavedIndex()];
+    return t ? t.name : null;
+  }
+
+  // Re-select the saved team after cloud prefs land; reload only if it changed.
+  function applyStandingsPick() {
+    const sel = document.getElementById('standings-team');
+    if (!sel) return;
+    const want = String(standingsSavedIndex());
+    if (sel.value === want) return;
+    sel.value = want;
+    loadStandings();
+  }
 
   async function loadStandings() {
     const list = document.getElementById('standings-list');
