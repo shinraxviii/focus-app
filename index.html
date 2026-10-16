@@ -7672,7 +7672,8 @@ onAuthStateChanged(auth, user => {
   // ── STANDARD META (Digest › Magic) ────────────────────────
   // Events: the last 7 days of MTGO Leagues and Challenges, grouped into
   // archetypes by the focus-proxy /api/standard-meta route. Arena (the first
-  // tab): BO1 ladder stats from Untapped.gg via /api/arena-meta. The 7-day trend comes from daily share snapshots kept in this
+  // tab): BO1 ladder stats from Untapped.gg via /api/arena-meta, Platinum rank
+  // and above, for the current meta period. The 7-day trend comes from daily share snapshots kept in this
   // browser (META_HISTORY_KEY); anything older than META_HISTORY_DAYS is
   // pruned on every save so the history never grows past a week.
   const META_EVENTS_TTL   = 6 * 60 * 60 * 1000;
@@ -7859,15 +7860,17 @@ onAuthStateChanged(auth, user => {
       }));
       metaState.info.arena = Object.assign({}, metaState.info.arena, {
         updated: 'Untapped.gg · ' + cacheAge(new Date(data.updated).getTime()) + (stale ? ' · stale' : ''),
-        summary: 'Arena BO1 · last ' + data.days + ' days',
-        note: 'MTG Arena Best-of-One ladder games tracked by Untapped.gg, all ranks.'
+        summary: 'Arena BO1 · ' + (data.ranks || 'All ranks') + (data.days ? ' · last ' + data.days + ' days' : ''),
+        note: 'MTG Arena Best-of-One ladder games tracked by Untapped.gg, '
+          + (data.ranks ? data.ranks + ' ranks only' : 'all ranks')
+          + (data.since ? ', since ' + new Date(data.since).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + (data.period ? ' (' + data.period + ')' : '') + '.' : '.')
       });
       renderStandardMeta();
     };
-    // v2 key: entries cached under the old key came from web search.
-    const fresh = cacheGet('standard-meta-arena2', META_ARENA_TTL);
+    // v3 key: v2 entries mixed all ranks; v3 is Platinum and above.
+    const fresh = cacheGet('standard-meta-arena3', META_ARENA_TTL);
     if (fresh) return show(fresh, false);
-    const stale = cacheGetStale('standard-meta-arena2');
+    const stale = cacheGetStale('standard-meta-arena3');
     if (stale) show(stale, true);
     else { metaState.loading.arena = true; renderStandardMeta(); }
     try {
@@ -7875,7 +7878,7 @@ onAuthStateChanged(auth, user => {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const data = await r.json();
       if (!data.rows || !data.rows.length) throw new Error('empty');
-      cacheSet('standard-meta-arena2', data);
+      cacheSet('standard-meta-arena3', data);
       show({ data: data }, false);
     } catch(e) {
       if (!stale) metaState.info.arena = { error: 'Couldn’t load Arena data. Try again later.' };
