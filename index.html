@@ -3254,10 +3254,10 @@
   .d20-stat-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; }
   .die-footer-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
   #d20-card, #d20-rolls-card, #d6-rolls-card { scroll-margin-top: 16px; }
-  /* D20 and D6 roll analytics sit side by side on desktop, stacked on phones. */
+  /* Paired stat cards (D20/D6 rolls, Consistency/Momentum) sit side by side on desktop, stacked on phones. */
   @media (min-width: 701px) {
-    .dice-rolls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
-    .dice-rolls-grid > .stat-card { margin-top: 0; min-width: 0; }
+    .dice-rolls-grid, .stat-pair-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+    .dice-rolls-grid > .stat-card, .stat-pair-grid > .stat-card { margin-top: 0; min-width: 0; }
   }
   .d20-link {
     font: inherit; font-size: 10px; background: none; border: 0; padding: 0; cursor: pointer;
@@ -3950,6 +3950,8 @@ onAuthStateChanged(auth, user => {
     <div id="dow-insight" style="display:none; margin-top:14px; font-size:11px; color:var(--text-muted); letter-spacing:0.06em;"></div>
   </div>
 
+  <!-- CONSISTENCY SCORE + MOMENTUM INDEX -->
+  <div class="stat-pair-grid">
   <!-- CONSISTENCY SCORE -->
   <div class="analytics-card stat-card">
     <div class="stat-card-header">
@@ -3994,6 +3996,7 @@ onAuthStateChanged(auth, user => {
     </div>
     <div class="stat-interpret" id="mom-interpret"></div>
   </div>
+  </div><!-- /stat-pair-grid -->
 
   <!-- DOW Z-SCORES -->
   <div class="analytics-card stat-card">
