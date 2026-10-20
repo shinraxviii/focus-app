@@ -7685,11 +7685,13 @@ onAuthStateChanged(auth, user => {
   // tab): BO1 ladder stats from Untapped.gg via /api/arena-meta, Platinum rank
   // and above, for the current meta period. The 7-day trend comes from daily share snapshots kept in this
   // browser (META_HISTORY_KEY); anything older than META_HISTORY_DAYS is
-  // pruned on every save so the history never grows past a week.
+  // pruned on every save. The trend is T7D: today vs the newest snapshot that
+  // is at least 7 days old (or the oldest one, until a week has been saved).
   const META_EVENTS_TTL   = 6 * 60 * 60 * 1000;
   const META_ARENA_TTL    = 6 * 60 * 60 * 1000;
   const META_HISTORY_KEY  = 'focus-standard-meta-history';
-  const META_HISTORY_DAYS = 7;
+  const META_HISTORY_DAYS = 14;
+  const META_TREND_DAYS   = 7;
   const META_COLOR_ORDER  = 'WUBRG';
   const metaState = { src: 'arena', open: -1, rows: { events: null, arena: null }, info: { events: null, arena: null }, loading: {} };
 
@@ -7703,7 +7705,8 @@ onAuthStateChanged(auth, user => {
   }
 
   // Save today's shares for one tab, drop days outside the window, and return
-  // the oldest remaining snapshot from before today (the trend baseline).
+  // the trend baseline: the newest snapshot at least META_TREND_DAYS old, else
+  // the oldest snapshot from before today. t7d says which one it is.
   function metaRecordSnapshot(src, rows) {
     const hist = metaHistoryRead();
     const today = new Date();
@@ -7717,14 +7720,18 @@ onAuthStateChanged(auth, user => {
     hist[src] = days;
     try { localStorage.setItem(META_HISTORY_KEY, JSON.stringify(hist)); } catch(e) {}
     const past = Object.keys(days).filter(function(k) { return k < todayKey; }).sort();
-    return past.length ? { day: past[0], shares: days[past[0]] } : null;
+    if (!past.length) return null;
+    const weekAgo = metaDayKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() - META_TREND_DAYS));
+    const full = past.filter(function(k) { return k <= weekAgo; });
+    const day = full.length ? full[full.length - 1] : past[0];
+    return { day: day, shares: days[day], t7d: full.length > 0 };
   }
 
   // Attach d (share change vs the baseline) to each row. null = no baseline
   // yet; 'new' = the archetype wasn't in the baseline snapshot.
   function metaApplyTrend(src, rows) {
     const base = metaRecordSnapshot(src, rows);
-    metaState.info[src] = Object.assign({}, metaState.info[src], { baseDay: base ? base.day : null });
+    metaState.info[src] = Object.assign({}, metaState.info[src], { baseDay: base ? base.day : null, t7d: !!(base && base.t7d) });
     rows.forEach(function(r) {
       if (!base) r.d = null;
       else if (base.shares[r.name] == null) r.d = 'new';
@@ -7770,7 +7777,8 @@ onAuthStateChanged(auth, user => {
     }
     document.getElementById('meta-updated').textContent = info.updated || '';
     document.getElementById('meta-summary').textContent = info.summary || '';
-    document.getElementById('meta-trend-label').textContent = info.baseDay ? 'Share · since ' + info.baseDay.slice(5).replace('-', '/') : 'Share';
+    document.getElementById('meta-trend-label').textContent = info.t7d ? 'Share · T7D'
+      : info.baseDay ? 'Share · since ' + info.baseDay.slice(5).replace('-', '/') : 'Share';
     document.getElementById('meta-note').textContent = info.note || '';
     document.getElementById('meta-note').hidden = !info.note;
     if (!rows) {
