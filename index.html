@@ -7685,13 +7685,13 @@ onAuthStateChanged(auth, user => {
   // tab): BO1 ladder stats from Untapped.gg via /api/arena-meta, Platinum rank
   // and above, for the current meta period. The 7-day trend comes from daily share snapshots kept in this
   // browser (META_HISTORY_KEY); anything older than META_HISTORY_DAYS is
-  // pruned on every save. The trend is T7D: today vs the newest snapshot that
-  // is at least 7 days old (or the oldest one, until a week has been saved).
+  // pruned on every save. The trend is T3D: today vs the newest snapshot that
+  // is at least META_TREND_DAYS old (or the oldest one, until then).
   const META_EVENTS_TTL   = 6 * 60 * 60 * 1000;
   const META_ARENA_TTL    = 6 * 60 * 60 * 1000;
   const META_HISTORY_KEY  = 'focus-standard-meta-history';
-  const META_HISTORY_DAYS = 14;
-  const META_TREND_DAYS   = 7;
+  const META_HISTORY_DAYS = 7;
+  const META_TREND_DAYS   = 3;
   const META_COLOR_ORDER  = 'WUBRG';
   const metaState = { src: 'arena', open: -1, rows: { events: null, arena: null }, info: { events: null, arena: null }, loading: {} };
 
@@ -7777,7 +7777,7 @@ onAuthStateChanged(auth, user => {
     }
     document.getElementById('meta-updated').textContent = info.updated || '';
     document.getElementById('meta-summary').textContent = info.summary || '';
-    document.getElementById('meta-trend-label').textContent = info.t7d ? 'Share · T7D'
+    document.getElementById('meta-trend-label').textContent = info.t7d ? 'Share · T' + META_TREND_DAYS + 'D'
       : info.baseDay ? 'Share · since ' + info.baseDay.slice(5).replace('-', '/') : 'Share';
     document.getElementById('meta-note').textContent = info.note || '';
     document.getElementById('meta-note').hidden = !info.note;
