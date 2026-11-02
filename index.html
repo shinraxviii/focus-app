@@ -1054,7 +1054,7 @@
   #sync-status.visible { opacity: 1; }
   /* Link popover */
   /* ── MOBILE ────────────────────────────────────── */
-  @media (max-width: 700px) {
+  @media (max-width: 599px) {
     body { padding: calc(env(safe-area-inset-top) + 16px) calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 100px) calc(env(safe-area-inset-left) + 16px); }
 
     /* Header mobile layout */
@@ -1163,7 +1163,7 @@
     .color-popover { left: 16px !important; }
   }
 
-  @media (min-width: 701px) {
+  @media (min-width: 600px) {
     .mobile-tabs { display: none; }
   }
 
@@ -1213,7 +1213,7 @@
   .task-item.cal-linked { border-color: rgba(255,165,2,0.55); background: var(--surface2); }
   .task-item.cal-dim { opacity: 0.3; }
   .add-row input[type="date"].cal-flash { border-color: #ffa502; box-shadow: 0 0 0 3px rgba(255,165,2,0.15); }
-  @media (max-width: 700px) {
+  @media (max-width: 599px) {
     .app-grid { display: flex; flex-direction: column; gap: 12px; }
     .task-rail { display: contents; }
     .app-grid > .section, .task-rail > .section { width: 100%; min-width: 0; }
@@ -2540,7 +2540,7 @@
   .wx-stat { display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; background: var(--surface2); border-radius: 6px; min-width: 0; }
   .wx-stat-label { font-size: 8px; color: var(--text-dim); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
   .wx-stat-val { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  @media (max-width: 700px) {
+  @media (max-width: 599px) {
     .wx-stats { grid-template-columns: repeat(2, 1fr); }
   }
 
@@ -2599,7 +2599,7 @@
   .st-team-abbr { display: none; }
   .st-stat { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-muted); text-align: right; white-space: nowrap; }
   .st-row--me .st-stat { color: var(--text); }
-  @media (max-width: 700px) {
+  @media (max-width: 599px) {
     .standings-cols { grid-template-columns: 1fr; }
     .standings-col + .standings-col .st-row--head { display: none; }
     .st-row { --st-w: 26px; --st-w-wide: 32px; gap: 4px; }
@@ -2635,7 +2635,7 @@
     text-transform: uppercase;
   }
 
-  @media (max-width: 700px) {
+  @media (max-width: 599px) {
     .digest-grid { grid-template-columns: 1fr; }
     .digest-card.full-width { grid-column: 1; }
     .cfb-cols { grid-template-columns: 1fr; }
@@ -2918,7 +2918,7 @@
     text-transform: uppercase;
   }
 
-  @media (max-width: 700px) {
+  @media (max-width: 599px) {
     .analytics-tiles { grid-template-columns: 1fr; }
     .tile-value { font-size: 40px; }
     .analytics-controls { flex-direction: column; align-items: flex-start; gap: 10px; }
@@ -3165,11 +3165,11 @@
 
   /* ── DESKTOP: keep the digest cards tight instead of stretched ──
      On web, cap the digest content width and center it so wide screens
-     get whitespace on both sides. Mobile (≤700px) stays full-width.
+     get whitespace on both sides. Mobile (≤599px) stays full-width.
      The top nav bar shares the same centered column so it lines up with
      the sub-tabs and cards below.
      Placed at the end of the sheet so it wins over the base rules. */
-  @media (min-width: 701px) {
+  @media (min-width: 600px) {
     .nav-inner,
     .digest-sub-tabs,
     .digest-subtab-content {
@@ -3203,7 +3203,7 @@
   .dice-row { display: flex; justify-content: center; align-items: flex-end; gap: 6px; flex-wrap: wrap; --die-size: 220px; }
   .dice-row[data-count="2"] { --die-size: 150px; }
   .dice-row[data-count="3"] { --die-size: 102px; }
-  @media (min-width: 701px) {
+  @media (min-width: 600px) {
     .dice-row[data-count="2"] { --die-size: 180px; }
     .dice-row[data-count="3"] { --die-size: 140px; }
   }
@@ -3341,7 +3341,7 @@
   .die-footer-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
   #d20-card, #d20-rolls-card, #d6-rolls-card { scroll-margin-top: 16px; }
   /* Paired stat cards (D20/D6 rolls, Consistency/Momentum) sit side by side on desktop, stacked on phones. */
-  @media (min-width: 701px) {
+  @media (min-width: 600px) {
     .dice-rolls-grid, .stat-pair-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
     .dice-rolls-grid > .stat-card, .stat-pair-grid > .stat-card { margin-top: 0; min-width: 0; }
   }
@@ -3354,6 +3354,41 @@
   @media (prefers-reduced-motion: reduce) {
     .die-btn.crit svg, .die-btn.fumble svg, .die-btn.crit .die-num-g.front, .spark, .crit-ring { animation: none; }
     .die-btn:hover svg { transform: none; }
+  }
+
+  /* ── UNFOLDED FOLDABLE / SMALL TABLET (600–1023px) ─────────────
+     iPhone Duo opened (~626×890 portrait, ~890×626 landscape) and
+     similar mid-size screens. Phones (≤599px) keep the tab-bar layout;
+     here the task pages go two-column (To Do + Not Right Now on the
+     left, calendar + Completed on the right) instead of desktop's three
+     cramped columns. Placed last so it wins over the desktop rules. */
+  @media (min-width: 600px) and (max-width: 1023px) {
+    body { padding-left: calc(env(safe-area-inset-left) + 20px); padding-right: calc(env(safe-area-inset-right) + 20px); }
+    .app-grid {
+      grid-template-columns: minmax(0, 1fr) clamp(240px, 36%, 340px);
+      grid-template-rows: auto 1fr;
+      gap: 16px;
+    }
+    .app-grid > .section:first-child { grid-column: 1; grid-row: 1; }
+    .app-grid > .section.collapsible { grid-column: 1; grid-row: 2; align-self: start; }
+    .task-rail { grid-column: 2; grid-row: 1 / span 2; gap: 16px; }
+    .task-item { padding: 9px 6px; gap: 6px; }
+    .add-row { gap: 6px; padding: 10px 12px; }
+    .add-row input[type="date"] { width: 110px; font-size: 10px; }
+    /* Markets/earnings: two side-by-side columns overflow the card here. */
+    .stock-grid { grid-template-columns: 1fr; gap: 0; }
+  }
+  /* Unfolded, held upright (~626px): stack the header like phones so a
+     long title doesn't squeeze the weather and date, and give the
+     two-up schedule a single column. */
+  @media (min-width: 600px) and (max-width: 759px) {
+    #header-inner { flex-direction: column !important; align-items: flex-start !important; gap: 10px; }
+    #header-title { width: 100%; }
+    #header-title h1 { font-size: 34px; }
+    #weather-widget { flex: 0 !important; justify-content: flex-start !important; order: 2; }
+    #header-right { flex-direction: row !important; align-items: center !important; gap: 16px; order: 1; width: 100%; }
+    #current-date { text-align: left !important; }
+    .cfb-cols { grid-template-columns: 1fr; }
   }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -10303,7 +10338,7 @@ onAuthStateChanged(auth, user => {
   // landing on the Personal or Work slide.
   let activeTaskList = 'personal';
 
-  function isMobile() { return window.innerWidth <= 700; }
+  function isMobile() { return window.innerWidth <= 599; }
 
   function switchTab(sec) {
     activeTab = sec;
