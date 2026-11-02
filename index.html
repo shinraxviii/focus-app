@@ -1141,6 +1141,66 @@
     .mobile-tabs { display: none; }
   }
 
+  /* ── TASK CALENDAR ─────────────────────────────── */
+  /* Mini month calendar beside the task lists. Orange dot = scheduled To Do,
+     red = overdue, hollow = Not Right Now. Hovering a task lights its day;
+     hovering/clicking a day spotlights its tasks; tasks can be dropped on a day. */
+  .task-rail { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+  .task-cal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 14px 4px; }
+  .task-cal-month { font-family: 'DM Serif Display', serif; font-size: 19px; letter-spacing: -0.2px; color: var(--text); white-space: nowrap; }
+  .task-cal-ctrls { display: flex; gap: 4px; }
+  .task-cal-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--btn-icon); border-radius: 5px; cursor: pointer;
+    font-family: 'DM Mono', monospace; font-size: 13px; min-width: 26px; height: 26px; padding: 0 6px; line-height: 1; }
+  .task-cal-btn:hover { border-color: var(--text-muted); color: var(--text); }
+  .task-cal-btn.toggle { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; display: none; }
+  .task-cal-seg { display: flex; }
+  .task-cal-seg button { background: var(--surface2); border: 1px solid var(--border); color: var(--btn-icon); cursor: pointer;
+    font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; padding: 4px 7px; margin-left: -1px; }
+  .task-cal-seg button:first-child { border-radius: 5px 0 0 5px; margin-left: 0; }
+  .task-cal-seg button:last-child { border-radius: 0 5px 5px 0; }
+  .task-cal-seg button.on { color: var(--text); background: var(--surface); border-color: var(--text-dim); }
+  .task-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; padding: 6px 10px 10px; }
+  .task-cal-dow { font-size: 9px; color: var(--text-muted); text-align: center; letter-spacing: 0.08em; padding: 4px 0; }
+  .task-cal-day { position: relative; aspect-ratio: 1 / 1.05; border-radius: 6px; border: 1px solid transparent; background: transparent; color: var(--text);
+    font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px; padding: 0; min-width: 0; font-variant-numeric: tabular-nums;
+    transition: background 0.12s, border-color 0.12s, transform 0.12s, box-shadow 0.12s; }
+  .task-cal-day:hover { background: var(--surface2); }
+  .task-cal-day.out { color: var(--text-dim); }
+  .task-cal-day.past:not(.today) { color: var(--text-muted); }
+  .task-cal-day.today { border-color: var(--text-dim); font-weight: 500; }
+  .task-cal-day.sel { background: rgba(255,165,2,0.15); border-color: #ffa502; }
+  .task-cal-day.hl { background: #ffa502; color: #161618; border-color: #ffa502; transform: scale(1.1); box-shadow: 0 0 0 4px rgba(255,165,2,0.18); z-index: 1; }
+  .task-cal-day.hl .task-cal-dot { background: #161618; }
+  .task-cal-day.hl .task-cal-dot.hollow { background: transparent; border-color: #161618; }
+  .task-cal-day.drop { border: 1px dashed #ffa502; background: rgba(255,165,2,0.15); }
+  .task-cal-dots { display: flex; gap: 2px; height: 5px; }
+  .task-cal-dot { width: 5px; height: 5px; border-radius: 50%; background: #ffa502; }
+  .task-cal-dot.over { background: var(--danger); }
+  .task-cal-dot.hollow { background: transparent; border: 1px solid #ffa502; }
+  .task-cal-legend { display: flex; flex-wrap: wrap; gap: 10px; padding: 0 14px 10px; font-size: 9px; color: var(--text-muted); letter-spacing: 0.06em; text-transform: uppercase; }
+  .task-cal-legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .task-cal-foot { border-top: 1px solid var(--border); padding: 10px 14px; font-size: 11px; color: var(--text-muted); background: var(--bg); line-height: 1.5; min-height: 40px; }
+  .task-cal-foot b { color: var(--text); font-weight: 500; }
+  .task-cal-foot b.over { color: var(--danger); }
+  .task-cal-foot button { background: none; border: none; color: #ffa502; font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer; padding: 0; }
+  .task-item.cal-linked { border-color: rgba(255,165,2,0.55); background: var(--surface2); }
+  .task-item.cal-dim { opacity: 0.3; }
+  .add-row input[type="date"].cal-flash { border-color: #ffa502; box-shadow: 0 0 0 3px rgba(255,165,2,0.15); }
+  @media (max-width: 700px) {
+    .app-grid { display: flex; flex-direction: column; gap: 12px; }
+    .task-rail { display: contents; }
+    .app-grid > .section, .task-rail > .section { width: 100%; min-width: 0; }
+    .section.task-cal { display: block; order: -1; }
+    .task-cal-btn.toggle { display: inline-block; }
+    .task-cal-grid.week .task-cal-day { aspect-ratio: auto; height: 44px; }
+    .task-cal-legend { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .task-cal-day { transition: none; }
+    .task-cal-day.hl { transform: none; }
+  }
+
   /* ── DIGEST ─────────────────────────────────────── */
   #analytics-page, #digest-page, #personal-page, #work-page { display: block; }
 
@@ -3833,6 +3893,10 @@ onAuthStateChanged(auth, user => {
     </div>
   </div>
 
+  <div class="task-rail">
+  <!-- CALENDAR -->
+  <div class="section task-cal" id="cal-personal" data-list="personal"></div>
+
   <!-- COMPLETED -->
   <div class="section sec-completed" id="section-personal-completed">
     <div class="section-header">
@@ -3848,6 +3912,7 @@ onAuthStateChanged(auth, user => {
          ondragleave="onDragLeave(event)">
     </div>
   </div>
+  </div><!-- /task-rail -->
 </div>
     </div><!-- /personal-page -->
 
@@ -3893,6 +3958,10 @@ onAuthStateChanged(auth, user => {
     </div>
   </div>
 
+  <div class="task-rail">
+  <!-- CALENDAR -->
+  <div class="section task-cal" id="cal-work" data-list="work"></div>
+
   <!-- COMPLETED -->
   <div class="section sec-completed" id="section-work-completed">
     <div class="section-header">
@@ -3908,6 +3977,7 @@ onAuthStateChanged(auth, user => {
          ondragleave="onDragLeave(event)">
     </div>
   </div>
+  </div><!-- /task-rail -->
 </div>
     </div><!-- /work-page -->
 
@@ -4275,6 +4345,7 @@ onAuthStateChanged(auth, user => {
   function save() {
     clearTimeout(saveTimeout);
     saveTimeout = setTimeout(saveToCloud, SAVE_DEBOUNCE_MS);
+    if (window.renderTaskCalendars) window.renderTaskCalendars();
   }
 
   // Called by Firebase module once user is authenticated
@@ -10235,6 +10306,249 @@ onAuthStateChanged(auth, user => {
   }
 
   window.addEventListener('resize', applyMobileLayout);
+
+  // ── TASK CALENDAR ────────────────────────────────────────────
+  // One mini calendar per task list (Personal / Work). Reads the same `tasks`
+  // array, so there is no extra storage. Desktop shows a month; phones show a
+  // one-week strip with a Month toggle.
+  (function () {
+    const CAL_SCOPE_KEY = 'focus.taskCalScope';
+    let scope = 'page';
+    try { scope = localStorage.getItem(CAL_SCOPE_KEY) === 'both' ? 'both' : 'page'; } catch (e) {}
+
+    const pad = n => String(n).padStart(2, '0');
+    const iso = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+    const todayDate = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
+    const longFmt = k => parseLocalDate(k).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    const shortFmt = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+    const state = {};
+    TASK_LISTS.forEach(l => {
+      const t = todayDate();
+      state[l] = { view: new Date(t.getFullYear(), t.getMonth(), 1), expanded: false, selected: null, hoverDay: null, linkedId: null, weekAnchor: null };
+    });
+
+    const calTasks = listName => tasks.filter(t => t.date && t.section !== 'completed' && (scope === 'both' || taskList(t) === listName));
+    const linkedDate = st => { const t = st.linkedId && tasks.find(x => x.id === st.linkedId); return t ? t.date : null; };
+
+    function render(listName) {
+      const root = document.getElementById('cal-' + listName);
+      if (!root) return;
+      const st = state[listName];
+      const today = todayDate(), todayKey = iso(today);
+      const weekMode = isMobile() && !st.expanded;
+
+      if (!root.dataset.built) {
+        root.dataset.built = '1';
+        root.innerHTML =
+          '<div class="section-header"><span class="section-title">Calendar</span>' +
+          '<div class="task-cal-seg"><button type="button" data-scope="page"></button><button type="button" data-scope="both">Both</button></div></div>' +
+          '<div class="task-cal-head"><span class="task-cal-month"></span><div class="task-cal-ctrls">' +
+          '<button type="button" class="task-cal-btn toggle"></button>' +
+          '<button type="button" class="task-cal-btn" data-nav="-1" aria-label="Previous">&#8249;</button>' +
+          '<button type="button" class="task-cal-btn" data-nav="1" aria-label="Next">&#8250;</button></div></div>' +
+          '<div class="task-cal-grid"></div>' +
+          '<div class="task-cal-legend"><span><i class="task-cal-dot"></i>Scheduled</span><span><i class="task-cal-dot over"></i>Overdue</span><span><i class="task-cal-dot hollow"></i>Not right now</span></div>' +
+          '<div class="task-cal-foot"></div>';
+        root.querySelector('[data-scope="page"]').textContent = listName === 'work' ? 'Work' : 'Personal';
+        root.querySelectorAll('.task-cal-seg button').forEach(b => b.addEventListener('click', () => {
+          scope = b.dataset.scope;
+          try { localStorage.setItem(CAL_SCOPE_KEY, scope); } catch (e) {}
+          renderAll();
+        }));
+        root.querySelector('.toggle').addEventListener('click', () => { st.expanded = !st.expanded; render(listName); });
+        root.querySelectorAll('[data-nav]').forEach(b => b.addEventListener('click', () => {
+          const n = +b.dataset.nav;
+          if (isMobile() && !st.expanded) {
+            const base = st.weekAnchor ? parseLocalDate(st.weekAnchor) : todayDate();
+            base.setDate(base.getDate() + 7 * n);
+            st.weekAnchor = iso(base); st.linkedId = null;
+          } else {
+            st.view = new Date(st.view.getFullYear(), st.view.getMonth() + n, 1);
+          }
+          render(listName);
+        }));
+      }
+
+      root.querySelectorAll('.task-cal-seg button').forEach(b => b.classList.toggle('on', b.dataset.scope === scope));
+      root.querySelector('.toggle').textContent = st.expanded ? 'Week' : 'Month';
+
+      // Visible range
+      let start, cells;
+      const monthEl = root.querySelector('.task-cal-month');
+      if (weekMode) {
+        const a = parseLocalDate(linkedDate(st) || st.weekAnchor || st.selected || todayKey);
+        start = new Date(a); start.setDate(a.getDate() - a.getDay()); cells = 7;
+        const end = new Date(start); end.setDate(start.getDate() + 6);
+        monthEl.textContent = shortFmt(start) + ' – ' + shortFmt(end);
+      } else {
+        const v = st.view;
+        start = new Date(v); start.setDate(1 - v.getDay());
+        const dim = new Date(v.getFullYear(), v.getMonth() + 1, 0).getDate();
+        cells = Math.ceil((v.getDay() + dim) / 7) * 7;
+        monthEl.textContent = v.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      }
+
+      const byDay = {};
+      calTasks(listName).forEach(t => (byDay[t.date] = byDay[t.date] || []).push(t));
+      const hl = linkedDate(st);
+
+      const grid = root.querySelector('.task-cal-grid');
+      grid.classList.toggle('week', weekMode);
+      grid.innerHTML = '';
+      'SMTWTFS'.split('').forEach(c => { const e = document.createElement('div'); e.className = 'task-cal-dow'; e.textContent = c; grid.appendChild(e); });
+      for (let i = 0; i < cells; i++) {
+        const d = new Date(start); d.setDate(start.getDate() + i);
+        const k = iso(d), list = byDay[k] || [];
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'task-cal-day';
+        b.dataset.day = k;
+        if (!weekMode && d.getMonth() !== st.view.getMonth()) b.classList.add('out');
+        if (d < today) b.classList.add('past');
+        if (k === todayKey) b.classList.add('today');
+        if (k === st.selected) b.classList.add('sel');
+        if (hl && k === hl) b.classList.add('hl');
+        b.setAttribute('aria-label', longFmt(k) + (list.length ? ', ' + list.length + ' task' + (list.length > 1 ? 's' : '') : ''));
+        const dots = list.slice(0, 3).map(t => {
+          const cls = t.section === 'notrightnow' ? 'hollow' : isOverdue(t.date) ? 'over' : '';
+          return '<i class="task-cal-dot ' + cls + '"></i>';
+        }).join('');
+        b.innerHTML = '<span>' + d.getDate() + '</span><span class="task-cal-dots">' + dots + '</span>';
+        b.addEventListener('mouseenter', () => { st.hoverDay = k; spotlight(listName); foot(listName); });
+        b.addEventListener('mouseleave', () => { st.hoverDay = null; spotlight(listName); foot(listName); });
+        b.addEventListener('click', () => {
+          st.linkedId = null;
+          st.selected = st.selected === k ? null : k;
+          ['todo', 'notrightnow'].forEach(sec => {
+            const inp = document.getElementById('date-' + listName + '-' + sec);
+            if (!inp) return;
+            if (st.selected) {
+              inp.value = k;
+              inp.classList.add('cal-flash');
+              setTimeout(() => inp.classList.remove('cal-flash'), 600);
+            } else if (inp.value === k) inp.value = '';
+          });
+          render(listName);
+        });
+        b.addEventListener('dragover', e => { if (!dragId) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; b.classList.add('drop'); });
+        b.addEventListener('dragleave', () => b.classList.remove('drop'));
+        b.addEventListener('drop', e => {
+          e.preventDefault();
+          b.classList.remove('drop');
+          const t = dragId && tasks.find(x => x.id === dragId);
+          dragId = null;
+          if (!t || t.section === 'completed') return;
+          t.date = k;
+          st.linkedId = null;
+          save();
+          window.render();
+          const f = root.querySelector('.task-cal-foot');
+          f.innerHTML = 'Moved <b>' + esc(t.text) + '</b> to ' + esc(shortFmt(parseLocalDate(k))) + '.';
+        });
+        grid.appendChild(b);
+      }
+      spotlight(listName);
+      foot(listName);
+    }
+
+    // Highlight/dim task rows for the hovered or selected day.
+    function spotlight(listName) {
+      const st = state[listName];
+      const day = st.linkedId ? null : (st.hoverDay || st.selected);
+      ['todo', 'notrightnow'].forEach(sec => {
+        const el = document.getElementById('list-' + listName + '-' + sec);
+        if (!el) return;
+        el.querySelectorAll('.task-item').forEach(item => {
+          const t = tasks.find(x => x.id === item.dataset.id);
+          item.classList.toggle('cal-linked', !!t && (st.linkedId === t.id || (!!day && t.date === day)));
+          item.classList.toggle('cal-dim', !!day && !!t && t.date !== day);
+        });
+      });
+    }
+
+    function foot(listName) {
+      const root = document.getElementById('cal-' + listName);
+      const f = root && root.querySelector('.task-cal-foot');
+      if (!f) return;
+      const st = state[listName];
+      const today = todayDate();
+      const linked = st.linkedId && tasks.find(x => x.id === st.linkedId);
+      if (linked) {
+        if (!linked.date) { f.innerHTML = '<b>' + esc(linked.text) + '</b> has no date. Drag it onto a day to schedule it.'; return; }
+        const diff = Math.round((parseLocalDate(linked.date) - today) / 864e5);
+        const when = diff === 0 ? 'today' : diff === 1 ? 'tomorrow' : diff < 0 ? (-diff) + ' day' + (diff < -1 ? 's' : '') + ' overdue' : 'in ' + diff + ' days';
+        f.innerHTML = '<b>' + esc(linked.text) + '</b>: ' + esc(longFmt(linked.date)) + ', ' + when + '.';
+        return;
+      }
+      const day = st.hoverDay || st.selected;
+      if (day) {
+        const n = calTasks(listName).filter(t => t.date === day).length;
+        let html = '<b>' + esc(longFmt(day)) + '</b>: ' + (n ? n + ' task' + (n > 1 ? 's' : '') : 'open') + '.';
+        if (st.selected === day) html += ' New tasks default to this date. <button type="button">Clear</button>';
+        f.innerHTML = html;
+        const c = f.querySelector('button');
+        if (c) c.addEventListener('click', () => {
+          ['todo', 'notrightnow'].forEach(sec => { const inp = document.getElementById('date-' + listName + '-' + sec); if (inp && inp.value === st.selected) inp.value = ''; });
+          st.selected = null; render(listName);
+        });
+        return;
+      }
+      const todo = calTasks(listName).filter(t => t.section === 'todo');
+      const week = todo.filter(t => { const d = (parseLocalDate(t.date) - today) / 864e5; return d >= 0 && d < 7; }).length;
+      const over = todo.filter(t => isOverdue(t.date)).length;
+      f.innerHTML = '<b>' + week + '</b> due in the next 7 days' + (over ? ', <b class="over">' + over + '</b> overdue' : '') + '.';
+    }
+
+    function renderAll() {
+      TASK_LISTS.forEach(l => {
+        const st = state[l];
+        // Keep a selected day prefilled after addTask() clears the date inputs.
+        if (st.selected) ['todo', 'notrightnow'].forEach(sec => { const inp = document.getElementById('date-' + l + '-' + sec); if (inp && !inp.value) inp.value = st.selected; });
+        render(l);
+      });
+    }
+    window.renderTaskCalendars = renderAll;
+
+    // Link a task row to its day (hover on desktop, tap on phones).
+    function linkTask(item, on) {
+      const t = tasks.find(x => x.id === item.dataset.id);
+      if (!t || t.section === 'completed') return;
+      const listName = taskList(t);
+      const st = state[listName];
+      if (!st) return;
+      if (on) {
+        if (st.linkedId === t.id) return;
+        st.linkedId = t.id;
+        if (t.date) {
+          const d = parseLocalDate(t.date);
+          st.view = new Date(d.getFullYear(), d.getMonth(), 1);
+          st.weekAnchor = t.date;
+        }
+      } else {
+        if (st.linkedId !== t.id) return;
+        st.linkedId = null;
+      }
+      render(listName);
+    }
+    document.addEventListener('mouseover', e => {
+      const item = e.target.closest && e.target.closest('.task-item');
+      if (item && !item.contains(e.relatedTarget)) linkTask(item, true);
+    });
+    document.addEventListener('mouseout', e => {
+      const item = e.target.closest && e.target.closest('.task-item');
+      if (item && !item.contains(e.relatedTarget)) linkTask(item, false);
+    });
+    document.addEventListener('touchstart', e => {
+      const item = e.target.closest && e.target.closest('.task-item');
+      if (item) linkTask(item, true);
+    }, { passive: true });
+
+    let wasMobile = isMobile();
+    window.addEventListener('resize', () => { if (isMobile() !== wasMobile) { wasMobile = isMobile(); renderAll(); } });
+    renderAll();
+  })();
   // --- Color Popover ---
   const popover = document.createElement('div');
   popover.className = 'color-popover';
@@ -10313,6 +10627,7 @@ onAuthStateChanged(auth, user => {
     // id-based, so it's simplest and safe to refresh both.
     TASK_LISTS.forEach(listName => secs.forEach(sec => renderSection(listName, sec)));
     if (isMobile()) applyMobileLayout();
+    if (window.renderTaskCalendars) window.renderTaskCalendars();
   }
 
   // Patch a single task item in-place without rebuilding the whole list
