@@ -759,6 +759,31 @@
   }
   .detail-link-go:hover { background: var(--border); color: var(--text); }
 
+  .detail-date-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .detail-date-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: 'DM Mono', monospace;
+  }
+  .detail-date-input {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 4px 8px;
+    outline: none;
+    color-scheme: dark;
+    transition: border-color 0.15s;
+  }
+  .detail-date-input:focus { border-color: var(--text-dim); }
+  html.light .detail-date-input { color-scheme: light; }
+
   .subtask-progress {
     font-size: 9px;
     color: var(--text-muted);
@@ -4961,7 +4986,7 @@ onAuthStateChanged(auth, user => {
     item.draggable = true;
 
     item.addEventListener('dragstart', e => {
-      if (document.activeElement && (document.activeElement.classList.contains('task-text-input') || document.activeElement.classList.contains('task-notes') || document.activeElement.classList.contains('subtask-add-input'))) {
+      if (document.activeElement && (document.activeElement.classList.contains('task-text-input') || document.activeElement.classList.contains('task-notes') || document.activeElement.classList.contains('subtask-add-input') || document.activeElement.classList.contains('detail-date-input'))) {
         e.preventDefault(); return;
       }
       dragId = t.id;
@@ -5178,6 +5203,42 @@ onAuthStateChanged(auth, user => {
       }
 
       renderSubtasks();
+
+      // Date row (inside collapsible detail): set, change or clear the task's
+      // date. Writes t.date, the same field the add row and the calendar use.
+      const dateRow = document.createElement('div');
+      dateRow.className = 'detail-date-row';
+      const dateLbl = document.createElement('span');
+      dateLbl.className = 'detail-date-label';
+      dateLbl.textContent = 'Date';
+      const dateInput = document.createElement('input');
+      dateInput.type = 'date';
+      dateInput.className = 'detail-date-input';
+      dateInput.value = t.date || '';
+      const dateClear = document.createElement('button');
+      dateClear.className = 'detail-link-go detail-date-clear';
+      dateClear.textContent = 'Clear';
+      dateClear.hidden = !t.date;
+      const applyDate = val => {
+        val = /^\d{4}-\d{2}-\d{2}$/.test(val) ? val : '';
+        if (val === (t.date || '')) return;
+        t.date = val;
+        save();
+        // Refresh the row's date chip and due styling in place so the panel stays open
+        const due = getDueStatus(t.date);
+        if (due) item.dataset.due = due; else delete item.dataset.due;
+        dt.className = 'task-date' + (due ? ' ' + due : '');
+        dt.textContent = due === 'today' ? 'Today' : formatDate(t.date);
+        dateClear.hidden = !t.date;
+      };
+      dateInput.addEventListener('change', () => applyDate(dateInput.value));
+      dateClear.addEventListener('click', e => { e.stopPropagation(); dateInput.value = ''; applyDate(''); });
+      [dateInput, dateClear].forEach(el => {
+        el.addEventListener('click', e => e.stopPropagation());
+        el.addEventListener('mousedown', e => e.stopPropagation());
+      });
+      dateRow.append(dateLbl, dateInput, dateClear);
+      detail.appendChild(dateRow);
 
       // Notes textarea (inside collapsible detail)
       const notes = document.createElement('textarea');
