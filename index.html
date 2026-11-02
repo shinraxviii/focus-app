@@ -305,6 +305,23 @@
     font-weight: 500;
   }
 
+  /* Collapsible sections (e.g. Not Right Now): collapsed by default, caret toggles */
+  .section.collapsible .section-header { cursor: pointer; user-select: none; -webkit-user-select: none; }
+  .section.collapsible .section-header:focus-visible { outline: 2px solid var(--btn-icon); outline-offset: -2px; }
+  .section-caret {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    margin-right: 8px;
+    vertical-align: -1px;
+    transition: transform 0.15s;
+    transform: rotate(90deg);
+  }
+  .section.collapsed .section-caret { transform: rotate(0deg); }
+  .section.collapsed .section-header { border-bottom: none; }
+  .section.collapsed .add-row,
+  .section.collapsed .task-list { display: none; }
+
   .section-count {
     font-size: 10px;
     color: var(--text-muted);
@@ -1086,6 +1103,13 @@
     .app-grid { display: block; }
     .section  { display: none; border-radius: 10px; }
     .section.mobile-active { display: block; }
+    /* Phone layout already tucks Not Right Now behind its own tab, so don't
+       collapse it there: picking the tab shows its tasks directly. */
+    .section.collapsed .add-row { display: flex; }
+    .section.collapsed .task-list { display: block; }
+    .section.collapsible .section-header { cursor: default; pointer-events: none; }
+    .section.collapsed .section-header { border-bottom: 1px solid var(--border); }
+    .section-caret { display: none; }
 
     /* Tab bar */
     .mobile-tabs {
@@ -3815,9 +3839,11 @@ onAuthStateChanged(auth, user => {
   </div>
 
   <!-- NOT RIGHT NOW -->
-  <div class="section" id="section-personal-notrightnow">
-    <div class="section-header">
-      <span class="section-title">Not Right Now</span>
+  <div class="section collapsible collapsed" id="section-personal-notrightnow">
+    <div class="section-header" role="button" tabindex="0" aria-expanded="false" aria-controls="section-personal-notrightnow"
+         onclick="toggleSectionCollapse(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSectionCollapse(this);}"
+         ondragenter="expandCollapsedSection(this)">
+      <span class="section-title"><svg class="section-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Not Right Now</span>
       <span class="section-count" id="count-personal-notrightnow">0</span>
     </div>
     <div class="add-row" id="add-personal-notrightnow">
@@ -3875,9 +3901,11 @@ onAuthStateChanged(auth, user => {
   </div>
 
   <!-- NOT RIGHT NOW -->
-  <div class="section" id="section-work-notrightnow">
-    <div class="section-header">
-      <span class="section-title">Not Right Now</span>
+  <div class="section collapsible collapsed" id="section-work-notrightnow">
+    <div class="section-header" role="button" tabindex="0" aria-expanded="false" aria-controls="section-work-notrightnow"
+         onclick="toggleSectionCollapse(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSectionCollapse(this);}"
+         ondragenter="expandCollapsedSection(this)">
+      <span class="section-title"><svg class="section-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Not Right Now</span>
       <span class="section-count" id="count-work-notrightnow">0</span>
     </div>
     <div class="add-row" id="add-work-notrightnow">
@@ -9625,6 +9653,9 @@ onAuthStateChanged(auth, user => {
       const elBelow = document.elementFromPoint(touch.clientX, touch.clientY);
       ghost.style.display = '';
 
+      const collapsedHeader = elBelow && elBelow.closest && elBelow.closest('.section.collapsed .section-header');
+      if (collapsedHeader) expandCollapsedSection(collapsedHeader);
+
       const targetItem = getTaskItem(elBelow);
       if (targetItem && targetItem !== draggingEl && targetItem !== lastTarget) {
         lastTarget = targetItem;
@@ -10323,6 +10354,23 @@ onAuthStateChanged(auth, user => {
     if (!existing) { render([t.section]); return; }
     const fresh = buildItem(t);
     existing.replaceWith(fresh);
+  }
+
+  // Collapsible sections ("Not Right Now"): collapsed on every load; the header
+  // (caret + title) toggles. Dragging a task over a collapsed header opens it
+  // so the task can still be dropped in.
+  function setSectionCollapsed(section, collapsed) {
+    section.classList.toggle('collapsed', collapsed);
+    const header = section.querySelector('.section-header');
+    if (header) header.setAttribute('aria-expanded', String(!collapsed));
+  }
+  function toggleSectionCollapse(header) {
+    const section = header.closest('.section');
+    if (section) setSectionCollapsed(section, !section.classList.contains('collapsed'));
+  }
+  function expandCollapsedSection(header) {
+    const section = header.closest('.section.collapsed');
+    if (section) setSectionCollapsed(section, false);
   }
 
   function onDragOver(e) {
