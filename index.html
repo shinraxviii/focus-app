@@ -4418,8 +4418,8 @@ onAuthStateChanged(auth, user => {
   // Generated each Monday at 7am local time. If the prior week's task
   // is still unfinished at that point, it's removed and replaced.
   const RECURRING_WEEKLY = [
-    { key: 'folate',    prefix: 'Folate' },
-    { key: 'vitaminD',  prefix: 'Vitamin D' },
+    { key: 'folate',    prefix: 'Folate',    subtaskCount: 3 },
+    { key: 'vitaminD',  prefix: 'Vitamin D', subtaskCount: 1 },
   ];
 
   function mostRecentMonday7am(now) {
@@ -4445,8 +4445,16 @@ onAuthStateChanged(auth, user => {
         tasks = tasks.filter(t => t.id !== stale.id);
         changed = true;
       }
-      const currentExists = tasks.some(t => t.recurringKey === r.key && t.weekOf === cutoff);
-      if (currentExists) continue;
+      const current = tasks.find(t => t.recurringKey === r.key && t.weekOf === cutoff);
+      if (current) {
+        // Trim unchecked extra sub items if the count was lowered mid-week.
+        const subs = current.subtasks || [];
+        if (subs.length > r.subtaskCount) {
+          const trimmed = subs.filter((st, i) => i < r.subtaskCount || st.done);
+          if (trimmed.length !== subs.length) { current.subtasks = trimmed; changed = true; }
+        }
+        continue;
+      }
       tasks.push({
         id: genId(),
         text: r.prefix + ' - ' + monthDay,
@@ -4456,11 +4464,8 @@ onAuthStateChanged(auth, user => {
         section: 'todo',
         list: 'personal',
         notes: '',
-        subtasks: [
-          { id: genId(), text: '1', done: false },
-          { id: genId(), text: '2', done: false },
-          { id: genId(), text: '3', done: false },
-        ],
+        subtasks: Array.from({ length: r.subtaskCount }, (_, i) =>
+          ({ id: genId(), text: String(i + 1), done: false })),
         recurringKey: r.key,
         weekOf: cutoff,
       });
