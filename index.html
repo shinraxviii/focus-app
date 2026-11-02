@@ -722,30 +722,7 @@
   }
   .subtask-add-input::placeholder { color: var(--text-muted); }
 
-  .detail-link-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .detail-link-input {
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text);
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    line-height: 1.4;
-    padding: 5px 8px;
-    outline: none;
-    flex: 1;
-    min-width: 0;
-    transition: border-color 0.15s;
-  }
-  .detail-link-input:focus { border-color: var(--text-dim); }
-  .detail-link-input::placeholder { color: var(--text-muted); }
-
-  .detail-link-go {
+  .detail-date-clear {
     background: var(--surface2);
     border: 1px solid var(--border);
     border-radius: 4px;
@@ -757,7 +734,7 @@
     white-space: nowrap;
     font-family: 'DM Mono', monospace;
   }
-  .detail-link-go:hover { background: var(--border); color: var(--text); }
+  .detail-date-clear:hover { background: var(--border); color: var(--text); }
 
   .detail-date-row {
     display: flex;
@@ -5037,18 +5014,7 @@ onAuthStateChanged(auth, user => {
     });
 
     // Text
-    let txt;
-    if (t.link) {
-      txt = document.createElement('a');
-      txt.href = t.link;
-      txt.target = '_blank';
-      txt.rel = 'noopener noreferrer';
-      txt.style.cssText = 'color:inherit; text-decoration:none; cursor:pointer;';
-      txt.addEventListener('mouseenter', () => { if (!txt.classList.contains('done')) txt.style.textDecoration = 'underline'; });
-      txt.addEventListener('mouseleave', () => { txt.style.textDecoration = 'none'; });
-    } else {
-      txt = document.createElement('span');
-    }
+    const txt = document.createElement('span');
     txt.className = 'task-text' + (t.section === 'completed' ? ' done' : '');
     txt.textContent = t.text;
     txt.title = t.section === 'completed' ? t.text : 'Click to expand · Double-click to edit title';
@@ -5080,7 +5046,7 @@ onAuthStateChanged(auth, user => {
     const chevron = document.createElement('button');
     chevron.className = 'task-expand-btn';
     // Show always if task has content inside
-    if (t.notes || t.subtasks.length > 0 || t.link) chevron.classList.add('has-detail');
+    if (t.notes || t.subtasks.length > 0) chevron.classList.add('has-detail');
     chevron.innerHTML = '\u25B6'; // right-pointing triangle
     chevron.title = 'Expand task';
     if (t.section === 'completed') chevron.style.display = 'none';
@@ -5216,7 +5182,7 @@ onAuthStateChanged(auth, user => {
       dateInput.className = 'detail-date-input';
       dateInput.value = t.date || '';
       const dateClear = document.createElement('button');
-      dateClear.className = 'detail-link-go detail-date-clear';
+      dateClear.className = 'detail-date-clear';
       dateClear.textContent = 'Clear';
       dateClear.hidden = !t.date;
       const applyDate = val => {
@@ -5254,48 +5220,6 @@ onAuthStateChanged(auth, user => {
       notes.addEventListener('click', e => e.stopPropagation());
       notes.addEventListener('mousedown', e => e.stopPropagation());
       detail.appendChild(notes);
-
-      // Link input row (inside collapsible detail)
-      const linkRow = document.createElement('div');
-      linkRow.className = 'detail-link-row';
-      const linkInput = document.createElement('input');
-      linkInput.type = 'text';
-      linkInput.className = 'detail-link-input';
-      linkInput.placeholder = 'Add link (URL)...';
-      linkInput.value = t.link || '';
-      linkInput.addEventListener('keydown', e => {
-        if (e.key === 'Enter') { e.preventDefault(); linkInput.blur(); }
-        if (e.key === 'Escape') { linkInput.value = t.link || ''; linkInput.blur(); }
-      });
-      linkInput.addEventListener('blur', () => {
-        let val = linkInput.value.trim();
-        // Validate URL: only allow http/https links
-        if (val && !/^https?:\/\//i.test(val)) val = 'https://' + val;
-        try { if (val) new URL(val); } catch(_) { val = ''; linkInput.value = ''; }
-        if (val !== (t.link || '')) {
-          t.link = val;
-          save();
-          // Update chevron has-detail indicator
-          if (t.notes || t.subtasks.length > 0 || t.link) chevron.classList.add('has-detail');
-          else chevron.classList.remove('has-detail');
-          // Update task text to be a link or not
-          patchItem(t.id);
-        }
-      });
-      linkInput.addEventListener('click', e => e.stopPropagation());
-      linkInput.addEventListener('mousedown', e => e.stopPropagation());
-      linkRow.appendChild(linkInput);
-      if (t.link) {
-        const goBtn = document.createElement('button');
-        goBtn.className = 'detail-link-go';
-        goBtn.textContent = 'Open';
-        goBtn.addEventListener('click', e => {
-          e.stopPropagation();
-          window.open(t.link, '_blank');
-        });
-        linkRow.appendChild(goBtn);
-      }
-      detail.appendChild(linkRow);
 
       // Add subtask input (inside collapsible detail)
       const addRow = document.createElement('div');
