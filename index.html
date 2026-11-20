@@ -3398,7 +3398,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup }
   from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc }
+import { getFirestore, doc, setDoc, getDoc, onSnapshot, runTransaction }
   from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -3469,6 +3469,39 @@ window._fbLoadD20 = async () => {
   if (!currentUser) return null;
   const snap = await getDoc(doc(db, 'users', currentUser.uid, 'data', 'd20'));
   return snap.exists() ? JSON.parse(snap.data().d20) : {};
+};
+// Merge-on-save for the tasks/recurring/log docs. Each stores its array as a
+// JSON string in a field named like the doc. `merge(remote)` gets the array
+// currently in the cloud and returns what to write; it runs inside a
+// transaction (and may run more than once), so a change made elsewhere (Claude
+// through the Focus connector, another tab or device) between our read and
+// our write is merged instead of overwritten. Returns the array written, or
+// null when signed out.
+window._fbSyncDoc = async (name, merge) => {
+  if (!currentUser) return null;
+  const ref = doc(db, 'users', currentUser.uid, 'data', name);
+  return runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const raw = snap.exists() ? snap.data()[name] : null;
+    let remote = [];
+    try { remote = raw ? JSON.parse(raw) : []; } catch (_) { remote = []; }
+    if (!Array.isArray(remote)) remote = [];
+    const merged = merge(remote);
+    tx.set(ref, { [name]: JSON.stringify(merged) });
+    return merged;
+  });
+};
+// Live updates for one of those docs: onRemote(array) fires when the cloud
+// copy changes (including right after subscribing). Returns an unsubscribe.
+window._fbWatchDoc = (name, onRemote) => {
+  if (!currentUser) return null;
+  const ref = doc(db, 'users', currentUser.uid, 'data', name);
+  return onSnapshot(ref, (snap) => {
+    if (snap.metadata.hasPendingWrites) return; // our own write, not yet committed
+    let remote = [];
+    try { remote = snap.exists() ? JSON.parse(snap.data()[name]) : []; } catch (_) { return; }
+    if (Array.isArray(remote)) onRemote(remote);
+  }, () => {}); // listener errors (offline, signed out): keep the local copy
 };
 window._fbSignInWithGoogle = async () => signInWithPopup(auth, provider);
 window._fbSignOut = async () => signOut(auth);
@@ -4266,6 +4299,111 @@ onAuthStateChanged(auth, user => {
   let recurringReadOk = false;
   let logReadOk = false;
   let syncTimer = null;
+
+  // --- Merging with changes made elsewhere ---
+  // Claude can edit tasks through the Focus connector (focus-proxy /api/mcp),
+  // and the app may be open on more than one device. Each save therefore
+  // merges with the cloud copy instead of overwriting it, and a live listener
+  // pulls in remote changes while the app is open.
+  // cloudBase[doc] is the last cloud version this session has seen; a task
+  // that differs from it was changed here, and local changes win per task.
+  const cloudBase = { tasks: [], recurring: [], log: [] };
+  let cloudUnsubs = [];
+  let cloudRetryTimer = null;
+  const cloneJSON = (v) => JSON.parse(JSON.stringify(v));
+  const logKey = (e) => e.id + '@' + e.timestamp;
+
+  // Three-way merge of arrays of objects by key. Keeps local order and
+  // appends items added remotely.
+  //  - new or changed here        -> local version
+  //  - unchanged here             -> remote version (or dropped if deleted remotely)
+  //  - deleted here               -> dropped, unless it was also changed remotely
+  function merge3(base, local, remote, key = (t) => t.id) {
+    const ser = (x) => JSON.stringify(x);
+    const B = new Map(base.map((t) => [key(t), ser(t)]));
+    const L = new Set(local.map(key));
+    const R = new Map(remote.map((t) => [key(t), t]));
+    const out = [];
+    for (const t of local) {
+      const k = key(t);
+      if (!B.has(k) || B.get(k) !== ser(t)) { out.push(t); continue; }
+      if (!R.has(k)) continue;
+      const r = R.get(k);
+      out.push(ser(r) === ser(t) ? t : r); // keep our object when nothing changed
+    }
+    for (const r of remote) {
+      const k = key(r);
+      if (L.has(k)) continue;
+      if (!B.has(k) || B.get(k) !== ser(r)) out.push(r);
+    }
+    return out;
+  }
+
+  async function syncDoc(name, local, key) {
+    const base = cloudBase[name];
+    const merged = await window._fbSyncDoc(name, (remote) => merge3(base, local, remote, key));
+    if (merged !== null) cloudBase[name] = cloneJSON(merged);
+    return merged;
+  }
+
+  // Fold a remote version of the tasks into the in-memory list, keeping
+  // anything edited here since `base`.
+  function applyRemoteTasks(base, remote) {
+    const next = merge3(base, tasks, remote);
+    if (JSON.stringify(next) === JSON.stringify(tasks)) return;
+    tasks = next;
+    render();
+  }
+
+  function applyRemoteLog(base, remote) {
+    const next = merge3(base, completionLog, remote, logKey);
+    if (JSON.stringify(next) === JSON.stringify(completionLog)) return;
+    completionLog = next;
+    chartDataHash = null;
+    if (currentSlide === ANALYTICS_SLIDE) renderAnalytics();
+  }
+
+  function stopCloudWatch() {
+    cloudUnsubs.forEach((u) => { try { u(); } catch (_) {} });
+    cloudUnsubs = [];
+    clearTimeout(cloudRetryTimer);
+    cloudRetryTimer = null;
+  }
+
+  function startCloudWatch() {
+    stopCloudWatch();
+    if (!window._fbWatchDoc) return;
+    const watch = (name, onRemote) => {
+      const unsub = window._fbWatchDoc(name, (remote) => {
+        if (JSON.stringify(remote) === JSON.stringify(cloudBase[name])) return;
+        onRemote(remote);
+      });
+      if (unsub) cloudUnsubs.push(unsub);
+    };
+    if (mainTasksReadOk) watch('tasks', (remote) => {
+      const base = cloudBase.tasks.filter((t) => !t.recurringKey);
+      cloudBase.tasks = cloneJSON(remote);
+      applyRemoteTasks(base, remote.filter((t) => !t.recurringKey));
+    });
+    if (recurringReadOk) watch('recurring', (remote) => {
+      const base = cloudBase.recurring;
+      cloudBase.recurring = cloneJSON(remote);
+      applyRemoteTasks(base, remote);
+    });
+    if (logReadOk) watch('log', (remote) => {
+      const base = cloudBase.log;
+      cloudBase.log = cloneJSON(remote);
+      applyRemoteLog(base, remote);
+    });
+  }
+
+  // A failed cloud save (e.g. offline) is retried so the change still
+  // reaches the cloud without waiting for the next edit.
+  function retryCloudSaveSoon() {
+    clearTimeout(cloudRetryTimer);
+    cloudRetryTimer = setTimeout(() => { cloudRetryTimer = null; saveToCloud(); }, 15000);
+  }
+  window.addEventListener('online', () => { if (cloudRetryTimer) { clearTimeout(cloudRetryTimer); cloudRetryTimer = null; saveToCloud(); } });
   function showSync(msg, duration = 1500) {
     const el = document.getElementById('sync-status');
     if (!el) return;
@@ -4277,21 +4415,28 @@ onAuthStateChanged(auth, user => {
 
   async function saveToCloud() {
     showSync('Saving...');
-    const mainTasks      = tasks.filter(t => !t.recurringKey);
-    const recurringTasks = tasks.filter(t =>  t.recurringKey);
+    // Snapshot what we send; edits made while the save is in flight are
+    // kept when the merged result is folded back in.
+    const sent           = cloneJSON(tasks);
+    const mainTasks      = sent.filter(t => !t.recurringKey);
+    const recurringTasks = sent.filter(t =>  t.recurringKey);
     try {
-      const writes = [];
-      if (mainTasksReadOk) writes.push(window._fbSaveTasks(mainTasks));
-      if (recurringReadOk) writes.push(window._fbSaveRecurring(recurringTasks));
-      if (writes.length) await Promise.all(writes);
+      const toCloud = mainTasksReadOk || recurringReadOk;
+      const [mergedMain, mergedRecurring] = await Promise.all([
+        mainTasksReadOk ? syncDoc('tasks', mainTasks) : null,
+        recurringReadOk ? syncDoc('recurring', recurringTasks) : null,
+      ]);
+      // Pull in anything the cloud had that we didn't (e.g. a task Claude added).
+      applyRemoteTasks(sent, (mergedMain || mainTasks).concat(mergedRecurring || recurringTasks));
       // Mirror to localStorage for any doc we didn't write to cloud this session.
       if (!mainTasksReadOk) localStorage.setItem('focus-tasks', JSON.stringify(mainTasks));
       if (!recurringReadOk) localStorage.setItem('focus-recurring', JSON.stringify(recurringTasks));
-      showSync(writes.length ? 'Saved ✓' : 'Saved locally');
+      showSync(toCloud ? 'Saved ✓' : 'Saved locally');
     } catch(e) {
       localStorage.setItem('focus-tasks', JSON.stringify(mainTasks));
       localStorage.setItem('focus-recurring', JSON.stringify(recurringTasks));
       showSync('Saved locally');
+      if (mainTasksReadOk || recurringReadOk) retryCloudSaveSoon();
     }
   }
 
@@ -4305,6 +4450,7 @@ onAuthStateChanged(auth, user => {
       if (loaded !== null) {
         mainDoc = loaded;
         mainTasksReadOk = true;
+        cloudBase.tasks = cloneJSON(loaded);
       }
     } catch(e) {
       const local = localStorage.getItem('focus-tasks');
@@ -4315,6 +4461,7 @@ onAuthStateChanged(auth, user => {
       if (loaded !== null) {
         recurringDoc = loaded;
         recurringReadOk = true;
+        cloudBase.recurring = cloneJSON(loaded);
       }
     } catch(e) {
       const local = localStorage.getItem('focus-recurring');
@@ -4348,6 +4495,7 @@ onAuthStateChanged(auth, user => {
     else if (needsMigration && mainTasksReadOk && recurringReadOk) save();
     render();
     applyMobileLayout();
+    startCloudWatch();
     maybeTakeWeeklyBackup();
   }
 
@@ -4472,6 +4620,7 @@ onAuthStateChanged(auth, user => {
     // an empty array back to cloud, wiping the user's data.
     clearTimeout(saveTimeout);
     saveTimeout = null;
+    stopCloudWatch();
     mainTasksReadOk = false;
     recurringReadOk = false;
     logReadOk = false;
@@ -9493,6 +9642,7 @@ onAuthStateChanged(auth, user => {
       if (loaded !== null) {
         completionLog = loaded;
         logReadOk = true;
+        cloudBase.log = cloneJSON(loaded);
       }
     } catch(e) {
       const l = localStorage.getItem('focus-completion-log');
@@ -9501,8 +9651,12 @@ onAuthStateChanged(auth, user => {
   }
 
   async function saveLog() {
+    const sent = cloneJSON(completionLog);
     try {
-      await window._fbSaveLog(completionLog);
+      // Merge with the cloud copy so completions recorded elsewhere (Claude,
+      // another device) aren't overwritten.
+      const merged = await syncDoc('log', sent, logKey);
+      if (merged !== null) applyRemoteLog(sent, merged);
     } catch(e) {
       localStorage.setItem('focus-completion-log', JSON.stringify(completionLog));
     }
