@@ -4459,11 +4459,11 @@ onAuthStateChanged(auth, user => {
     if (!link) { alert('Sign in first.'); return; }
     let copied = false;
     try { await navigator.clipboard.writeText(link); copied = true; } catch (e) {}
-    if (!copied) { window.prompt('Copy this private link and paste it into Claude > Settings > Connectors > Add custom connector:', link); return; }
+    if (!copied) { window.prompt('Copy this private link and open claude.ai/customize/connectors, tap + Add > Add custom connector, and paste it as the URL:', link); return; }
     const label = btn.textContent;
     btn.textContent = 'Copied';
     setTimeout(() => { btn.textContent = label; }, 2000);
-    alert('Private Claude link copied. In Claude, open Settings > Connectors > Add custom connector, name it Focus, and paste the link as the URL. Keep it private: it works like a password.');
+    alert('Private Claude link copied. Open claude.ai/customize/connectors in your browser, tap + Add > Add custom connector, name it Focus, and paste the link as the URL. Keep it private: it works like a password.');
   }
 
   async function handleSignOut() {
