@@ -3413,6 +3413,10 @@
   .wow-stat-v { font-size: 16px; color: var(--text); font-variant-numeric: tabular-nums; }
   .wow-stat-l { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
   .wow-spark { grid-column: 1 / -1; margin-top: 10px; }
+  .wow-attrs { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px 20px; margin-top: 12px; font-size: 11px; }
+  .wow-attr { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--border); }
+  .wow-attr span { color: var(--text-muted); }
+  .wow-attr b { font-weight: 500; color: var(--text); font-variant-numeric: tabular-nums; }
   .wow-spark svg { width: 100%; height: 48px; display: block; }
   .wow-spark-cap { font-size: 9px; color: var(--text-muted); letter-spacing: 0.04em; }
   .wow-details { grid-column: 1 / -1; margin-top: 10px; font-size: 11px; color: var(--text-muted); }
@@ -3454,6 +3458,7 @@
     .wow-setup { grid-template-columns: 1fr; }
     .wow-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .wow-gear { grid-template-columns: 1fr; }
+    .wow-attrs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .wow-row { grid-template-columns: minmax(0, 1fr) 40px 56px 50px; gap: 8px; }
   }
 </style>
@@ -12610,12 +12615,19 @@ onAuthStateChanged(auth, user => {
       + stat(p == null ? '–' : (p > 0 ? '+' : '') + p.toFixed(1), 'Levels / week')
       + (d.achievementPoints ? stat(d.achievementPoints, 'Achievements')
         : stat(d.lastLogin ? new Date(d.lastLogin).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '–', 'Last played')) + '</div>'
+      + statsGrid(d.stats)
       + '<div class="wow-spark">' + sparkline(state.main) + '</div>'
       + (gear.length ? '<details class="wow-details" open><summary>Gear (' + gear.length + ')</summary><div class="wow-gear">'
         + gear.map(g => '<div class="wow-gear-row"><span>' + esc(g.slot) + '</span><span class="wow-q-' + esc(g.quality) + '">'
           + (escUrl(g.icon) ? '<img class="wow-gear-icon wow-qb-' + esc(g.quality) + '" src="' + escUrl(g.icon) + '" alt="" loading="lazy">' : '') + esc(g.name) + (g.itemLevel ? ' <small style="color:var(--text-muted)">' + g.itemLevel + '</small>' : '') + '</span></div>').join('')
         + '</div></details>' : '')
       + '</div>';
+  }
+  function statsGrid(stats) {
+    const list = (stats || []).slice(0, 10);
+    if (!list.length) return '';
+    return '<div class="wow-attrs">' + list.map(s => '<div class="wow-attr"><span>' + esc(s.label) + '</span><b>'
+      + esc(s.pct ? s.value + '%' : Number(s.value).toLocaleString()) + '</b></div>').join('') + '</div>';
   }
   const stat = (v, l) => '<div class="wow-stat"><div class="wow-stat-v">' + esc(v) + '</div><div class="wow-stat-l">' + esc(l) + '</div></div>';
 
