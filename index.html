@@ -3445,6 +3445,13 @@
   .wow-add-row { margin-top: 8px; }
   .wow-toggle { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-muted); margin-bottom: 10px; cursor: pointer; }
   .wow-guild-list { max-height: 360px; overflow-y: auto; }
+  /* Two-column layout: the roster fills the card's full height (set by the
+     Realm + News stack beside it) and scrolls inside, so there's no dead space. */
+  @media (min-width: 600px) {
+    #wow-guild-card { position: relative; }
+    #wow-guild-list.wow-guild-list { flex: 1; min-height: 240px; max-height: none; position: relative; }
+    #wow-guild-list.wow-guild-list > .wow-guild-scroll { position: absolute; inset: 0; overflow-y: auto; }
+  }
   .wow-tracked-details { margin-top: 16px; }
   .wow-tracked-details > summary { font-size: 9px; }
   .wow-note { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
@@ -12710,7 +12717,7 @@ onAuthStateChanged(auth, user => {
     $('wow-guild-title').textContent = guildRoster.guild || 'Guild';
     $('wow-guild-updated').textContent = guildRoster.members.length + ' members';
     el.className = 'wow-guild-list';
-    el.innerHTML = guildRoster.members.map(m => {
+    el.innerHTML = '<div class="wow-guild-scroll">' + guildRoster.members.map(m => {
       const isMain = same(m, state.main), isTracked = state.tracked.some(t => same(t, m));
       const btn = isMain ? '<span class="wow-row-pace">you</span>'
         : isTracked ? '<span class="wow-row-pace">tracked</span>'
@@ -12718,7 +12725,7 @@ onAuthStateChanged(auth, user => {
         : '<button class="wow-icon-btn" data-name="' + esc(m.name) + '" data-surname="' + esc(m.surname || '') + '" data-realm="' + esc(m.realmSlug) + '" data-href="' + esc(m.href || '') + '">Track</button>';
       return '<div class="wow-row"><span class="wow-row-name">' + esc(m.name) + (m.surname ? ' ' + esc(m.surname) : '') + '<small>' + esc(m.className) + '</small></span>'
         + '<span class="wow-row-lvl">Lv ' + esc(m.level || '?') + '</span><span class="wow-row-pace">' + (m.rank === 0 ? 'GM' : 'rank ' + esc(m.rank)) + '</span>' + btn + '</div>';
-    }).join('');
+    }).join('') + '</div>';
     el.querySelectorAll('button[data-name]').forEach(b => b.addEventListener('click', () => {
       state.tracked.push({ name: b.dataset.name, surname: b.dataset.surname, realm: b.dataset.realm, href: b.dataset.href });
       save(true); renderGuild(); loadTracked();
