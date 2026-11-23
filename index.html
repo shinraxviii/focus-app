@@ -10111,7 +10111,8 @@ onAuthStateChanged(auth, user => {
       if (e.target.closest('.task-item')) return;
       if (e.target.closest('input, textarea, select, [contenteditable]')) return;
       // Horizontal scrollers (Digest sub-tabs) own their own sideways drags
-      if (e.target.closest('.digest-sub-tabs-wrap')) return;
+      // (reset state so a gesture that never got its touchend can't leak in)
+      if (e.target.closest('.digest-sub-tabs-wrap')) { tracking = false; dragActive = false; return; }
       onStart(e.touches[0].clientX, e.touches[0].clientY);
     }, { passive: true });
     wrap.addEventListener('touchmove', e => {
@@ -11388,6 +11389,11 @@ onAuthStateChanged(auth, user => {
       wrap.classList.toggle('more-right', r);
     }
     strip.addEventListener('scroll', updateEdges, { passive: true });
+    // Belt and braces for iOS: touches on the strip never reach the
+    // page-level swipe or pull-to-refresh listeners at all.
+    ['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach(function(type) {
+      wrap.addEventListener(type, function(e) { e.stopPropagation(); }, { passive: true });
+    });
     window.addEventListener('resize', function() { updateEdges(); revealActive(false); });
     if (window.ResizeObserver) new ResizeObserver(updateEdges).observe(strip);
     updateEdges();
