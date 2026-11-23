@@ -7977,13 +7977,22 @@ onAuthStateChanged(auth, user => {
   // Events: the last 7 days of MTGO Leagues and Challenges, grouped into
   // archetypes by the focus-proxy /api/standard-meta route. Arena (the first
   // tab): BO1 ladder stats from Untapped.gg via /api/arena-meta, Platinum rank
-  // and above, for the current meta period. The 7-day trend comes from daily share snapshots kept in this
+  // and above, over the last few days once this browser has a season snapshot
+  // from META_RECENT_DAYS ago (season totals until then; see
+  // metaArenaRecent). The Events trend, and the Arena one in season view, comes from daily share snapshots kept in this
   // browser (META_HISTORY_KEY); anything older than META_HISTORY_DAYS is
   // pruned on every save. The trend is T3D: today vs the newest snapshot that
   // is at least META_TREND_DAYS old (or the oldest one, until then).
   const META_EVENTS_TTL   = 6 * 60 * 60 * 1000;
   const META_ARENA_TTL    = 6 * 60 * 60 * 1000;
   const META_PARTIAL_TTL  = 30 * 60 * 1000;
+  // Arena recent view: Untapped's free stats are season totals, so the app
+  // saves them daily (META_SEASON_KEY) and diffs today against the newest
+  // snapshot at least META_RECENT_DAYS old from the same season. Until one
+  // exists (or if it holds too few games) the tab shows season totals.
+  const META_SEASON_KEY   = 'focus-standard-meta-arena-season';
+  const META_RECENT_DAYS  = 3;
+  const META_RECENT_MIN   = 3000;
   const META_HISTORY_KEY  = 'focus-standard-meta-history';
   const META_HISTORY_DAYS = 7;
   const META_TREND_DAYS   = 3;
@@ -8035,6 +8044,41 @@ onAuthStateChanged(auth, user => {
     return rows;
   }
 
+  // Save today's season totals and return the recent-days window, or null.
+  // Window rows: { name, colors, games, wins, share } over the games played
+  // since the baseline snapshot.
+  function metaArenaRecent(data) {
+    if (!Array.isArray(data.all) || !data.totalGames) return null;
+    let store = {};
+    try { store = JSON.parse(localStorage.getItem(META_SEASON_KEY)) || {}; } catch(e) {}
+    const today = new Date();
+    const todayKey = metaDayKey(today);
+    const g = {};
+    data.all.forEach(function(a) { g[a[0]] = [a[2], a[3], a[1]]; });
+    store[todayKey] = { ts: Date.parse(data.updated) || Date.now(), since: data.since || null, total: data.totalGames, g: g };
+    const oldest = metaDayKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 8));
+    Object.keys(store).forEach(function(k) { if (k < oldest) delete store[k]; });
+    try { localStorage.setItem(META_SEASON_KEY, JSON.stringify(store)); } catch(e) {}
+
+    const cutoff = metaDayKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() - META_RECENT_DAYS));
+    const baseKey = Object.keys(store).filter(function(k) {
+      return k <= cutoff && store[k].since === (data.since || null);
+    }).sort().pop();
+    if (!baseKey) return null;
+    const base = store[baseKey], now = store[todayKey];
+    const total = now.total - base.total;
+    if (total < META_RECENT_MIN) return null;
+    const rows = [];
+    Object.keys(now.g).forEach(function(name) {
+      const b = base.g[name] || [0, 0];
+      const games = now.g[name][0] - b[0];
+      if (games <= 0) return;
+      rows.push({ name: name, colors: now.g[name][2], games: games, wins: now.g[name][1] - b[1], share: games / total * 100 });
+    });
+    rows.sort(function(x, y) { return y.games - x.games; });
+    return { rows: rows.slice(0, 10), total: total, days: Math.max(1, Math.round((now.ts - base.ts) / 864e5)) };
+  }
+
   function metaPips(c) {
     return String(c || '').split('')
       .filter(function(x) { return META_COLOR_ORDER.indexOf(x) !== -1; })
@@ -8072,7 +8116,8 @@ onAuthStateChanged(auth, user => {
     }
     document.getElementById('meta-updated').textContent = info.updated || '';
     document.getElementById('meta-summary').textContent = info.summary || '';
-    document.getElementById('meta-trend-label').textContent = info.t7d ? 'Share · T' + META_TREND_DAYS + 'D'
+    document.getElementById('meta-trend-label').textContent = info.trendLabel ? info.trendLabel
+      : info.t7d ? 'Share · T' + META_TREND_DAYS + 'D'
       : info.baseDay ? 'Share · since ' + info.baseDay.slice(5).replace('-', '/') : 'Share';
     document.getElementById('meta-note').textContent = info.note || '';
     document.getElementById('meta-note').hidden = !info.note;
@@ -8163,24 +8208,64 @@ onAuthStateChanged(auth, user => {
   async function loadMetaArena() {
     const show = function(entry, stale) {
       const data = entry.data;
-      metaState.rows.arena = metaApplyTrend('arena', data.rows.map(function(a) {
-        const stats = [];
-        if (typeof a.winRate === 'number') stats.push([a.winRate.toFixed(1) + '%', 'Win rate']);
-        if (a.games) stats.push([Number(a.games).toLocaleString(), 'Games']);
-        return {
-          name: a.name, colors: a.colors, share: a.share,
-          count: a.games ? Number(a.games).toLocaleString() + ' games' : '',
-          stats: stats,
-          keyCards: a.keyCards || [], link: data.url || null, linkLabel: 'Full stats on Untapped.gg'
-        };
-      }));
-      metaState.info.arena = Object.assign({}, metaState.info.arena, {
-        updated: 'Untapped.gg · ' + cacheAge(new Date(data.updated).getTime()) + (stale ? ' · stale' : ''),
-        summary: 'Arena BO1 · ' + (data.ranks || 'All ranks') + (data.days ? ' · last ' + data.days + ' days' : ''),
-        note: 'MTG Arena Best-of-One ladder games tracked by Untapped.gg, '
-          + (data.ranks ? data.ranks + ' ranks only' : 'all ranks')
-          + (data.since ? ', since ' + new Date(data.since).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + (data.period ? ' (' + data.period + ')' : '') + '.' : '.')
+      const link = data.url || null;
+      const seasonShare = {};
+      (data.all || data.rows).forEach(function(a) {
+        if (Array.isArray(a)) seasonShare[a[0]] = a[2] / data.totalGames * 100;
+        else seasonShare[a.name] = a.share;
       });
+      const keyCardsFor = function(name) {
+        const r = data.rows.find(function(x) { return x.name === name; });
+        return (r && r.keyCards) || (data.keyCards && data.keyCards[name]) || [];
+      };
+      const recent = metaArenaRecent(data);
+      const since = data.since ? new Date(data.since).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : null;
+      const ranks = data.ranks || 'All ranks';
+      if (recent) {
+        // Last few days. The arrow is the change from the season share.
+        metaState.rows.arena = recent.rows.map(function(a) {
+          const winRate = a.games ? a.wins / a.games : null;
+          const season = seasonShare[a.name];
+          const stats = [];
+          if (winRate != null) stats.push([winRate.toFixed(1) + '%', 'Win rate']);
+          stats.push([Math.round(a.games).toLocaleString(), 'Games']);
+          if (season != null) stats.push([season.toFixed(1) + '%', 'Season share']);
+          return {
+            name: a.name, colors: a.colors, share: a.share,
+            count: Math.round(a.games).toLocaleString() + ' games',
+            stats: stats, keyCards: keyCardsFor(a.name), link: link, linkLabel: 'Full stats on Untapped.gg',
+            d: season == null ? 'new' : Math.round((a.share - season) * 10) / 10
+          };
+        });
+        metaState.info.arena = Object.assign({}, metaState.info.arena, {
+          trendLabel: 'Share · vs season',
+          summary: 'Arena BO1 · ' + ranks + ' · last ' + recent.days + ' days',
+          note: 'MTG Arena Best-of-One ladder games tracked by Untapped.gg, ' + ranks + ' ranks only, over the last '
+            + recent.days + ' days (' + Math.round(recent.total).toLocaleString() + ' games). Arrows compare with the season so far'
+            + (since ? ', since ' + since + (data.period ? ' (' + data.period + ')' : '') : '') + '.'
+        });
+      } else {
+        metaState.rows.arena = metaApplyTrend('arena', data.rows.map(function(a) {
+          const stats = [];
+          if (typeof a.winRate === 'number') stats.push([a.winRate.toFixed(1) + '%', 'Win rate']);
+          if (a.games) stats.push([Number(a.games).toLocaleString(), 'Games']);
+          return {
+            name: a.name, colors: a.colors, share: a.share,
+            count: a.games ? Number(a.games).toLocaleString() + ' games' : '',
+            stats: stats,
+            keyCards: a.keyCards || [], link: link, linkLabel: 'Full stats on Untapped.gg'
+          };
+        }));
+        metaState.info.arena = Object.assign({}, metaState.info.arena, {
+          trendLabel: null,
+          summary: 'Arena BO1 · ' + ranks + (data.days ? ' · season, ' + data.days + ' days' : ''),
+          note: 'MTG Arena Best-of-One ladder games tracked by Untapped.gg, '
+            + (data.ranks ? data.ranks + ' ranks only' : 'all ranks')
+            + (since ? ', since ' + since + (data.period ? ' (' + data.period + ')' : '') + '.' : '.')
+            + (Array.isArray(data.all) ? ' A last-' + META_RECENT_DAYS + '-days view starts once this device has ' + META_RECENT_DAYS + ' days of history.' : '')
+        });
+      }
+      metaState.info.arena.updated = 'Untapped.gg · ' + cacheAge(new Date(data.updated).getTime()) + (stale ? ' · stale' : '');
       renderStandardMeta();
     };
     // v3 key: v2 entries mixed all ranks; v3 is Platinum and above.
