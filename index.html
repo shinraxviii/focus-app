@@ -3518,6 +3518,15 @@
     #wow-guild-list.wow-guild-list > .wow-guild-scroll { position: absolute; inset: 0; overflow-y: auto; }
   }
   .wow-tracked-details { margin-top: 16px; }
+  .wow-row-open-btn { cursor: pointer; -webkit-tap-highlight-color: rgba(255,255,255,0.06); }
+  .wow-caret { display: inline-block; width: 12px; color: var(--text-muted); font-size: 10px; transition: transform 0.15s; }
+  .wow-row-open-btn.open { background: var(--surface2); }
+  .wow-row-open-btn.open .wow-caret { transform: rotate(90deg); }
+  .wow-member-card { margin: 4px 0 12px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 12px; }
+  .wow-rank-sm { display: none; }
+  /* No visible scrollbars in the guild roster: it scrolls by touch, wheel or trackpad. */
+  .wow-guild-list, .wow-guild-scroll { scrollbar-width: none; }
+  .wow-guild-list::-webkit-scrollbar, .wow-guild-scroll::-webkit-scrollbar { display: none; }
   .wow-tracked-details > summary { font-size: 9px; }
   .wow-note { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
   .wow-note code { font-size: 10px; background: var(--surface2); padding: 1px 4px; border-radius: 3px; }
@@ -3533,6 +3542,15 @@
     .wow-gear { grid-template-columns: 1fr; }
     .wow-attrs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .wow-row { grid-template-columns: minmax(0, 1fr) 40px 56px 50px; gap: 8px; }
+    /* Phone: the roster lists every member in the page flow (no inner scroll box),
+       and rank moves under the name so the row is name, level, button. */
+    .wow-guild-list { max-height: none; overflow: visible; }
+    .wow-guild-row { grid-template-columns: minmax(0, 1fr) 44px 58px; }
+    .wow-guild-row .wow-row-rank { display: none; }
+    .wow-guild-row .wow-row-pace { min-width: 0; }
+    .wow-rank-sm { display: inline; margin-left: 0; }
+    .wow-guild-row .wow-row-name small { display: block; margin: 1px 0 0; overflow: hidden; text-overflow: ellipsis; }
+    .wow-member-card { padding: 10px 8px; }
   }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -3756,9 +3774,9 @@ onAuthStateChanged(auth, user => {
     <button class="digest-sub-tab active" data-subtab="frontpage">Front Page</button>
     <button class="digest-sub-tab" data-subtab="sports">Sports</button>
     <button class="digest-sub-tab" data-subtab="gaming">Magic</button>
+    <button class="digest-sub-tab" data-subtab="wow">WoW</button>
     <button class="digest-sub-tab" data-subtab="sorcery">Sorcery</button>
     <button class="digest-sub-tab" data-subtab="hobbies">Hobbies</button>
-    <button class="digest-sub-tab" data-subtab="wow">WoW</button>
   </div>
   <button class="digest-tab-arrow right" type="button" aria-label="Scroll tabs right" tabindex="-1">&rsaquo;</button>
   </div>
@@ -12726,6 +12744,7 @@ onAuthStateChanged(auth, user => {
   }
 
   // ── Main character ──
+  const gearOf = d => (d && d.gear || []).filter(g => g.name);
   function sparkline(c) {
     const arr = state.snaps[keyOf(c)] || [];
     if (arr.length < 2) return '<div class="wow-spark-cap">Level history builds up as you play: one point each day something changes.</div>';
@@ -12744,15 +12763,20 @@ onAuthStateChanged(auth, user => {
   }
 
   function renderMain(d) {
+    $('wow-main').innerHTML = charHtml(d, state.main, true);
+  }
+  // Full character view (portrait, stats, level history, gear). Used for your main
+  // and, when a tracked member's row is tapped, for that member.
+  function charHtml(d, c, gearOpen) {
     const specs = (d.specs || []).filter(s => s.name);
     const specLine = specs.length ? specs.map(s => esc(s.name) + (s.points ? ' ' + s.points : '')).join(' / ') : esc(d.activeSpec || '');
-    const p = pace(state.main, d.level);
-    const gear = (d.gear || []).filter(g => g.name);
+    const p = pace(c, d.level);
+    const gear = gearOf(d), ck = esc(keyOf(c));
     const avatar = escUrl(d.avatar)
       ? '<img class="wow-avatar" src="' + escUrl(d.avatar) + '" alt="" loading="lazy">'
       : '<div class="wow-avatar wow-avatar-ph">' + esc((d.name || '?')[0]) + '</div>';
     const armory = d.realmSlug ? 'https://worldofwarcraft.blizzard.com/en-us/character/' + REGION + '/' + encodeURIComponent(d.realmSlug) + '/' + encodeURIComponent((d.name || '').toLowerCase()) : '';
-    $('wow-main').innerHTML = '<div class="wow-main">' + avatar
+    return '<div class="wow-main">' + avatar
       + '<div><div class="wow-name">' + (armory ? '<a href="' + escUrl(armory) + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">' : '<span>') + esc(d.name) + (d.surname ? ' ' + esc(d.surname) : '') + (armory ? '</a>' : '</span>') + '<small>' + esc(d.realm || d.faction || '') + '</small></div>'
       + '<div class="wow-sub">Level ' + esc(d.level) + ' ' + esc(d.race) + ' ' + esc(d.className) + (specLine ? ' · ' + specLine : '') + '</div>'
       + (d.guild ? '<div class="wow-sub">&lt;' + esc(d.guild.name) + '&gt;</div>' : '') + '</div>'
@@ -12762,18 +12786,16 @@ onAuthStateChanged(auth, user => {
       + (d.achievementPoints ? stat(d.achievementPoints, 'Achievements')
         : stat(d.lastLogin ? new Date(d.lastLogin).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '–', 'Last played')) + '</div>'
       + statsGrid(d.stats)
-      + '<div class="wow-spark">' + sparkline(state.main) + '</div>'
-      + (gear.length ? '<details class="wow-details" open><summary>Gear (' + gear.length + ')</summary><div class="wow-gear">'
-        + gear.map((g, i) => '<div class="wow-gear-row" data-gi="' + i + '"><span>' + esc(g.slot) + '</span><span class="wow-q-' + esc(g.quality) + '">'
+      + '<div class="wow-spark">' + sparkline(c) + '</div>'
+      + (gear.length ? '<details class="wow-details"' + (gearOpen ? ' open' : '') + '><summary>Gear (' + gear.length + ')</summary><div class="wow-gear">'
+        + gear.map((g, i) => '<div class="wow-gear-row" data-ck="' + ck + '" data-gi="' + i + '"><span>' + esc(g.slot) + '</span><span class="wow-q-' + esc(g.quality) + '">'
           + (escUrl(g.icon) ? '<img class="wow-gear-icon wow-qb-' + esc(g.quality) + '" src="' + escUrl(g.icon) + '" alt="" loading="lazy">' : '') + esc(g.name) + (g.itemLevel ? ' <small style="color:var(--text-muted)">' + g.itemLevel + '</small>' : '')
           + ((g.enchants || []).length ? '<span class="wow-ench">' + g.enchants.map(esc).join(' · ') + '</span>' : '') + '</span></div>').join('')
         + '</div></details>' : '')
       + '</div>';
-    currentGear = gear;
   }
 
   // ── Item tooltips (hover on desktop, tap on touch) ──
-  let currentGear = [];
   const tip = document.createElement('div');
   tip.className = 'wow-tip';
   tip.setAttribute('role', 'tooltip');
@@ -12799,18 +12821,19 @@ onAuthStateChanged(auth, user => {
   }
   let tipRow = null;
   function showTip(row, x, y) {
-    const g = currentGear[+row.dataset.gi];
+    const g = gearOf(charCache[row.dataset.ck])[+row.dataset.gi];
     if (!g) return;
     tip.innerHTML = tipHtml(g);
     tip.classList.add('show');
     tipRow = row;
+    tipScrollY = window.scrollY;
     placeTip(x, y);
   }
   function hideTip() { tip.classList.remove('show'); tipRow = null; }
   // Mouse pointers get hover tooltips; touch and pen get tap-to-toggle. Pointer
   // events tell the two apart per interaction, so a phone or tablet that claims
   // (hover: hover), or a touchscreen laptop, still works both ways.
-  const mainEl = $('wow-main');
+  const mainEl = $('wow-chars-card');
   let lastPointer = 'mouse';
   mainEl.addEventListener('pointerdown', e => { lastPointer = e.pointerType || 'touch'; });
   mainEl.addEventListener('pointerover', e => {
@@ -12837,7 +12860,10 @@ onAuthStateChanged(auth, user => {
     }
   });
   document.addEventListener('click', e => { if (tipRow && !(e.target.closest && e.target.closest('.wow-tip'))) hideTip(); });
-  window.addEventListener('scroll', () => { if (lastPointer !== 'mouse') hideTip(); }, { passive: true });
+  // Close a tapped tooltip once the page has really scrolled away, not on the
+  // small settle scroll iOS can fire right after a tap.
+  let tipScrollY = 0;
+  window.addEventListener('scroll', () => { if (tipRow && lastPointer !== 'mouse' && Math.abs(window.scrollY - tipScrollY) > 40) hideTip(); }, { passive: true });
 
   function statsGrid(stats) {
     const list = (stats || []).slice(0, 10);
@@ -12855,8 +12881,8 @@ onAuthStateChanged(auth, user => {
     }
     try {
       const d = await api({ action: 'character', name: state.main.name, realm: state.main.realm || '', surname: state.main.surname || '' });
-      charCache[keyOf(state.main)] = d;
       if (!state.main.realm && d.realmSlug) { state.main.realm = d.realmSlug; }
+      charCache[keyOf(state.main)] = d;
       snap(state.main, d.level, d.itemLevel, d.achievementPoints);
       save(false);
       renderMain(d);
@@ -12881,6 +12907,7 @@ onAuthStateChanged(auth, user => {
   }
   function rosterEntry(c) { return guildRoster && guildRoster.members.find(m => same(m, c)); }
 
+  let openKey = null;   // tracked member whose full card is showing
   function renderTracked() {
     const list = trackedList();
     const el = $('wow-tracked');
@@ -12891,16 +12918,40 @@ onAuthStateChanged(auth, user => {
       const lvl = d.level || null, p = pace(c, lvl);
       return { c, d, lvl, p };
     }).sort((a, b) => (b.lvl || 0) - (a.lvl || 0));
-    el.innerHTML = rows.map(({ c, d, lvl, p }) => '<div class="wow-row">'
-      + '<span class="wow-row-name">' + esc(d.name || c.name) + (c.surname ? ' ' + esc(c.surname) : '') + '<small>' + esc(d.className || '') + (d.itemLevel ? ' · ilvl ' + d.itemLevel : '') + '</small></span>'
+    el.innerHTML = rows.map(({ c, d, lvl, p }) => { const k = keyOf(c), open = k === openKey; return '<div class="wow-row wow-row-open-btn' + (open ? ' open' : '') + '" data-key="' + esc(k) + '">'
+      + '<span class="wow-row-name"><span class="wow-caret">&#9656;</span>' + esc(d.name || c.name) + (c.surname ? ' ' + esc(c.surname) : '') + '<small>' + esc(d.className || '') + (d.itemLevel ? ' · ilvl ' + d.itemLevel : '') + '</small></span>'
       + '<span class="wow-row-lvl">' + (lvl ? 'Lv ' + lvl : (d.error ? 'not found' : '…')) + '</span>'
       + '<span class="wow-row-pace' + (p > 0 ? ' up' : '') + '">' + esc(paceText(p)) + '</span>'
-      + (c.auto ? '<span></span>' : '<button class="wow-x" data-key="' + esc(keyOf(c)) + '" title="Stop tracking">&times;</button>')
-      + '</div>').join('');
-    el.querySelectorAll('.wow-x').forEach(b => b.addEventListener('click', () => {
+      + (c.auto ? '<span></span>' : '<button class="wow-x" data-key="' + esc(k) + '" title="Stop tracking">&times;</button>')
+      + '</div>' + (open ? '<div class="wow-member-card">' + memberCardHtml(c) + '</div>' : ''); }).join('');
+    el.querySelectorAll('.wow-row-open-btn').forEach(r => r.addEventListener('click', e => {
+      if (e.target.closest('.wow-x')) return;
+      const k = r.dataset.key;
+      openKey = openKey === k ? null : k;
+      renderTracked();
+      const c = openKey && list.find(t => keyOf(t) === openKey);
+      if (c && !(charCache[openKey] && charCache[openKey].gear)) loadMember(c);
+    }));
+    el.querySelectorAll('.wow-x').forEach(b => b.addEventListener('click', e => {
+      e.stopPropagation();
       state.tracked = state.tracked.filter(t => keyOf(t) !== b.dataset.key);
       save(true); renderTracked(); renderGuild();
     }));
+  }
+
+  function memberCardHtml(c) {
+    const d = charCache[keyOf(c)];
+    if (d && d.gear) return charHtml(d, c, true);
+    if (d && d.error) return '<div class="wow-note">Could not load ' + esc(c.name) + (c.surname ? ' ' + esc(c.surname) : '') + ' from Battle.net right now.</div>';
+    return '<span class="digest-loading">Loading...</span>';
+  }
+  const memberReq = c => c.href ? { action: 'character', href: c.href } : { action: 'character', name: c.name, surname: c.surname || '', realm: c.realm || (state.main && state.main.realm) || '' };
+  // Auto-tracked members only have roster data until opened; fetch the full profile then.
+  async function loadMember(c) {
+    const k = keyOf(c);
+    try { charCache[k] = await api(memberReq(c)); }
+    catch (e) { charCache[k] = Object.assign({}, charCache[k], { name: c.name, error: true }); }
+    if (openKey === k) renderTracked();
   }
 
   async function loadTracked() {
@@ -12909,7 +12960,7 @@ onAuthStateChanged(auth, user => {
     renderTracked();
     await Promise.all(state.tracked.map(async c => {
       try {
-        const d = await api(c.href ? { action: 'character', href: c.href } : { action: 'character', name: c.name, surname: c.surname || '', realm: c.realm || (state.main && state.main.realm) || '' });
+        const d = await api(memberReq(c));
         charCache[keyOf(c)] = d;
         snap(c, d.level, d.itemLevel, d.achievementPoints);
       } catch (e) { charCache[keyOf(c)] = { name: c.name, error: true }; }
@@ -12932,8 +12983,9 @@ onAuthStateChanged(auth, user => {
         : isTracked ? '<span class="wow-row-pace">tracked</span>'
         : state.autoGuild ? '<span class="wow-row-pace">auto</span>'
         : '<button class="wow-icon-btn" data-name="' + esc(m.name) + '" data-surname="' + esc(m.surname || '') + '" data-realm="' + esc(m.realmSlug) + '" data-href="' + esc(m.href || '') + '">Track</button>';
-      return '<div class="wow-row"><span class="wow-row-name">' + esc(m.name) + (m.surname ? ' ' + esc(m.surname) : '') + '<small>' + esc(m.className) + '</small></span>'
-        + '<span class="wow-row-lvl">Lv ' + esc(m.level || '?') + '</span><span class="wow-row-pace">' + (m.rank === 0 ? 'GM' : 'rank ' + esc(m.rank)) + '</span>' + btn + '</div>';
+      const rank = m.rank === 0 ? 'GM' : 'rank ' + esc(m.rank);
+      return '<div class="wow-row wow-guild-row"><span class="wow-row-name">' + esc(m.name) + (m.surname ? ' ' + esc(m.surname) : '') + '<small>' + esc(m.className) + '<span class="wow-rank-sm"> · ' + rank + '</span></small></span>'
+        + '<span class="wow-row-lvl">Lv ' + esc(m.level || '?') + '</span><span class="wow-row-pace wow-row-rank">' + (m.rank === 0 ? 'GM' : 'rank ' + esc(m.rank)) + '</span>' + btn + '</div>';
     }).join('') + '</div>';
     el.querySelectorAll('button[data-name]').forEach(b => b.addEventListener('click', () => {
       state.tracked.push({ name: b.dataset.name, surname: b.dataset.surname, realm: b.dataset.realm, href: b.dataset.href });
