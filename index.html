@@ -3535,6 +3535,11 @@
   .wow-realm-meta { font-size: 10px; color: var(--text-muted); }
   .wow-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 8px; background: var(--text-muted); }
   .wow-dot.UP { background: #2ed573; } .wow-dot.DOWN { background: var(--danger); }
+  .wow-dot.WARN { background: #ffb020; }
+  .wow-up { display: flex; align-items: center; gap: 2px; font-size: 15px; color: var(--text); }
+  .wow-up .wow-dot { width: 9px; height: 9px; }
+  .wow-up.UP .wow-dot { box-shadow: 0 0 0 3px rgba(46, 213, 115, 0.18); }
+  .wow-up-meta { font-size: 11px; color: var(--text-muted); margin-top: 6px; line-height: 1.5; }
   .wow-news-src { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; }
   @media (max-width: 599px) {
     .wow-setup { grid-template-columns: 1fr; }
@@ -4164,7 +4169,7 @@ onAuthStateChanged(auth, user => {
     <div class="digest-stack">
       <div class="digest-card">
         <div class="digest-card-header">
-          <span class="digest-card-title">Realm Status</span>
+          <span class="digest-card-title">WoW: Forever</span>
           <span class="digest-card-updated" id="wow-realm-updated"></span>
         </div>
         <div id="wow-realm-list"><span class="digest-loading">Loading...</span></div>
@@ -13006,25 +13011,50 @@ onAuthStateChanged(auth, user => {
   }
 
   // ── Realm status ──
+  // ── Forever uptime ──
+  // Blizzard publishes no server status for WoW: Forever, so the proxy checks two
+  // things: whether the Forever API answers, and how recently guild mates logged
+  // in (no one can log in while the servers are down). If Blizzard's status page
+  // ever covers Forever, its realm list is used instead.
+  const ago = t => { const m = Math.round((Date.now() - t) / 60e3); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + 'h ago' : Math.round(m / 1440) + 'd ago'; };
+  function inMaintenance() {
+    // Weekly US maintenance: Tuesdays, roughly 7 to 11 AM Pacific.
+    const pt = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+    return pt.getDay() === 2 && pt.getHours() >= 7 && pt.getHours() < 11;
+  }
   async function loadRealms(mainData) {
     const el = $('wow-realm-list');
-    const mine = slugify((mainData && mainData.realmSlug) || (state.main && state.main.realm) || '');
-    try {
-      const d = await api(mainData && mainData.flavor ? { action: 'realms', flavor: mainData.flavor } : { action: 'realms' });
-      let list = d.realms || [];
-      list.sort((a, b) => (b.slug === mine) - (a.slug === mine) || a.name.localeCompare(b.name));
-      const shown = list.slice(0, 8);
-      el.innerHTML = shown.map(r => '<div class="wow-realm' + (r.slug === mine ? ' mine' : '') + '">'
-        + '<span><span class="wow-dot ' + esc(r.status) + '"></span>' + esc(r.name) + (r.slug === mine ? ' <span class="wow-realm-meta">(yours)</span>' : '') + '</span>'
-        + '<span class="wow-realm-meta">' + esc(r.status === 'UP' ? 'Up' : r.status === 'DOWN' ? 'Down' : r.status) + (r.population ? ' · ' + esc(r.population) : '') + (r.queue ? ' · queue' : '') + (r.type ? ' · ' + esc(r.type) : '') + '</span></div>').join('')
-        + (list.length > shown.length ? '<div class="wow-realm-meta" style="padding:6px">+' + (list.length - shown.length) + ' more realms</div>' : '');
-      $('wow-realm-updated').textContent = asOfNow();
-    } catch (e) {
-      el.innerHTML = e.status === 404 && mainData && mainData.flavor === 'forever'
-        ? '<div class="wow-note">Blizzard\'s API has no realm list for WoW: Forever yet, so there\'s no server status to show. This card fills in on its own if Blizzard adds one.</div>'
-        : errorNote(e, 'Realm status');
+    const m = state.main;
+    if (!m || !m.surname) { el.innerHTML = '<div class="wow-note">Uptime needs a WoW: Forever character (name and surname) as your main.</div>'; return; }
+    let d;
+    try { d = await api({ action: 'status', name: m.name, surname: m.surname }); }
+    catch (e) { el.innerHTML = errorNote(e, 'WoW: Forever status'); return; }
+    const a = d.activity || {}, g = d.game;
+    let cls, word, meta;
+    if (g && g.total) {
+      cls = g.up === g.total ? 'UP' : g.up ? 'WARN' : 'DOWN';
+      word = g.up === g.total ? 'Up' : g.up ? 'Partly up' : 'Down';
+      meta = g.up + ' of ' + g.total + ' realms online, per Blizzard';
+    } else if (!d.api || !d.api.ok) {
+      cls = 'DOWN'; word = inMaintenance() ? 'Maintenance' : 'Not answering';
+      meta = 'Blizzard\'s Forever API is not responding' + (d.api && d.api.status ? ' (' + d.api.status + ')' : '');
+    } else if (a.lastHour > 0) {
+      cls = 'UP'; word = 'Up';
+      meta = a.lastHour + (a.lastHour === 1 ? ' guild mate' : ' guild mates') + ' logged in this past hour';
+    } else if (inMaintenance()) {
+      cls = 'WARN'; word = 'Maintenance likely';
+      meta = 'Tuesday maintenance window, and no guild logins this past hour';
+    } else {
+      cls = 'WARN'; word = 'Quiet';
+      meta = 'API online, but no guild logins this past hour';
     }
+    const last = a.newest ? 'Last login seen: ' + esc(a.newestName) + ', ' + ago(a.newest) : '';
+    el.innerHTML = '<div class="wow-up ' + cls + '"><span class="wow-dot ' + cls + '"></span>' + esc(word) + '</div>'
+      + '<div class="wow-up-meta">' + esc(meta) + (last ? '<br>' + last : '') + '</div>';
+    $('wow-realm-updated').textContent = asOfNow();
   }
+  // Keep it current while Focus is open.
+  setInterval(() => { if (loaded && document.visibilityState === 'visible') loadRealms(); }, 3 * 60e3);
 
   // ── News ──
   async function loadNews() {
