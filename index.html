@@ -3475,8 +3475,7 @@
   .wow-gear-row span:first-child { color: var(--text-muted); flex-shrink: 0; }
   .wow-gear-row span:last-child { text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .wow-gear-row { align-items: center; }
-  .wow-gear-row { cursor: default; }
-  @media (hover: none) { .wow-gear-row { cursor: pointer; } }
+  .wow-gear-row { cursor: pointer; -webkit-tap-highlight-color: rgba(255,255,255,0.06); }
   .wow-tip {
     position: fixed; z-index: 9999; display: none; pointer-events: none;
     min-width: 220px; max-width: 320px; padding: 8px 10px;
@@ -12808,21 +12807,37 @@ onAuthStateChanged(auth, user => {
     placeTip(x, y);
   }
   function hideTip() { tip.classList.remove('show'); tipRow = null; }
-  const canHover = window.matchMedia && window.matchMedia('(hover: hover)').matches;
+  // Mouse pointers get hover tooltips; touch and pen get tap-to-toggle. Pointer
+  // events tell the two apart per interaction, so a phone or tablet that claims
+  // (hover: hover), or a touchscreen laptop, still works both ways.
   const mainEl = $('wow-main');
-  if (canHover) {
-    mainEl.addEventListener('mouseover', e => { const r = e.target.closest('.wow-gear-row'); if (r && r !== tipRow) showTip(r, e.clientX, e.clientY); });
-    mainEl.addEventListener('mousemove', e => { if (tipRow) placeTip(e.clientX, e.clientY); });
-    mainEl.addEventListener('mouseout', e => { const r = e.target.closest('.wow-gear-row'); if (r && !r.contains(e.relatedTarget)) hideTip(); });
-  } else {
-    // Touch: tap an item to show its tooltip under it; tap it again or anywhere else to close.
-    document.addEventListener('click', e => {
-      const r = e.target.closest && e.target.closest('#wow-main .wow-gear-row');
-      if (r && r !== tipRow) { const b = r.getBoundingClientRect(); showTip(r, Math.max(0, b.left - 16), b.bottom - 8); }
-      else hideTip();
-    });
-    window.addEventListener('scroll', hideTip, { passive: true });
-  }
+  let lastPointer = 'mouse';
+  mainEl.addEventListener('pointerdown', e => { lastPointer = e.pointerType || 'touch'; });
+  mainEl.addEventListener('pointerover', e => {
+    if (e.pointerType !== 'mouse') return;
+    const r = e.target.closest('.wow-gear-row');
+    if (r && r !== tipRow) showTip(r, e.clientX, e.clientY);
+  });
+  mainEl.addEventListener('pointermove', e => { if (e.pointerType === 'mouse' && tipRow) placeTip(e.clientX, e.clientY); });
+  mainEl.addEventListener('pointerout', e => {
+    if (e.pointerType !== 'mouse') return;
+    const r = e.target.closest('.wow-gear-row');
+    if (r && !r.contains(e.relatedTarget)) hideTip();
+  });
+  mainEl.addEventListener('click', e => {
+    const r = e.target.closest('.wow-gear-row');
+    if (!r || lastPointer === 'mouse') return;
+    e.stopPropagation();   // keep the document handler below from closing it again
+    if (r === tipRow) { hideTip(); return; }
+    const b = r.getBoundingClientRect();
+    showTip(r, Math.max(0, b.left - 16), b.bottom - 8);
+    // Not enough room below the item: open above it instead of covering it.
+    if (b.bottom + tip.offsetHeight + 12 > window.innerHeight && b.top - tip.offsetHeight - 8 > 0) {
+      tip.style.top = (b.top - tip.offsetHeight - 8) + 'px';
+    }
+  });
+  document.addEventListener('click', e => { if (tipRow && !(e.target.closest && e.target.closest('.wow-tip'))) hideTip(); });
+  window.addEventListener('scroll', () => { if (lastPointer !== 'mouse') hideTip(); }, { passive: true });
 
   function statsGrid(stats) {
     const list = (stats || []).slice(0, 10);
