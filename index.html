@@ -3475,6 +3475,21 @@
   .wow-gear-row span:first-child { color: var(--text-muted); flex-shrink: 0; }
   .wow-gear-row span:last-child { text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .wow-gear-row { align-items: center; }
+  .wow-gear-row { cursor: default; }
+  @media (hover: none) { .wow-gear-row { cursor: pointer; } }
+  .wow-tip {
+    position: fixed; z-index: 9999; display: none; pointer-events: none;
+    min-width: 220px; max-width: 320px; padding: 8px 10px;
+    background: rgba(8, 12, 32, 0.96); border: 1px solid #5a6a8a; border-radius: 4px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.5);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 12px; line-height: 1.35; color: #ffffff;
+  }
+  .wow-tip.show { display: block; }
+  .wow-tip-line { display: flex; justify-content: space-between; gap: 16px; }
+  .wow-tip-name { font-size: 14px; margin-bottom: 1px; }
+  .wow-tip-green { color: #1eff00; }
+  .wow-tip-flavor { color: #ffd100; }
+  .wow-tip-muted { color: #9d9d9d; }
   .wow-ench { display: block; font-size: 10px; color: #2ed573; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; }
   html.light .wow-ench { color: #12a000; }
   .wow-gear-icon { width: 20px; height: 20px; border-radius: 4px; vertical-align: middle; margin-right: 8px; border: 1px solid var(--border); }
@@ -12744,12 +12759,65 @@ onAuthStateChanged(auth, user => {
       + statsGrid(d.stats)
       + '<div class="wow-spark">' + sparkline(state.main) + '</div>'
       + (gear.length ? '<details class="wow-details" open><summary>Gear (' + gear.length + ')</summary><div class="wow-gear">'
-        + gear.map(g => '<div class="wow-gear-row"><span>' + esc(g.slot) + '</span><span class="wow-q-' + esc(g.quality) + '">'
+        + gear.map((g, i) => '<div class="wow-gear-row" data-gi="' + i + '"><span>' + esc(g.slot) + '</span><span class="wow-q-' + esc(g.quality) + '">'
           + (escUrl(g.icon) ? '<img class="wow-gear-icon wow-qb-' + esc(g.quality) + '" src="' + escUrl(g.icon) + '" alt="" loading="lazy">' : '') + esc(g.name) + (g.itemLevel ? ' <small style="color:var(--text-muted)">' + g.itemLevel + '</small>' : '')
           + ((g.enchants || []).length ? '<span class="wow-ench">' + g.enchants.map(esc).join(' · ') + '</span>' : '') + '</span></div>').join('')
         + '</div></details>' : '')
       + '</div>';
+    currentGear = gear;
   }
+
+  // ── Item tooltips (hover on desktop, tap on touch) ──
+  let currentGear = [];
+  const tip = document.createElement('div');
+  tip.className = 'wow-tip';
+  tip.setAttribute('role', 'tooltip');
+  document.body.appendChild(tip);
+  const QCOL = { POOR: '#9d9d9d', COMMON: '#ffffff', UNCOMMON: '#1eff00', RARE: '#0070dd', EPIC: '#a335ee', LEGENDARY: '#ff8000', set: '#ffd100' };
+  function tipHtml(g) {
+    const lines = (g.tooltip && g.tooltip.length) ? g.tooltip : [{ t: g.name, k: 'name', q: g.quality }];
+    return lines.map(l => {
+      let color = '';
+      if (l.k === 'name') color = QCOL[l.q] || '#ffffff';
+      else if (l.c && !/^#f{6}$/i.test(l.c)) color = l.c;
+      const cls = 'wow-tip-line' + (l.k ? ' wow-tip-' + l.k : '');
+      const style = color ? ' style="color:' + esc(color) + '"' : '';
+      return '<div class="' + cls + '"' + style + '><span>' + esc(l.t) + '</span>' + (l.r ? '<span>' + esc(l.r) + '</span>' : '') + '</div>';
+    }).join('');
+  }
+  function placeTip(x, y) {
+    const pad = 12, w = tip.offsetWidth, h = tip.offsetHeight;
+    let left = x + 16, top = y + 16;
+    if (left + w > window.innerWidth - pad) left = Math.max(pad, x - w - 16);
+    if (top + h > window.innerHeight - pad) top = Math.max(pad, window.innerHeight - h - pad);
+    tip.style.left = left + 'px'; tip.style.top = top + 'px';
+  }
+  let tipRow = null;
+  function showTip(row, x, y) {
+    const g = currentGear[+row.dataset.gi];
+    if (!g) return;
+    tip.innerHTML = tipHtml(g);
+    tip.classList.add('show');
+    tipRow = row;
+    placeTip(x, y);
+  }
+  function hideTip() { tip.classList.remove('show'); tipRow = null; }
+  const canHover = window.matchMedia && window.matchMedia('(hover: hover)').matches;
+  const mainEl = $('wow-main');
+  if (canHover) {
+    mainEl.addEventListener('mouseover', e => { const r = e.target.closest('.wow-gear-row'); if (r && r !== tipRow) showTip(r, e.clientX, e.clientY); });
+    mainEl.addEventListener('mousemove', e => { if (tipRow) placeTip(e.clientX, e.clientY); });
+    mainEl.addEventListener('mouseout', e => { const r = e.target.closest('.wow-gear-row'); if (r && !r.contains(e.relatedTarget)) hideTip(); });
+  } else {
+    // Touch: tap an item to show its tooltip under it; tap it again or anywhere else to close.
+    document.addEventListener('click', e => {
+      const r = e.target.closest && e.target.closest('#wow-main .wow-gear-row');
+      if (r && r !== tipRow) { const b = r.getBoundingClientRect(); showTip(r, Math.max(0, b.left - 16), b.bottom - 8); }
+      else hideTip();
+    });
+    window.addEventListener('scroll', hideTip, { passive: true });
+  }
+
   function statsGrid(stats) {
     const list = (stats || []).slice(0, 10);
     if (!list.length) return '';
