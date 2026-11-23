@@ -3536,6 +3536,8 @@
   .wow-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 8px; background: var(--text-muted); }
   .wow-dot.UP { background: #2ed573; } .wow-dot.DOWN { background: var(--danger); }
   .wow-dot.WARN { background: #ffb020; }
+  .wow-seen { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 8px; vertical-align: middle; background: transparent; border: 1px solid var(--border); }
+  .wow-seen.on { background: #2ed573; border-color: #2ed573; box-shadow: 0 0 0 2px rgba(46, 213, 115, 0.18); }
   .wow-up { display: flex; align-items: center; gap: 2px; font-size: 15px; color: var(--text); }
   .wow-up .wow-dot { width: 9px; height: 9px; }
   .wow-up.UP .wow-dot { box-shadow: 0 0 0 3px rgba(46, 213, 115, 0.18); }
@@ -3553,6 +3555,7 @@
     .wow-guild-row { grid-template-columns: minmax(0, 1fr) 44px 58px; }
     .wow-guild-row .wow-row-rank { display: none; }
     .wow-guild-row .wow-row-pace { min-width: 0; }
+    .wow-ago { display: none; }
     .wow-rank-sm { display: inline; margin-left: 0; }
     .wow-guild-row .wow-row-name small { display: block; margin: 1px 0 0; overflow: hidden; text-overflow: ellipsis; }
     .wow-member-card { padding: 10px 8px; }
@@ -12663,6 +12666,7 @@ onAuthStateChanged(auth, user => {
   fixMain();
 
   let loaded = false, guildRoster = null;
+  let lastSeen = {};   // 'name-surname' -> last login time, from the uptime check
   const charCache = {};   // key -> last /character response
 
   const today = () => new Date().toLocaleDateString('en-CA');   // YYYY-MM-DD, local
@@ -12980,7 +12984,10 @@ onAuthStateChanged(auth, user => {
     const el = $('wow-guild-list');
     if (!guildRoster) return;
     $('wow-guild-title').textContent = guildRoster.guild || 'Guild';
-    $('wow-guild-updated').textContent = guildRoster.members.length + ' members';
+    const seenKey = m => String(m.name || '').toLowerCase() + '-' + String(m.surname || '').toLowerCase();
+    const recent = t => t && Date.now() - t < 3600e3;
+    const activeNow = guildRoster.members.filter(m => recent(lastSeen[seenKey(m)])).length;
+    $('wow-guild-updated').textContent = guildRoster.members.length + ' members' + (activeNow ? ' · ' + activeNow + ' active' : '');
     el.className = 'wow-guild-list';
     el.innerHTML = '<div class="wow-guild-scroll">' + guildRoster.members.map(m => {
       const isMain = same(m, state.main), isTracked = state.tracked.some(t => same(t, m));
@@ -12989,7 +12996,10 @@ onAuthStateChanged(auth, user => {
         : state.autoGuild ? '<span class="wow-row-pace">auto</span>'
         : '<button class="wow-icon-btn" data-name="' + esc(m.name) + '" data-surname="' + esc(m.surname || '') + '" data-realm="' + esc(m.realmSlug) + '" data-href="' + esc(m.href || '') + '">Track</button>';
       const rank = m.rank === 0 ? 'GM' : 'rank ' + esc(m.rank);
-      return '<div class="wow-row wow-guild-row"><span class="wow-row-name">' + esc(m.name) + (m.surname ? ' ' + esc(m.surname) : '') + '<small>' + esc(m.className) + '<span class="wow-rank-sm"> · ' + rank + '</span></small></span>'
+      const seen = lastSeen[seenKey(m)];
+      const seenTxt = seen ? ' · ' + esc(ago(seen).replace(' min ago', 'm ago')).replace(' ago', '<span class="wow-ago"> ago</span>') : '';
+      const dot = '<span class="wow-seen' + (recent(seen) ? ' on' : '') + '" title="' + (seen ? 'Last logged in ' + esc(ago(seen)) : 'No login time') + '"></span>';
+      return '<div class="wow-row wow-guild-row"><span class="wow-row-name">' + dot + esc(m.name) + (m.surname ? ' ' + esc(m.surname) : '') + '<small>' + esc(m.className) + '<span class="wow-rank-sm"> · ' + (m.rank === 0 ? 'GM' : 'R' + esc(m.rank)) + '</span>' + seenTxt + '</small></span>'
         + '<span class="wow-row-lvl">Lv ' + esc(m.level || '?') + '</span><span class="wow-row-pace wow-row-rank">' + (m.rank === 0 ? 'GM' : 'rank ' + esc(m.rank)) + '</span>' + btn + '</div>';
     }).join('') + '</div>';
     el.querySelectorAll('button[data-name]').forEach(b => b.addEventListener('click', () => {
@@ -13029,6 +13039,9 @@ onAuthStateChanged(auth, user => {
     let d;
     try { d = await api({ action: 'status', name: m.name, surname: m.surname }); }
     catch (e) { el.innerHTML = errorNote(e, 'WoW: Forever status'); return; }
+    lastSeen = {};
+    for (const x of d.members || []) if (x.lastLogin) lastSeen[String(x.name || '').toLowerCase() + '-' + String(x.surname || '').toLowerCase()] = x.lastLogin;
+    renderGuild();
     const a = d.activity || {}, g = d.game;
     let cls, word, meta;
     if (g && g.total) {
