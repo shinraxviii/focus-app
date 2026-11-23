@@ -3421,6 +3421,9 @@
   .wow-gear-row { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; border-bottom: 1px solid var(--border); }
   .wow-gear-row span:first-child { color: var(--text-muted); flex-shrink: 0; }
   .wow-gear-row span:last-child { text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wow-gear-row { align-items: center; }
+  .wow-gear-icon { width: 20px; height: 20px; border-radius: 4px; vertical-align: middle; margin-right: 8px; border: 1px solid var(--border); }
+  .wow-qb-UNCOMMON { border-color: #1eff00; } .wow-qb-RARE { border-color: #0070dd; } .wow-qb-EPIC { border-color: #a335ee; } .wow-qb-LEGENDARY { border-color: #ff8000; }
   .wow-q-POOR { color: #9d9d9d; } .wow-q-COMMON { color: var(--text); } .wow-q-UNCOMMON { color: #1eff00; }
   .wow-q-RARE { color: #0070dd; } .wow-q-EPIC { color: #a335ee; } .wow-q-LEGENDARY { color: #ff8000; }
   html.light .wow-q-UNCOMMON { color: #12a000; } html.light .wow-q-COMMON { color: var(--text); }
@@ -4034,7 +4037,7 @@ onAuthStateChanged(auth, user => {
       </div>
       <form class="wow-setup" id="wow-setup" style="display:none;">
         <input class="reddit-sub-input" id="wow-setup-name" placeholder="Character name" autocomplete="off" required>
-        <input class="reddit-sub-input" id="wow-setup-realm" placeholder="Realm (e.g. Whitemane)" autocomplete="off">
+        <input class="reddit-sub-input" id="wow-setup-realm" placeholder="Realm (blank for Forever)" autocomplete="off">
         <input class="reddit-sub-input" id="wow-setup-surname" placeholder="Surname (optional)" autocomplete="off">
         <button class="wow-btn" type="submit">Save</button>
       </form>
@@ -4042,7 +4045,7 @@ onAuthStateChanged(auth, user => {
       <div class="wow-section-label">Tracked</div>
       <div id="wow-tracked"></div>
       <form class="wow-add-row" id="wow-add-form">
-        <input class="reddit-sub-input" id="wow-add-input" placeholder="+ Add a guild member (Name or Name-Realm)" autocomplete="off">
+        <input class="reddit-sub-input" id="wow-add-input" placeholder="+ Add a guild member (Name Surname)" autocomplete="off">
       </form>
     </div>
 
@@ -12472,16 +12475,21 @@ onAuthStateChanged(auth, user => {
   const WOW_SUBS = ['wow', 'classicwow'];
   const SNAP_CAP = 120;   // entries per character (one per change, so this is a long history)
 
-  const blank = () => ({ main: null, tracked: [], autoGuild: false, snaps: {}, updatedAt: 0 });
+  // WoW: Forever characters have a surname and no visible realm.
+  const DEFAULT_MAIN = { name: 'Kompressor', surname: 'Xo', realm: '' };
+  const blank = () => ({ main: Object.assign({}, DEFAULT_MAIN), tracked: [], autoGuild: false, snaps: {}, updatedAt: 0 });
   let state = blank();
   try { state = Object.assign(blank(), JSON.parse(localStorage.getItem(LS_KEY) || '{}')); } catch (e) {}
+  // A main entered before the Forever surname was known (or with a realm type like "PvP" as the realm).
+  const fixMain = () => { if (!state.main || (/^kompressor$/i.test(state.main.name || '') && !state.main.surname)) state.main = Object.assign({}, DEFAULT_MAIN); };
+  fixMain();
 
   let loaded = false, guildRoster = null;
   const charCache = {};   // key -> last /character response
 
   const today = () => new Date().toLocaleDateString('en-CA');   // YYYY-MM-DD, local
   const slugify = s => String(s || '').trim().toLowerCase().replace(/['’]/g, '').replace(/\s+/g, '-');
-  const keyOf = c => (String(c.name || '').toLowerCase() + '@' + slugify(c.realm || c.realmSlug || ''));
+  const keyOf = c => (String(c.name || '').toLowerCase() + (c.surname ? '-' + String(c.surname).toLowerCase() : '') + '@' + slugify(c.realm || c.realmSlug || ''));
   const same = (a, b) => a && b && keyOf(a) === keyOf(b);
 
   // ── Persistence ──
@@ -12512,13 +12520,14 @@ onAuthStateChanged(auth, user => {
     try { cloud = await window._fbLoadWow(); } catch (e) { return; }
     if (!cloud) return;
     const snaps = mergeSnaps(state.snaps, cloud.snaps || {});
-    if ((cloud.updatedAt || 0) > (state.updatedAt || 0)) {
+    const settingsChanged = (cloud.updatedAt || 0) > (state.updatedAt || 0);
+    if (settingsChanged) {
       state.main = cloud.main || null; state.tracked = cloud.tracked || []; state.autoGuild = !!cloud.autoGuild; state.updatedAt = cloud.updatedAt;
+      fixMain();
     }
     state.snaps = snaps;
     save(false);
-    // Load once in the background so the daily snapshot happens even if the tab isn't opened.
-    if (loaded || state.main) loadAll();
+    if (settingsChanged || !loaded) loadAll();
   };
 
   // Record a snapshot only when something changed, so a long history stays small.
@@ -12587,18 +12596,20 @@ onAuthStateChanged(auth, user => {
     const avatar = escUrl(d.avatar)
       ? '<img class="wow-avatar" src="' + escUrl(d.avatar) + '" alt="" loading="lazy">'
       : '<div class="wow-avatar wow-avatar-ph">' + esc((d.name || '?')[0]) + '</div>';
-    const armory = 'https://worldofwarcraft.blizzard.com/en-us/character/' + REGION + '/' + encodeURIComponent(d.realmSlug || '') + '/' + encodeURIComponent((d.name || '').toLowerCase());
+    const armory = d.realmSlug ? 'https://worldofwarcraft.blizzard.com/en-us/character/' + REGION + '/' + encodeURIComponent(d.realmSlug) + '/' + encodeURIComponent((d.name || '').toLowerCase()) : '';
     $('wow-main').innerHTML = '<div class="wow-main">' + avatar
-      + '<div><div class="wow-name"><a href="' + escUrl(armory) + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">' + esc(d.name) + (d.surname ? ' ' + esc(d.surname) : '') + '</a><small>' + esc(d.realm || '') + '</small></div>'
+      + '<div><div class="wow-name">' + (armory ? '<a href="' + escUrl(armory) + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">' : '<span>') + esc(d.name) + (d.surname ? ' ' + esc(d.surname) : '') + (armory ? '</a>' : '</span>') + '<small>' + esc(d.realm || d.faction || '') + '</small></div>'
       + '<div class="wow-sub">Level ' + esc(d.level) + ' ' + esc(d.race) + ' ' + esc(d.className) + (specLine ? ' · ' + specLine : '') + '</div>'
       + (d.guild ? '<div class="wow-sub">&lt;' + esc(d.guild.name) + '&gt;</div>' : '') + '</div>'
       + '<div class="wow-stats">'
       + stat(d.level, 'Level') + stat(d.itemLevel != null ? d.itemLevel : '–', 'Item level')
       + stat(p == null ? '–' : (p > 0 ? '+' : '') + p.toFixed(1), 'Levels / week')
-      + stat(d.achievementPoints != null ? d.achievementPoints : '–', 'Achievements') + '</div>'
+      + (d.achievementPoints ? stat(d.achievementPoints, 'Achievements')
+        : stat(d.lastLogin ? new Date(d.lastLogin).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '–', 'Last played')) + '</div>'
       + '<div class="wow-spark">' + sparkline(state.main) + '</div>'
-      + (gear.length ? '<details class="wow-details"><summary>Gear (' + gear.length + ')</summary><div class="wow-gear">'
-        + gear.map(g => '<div class="wow-gear-row"><span>' + esc(g.slot) + '</span><span class="wow-q-' + esc(g.quality) + '">' + esc(g.name) + (g.itemLevel ? ' <small style="color:var(--text-muted)">' + g.itemLevel + '</small>' : '') + '</span></div>').join('')
+      + (gear.length ? '<details class="wow-details" open><summary>Gear (' + gear.length + ')</summary><div class="wow-gear">'
+        + gear.map(g => '<div class="wow-gear-row"><span>' + esc(g.slot) + '</span><span class="wow-q-' + esc(g.quality) + '">'
+          + (escUrl(g.icon) ? '<img class="wow-gear-icon wow-qb-' + esc(g.quality) + '" src="' + escUrl(g.icon) + '" alt="" loading="lazy">' : '') + esc(g.name) + (g.itemLevel ? ' <small style="color:var(--text-muted)">' + g.itemLevel + '</small>' : '') + '</span></div>').join('')
         + '</div></details>' : '')
       + '</div>';
   }
@@ -12631,7 +12642,7 @@ onAuthStateChanged(auth, user => {
     if (state.autoGuild && guildRoster) {
       for (const m of guildRoster.members) {
         if (same(m, state.main) || list.some(t => same(t, m))) continue;
-        list.push({ name: m.name, realm: m.realmSlug, auto: true });
+        list.push({ name: m.name, surname: m.surname || '', realm: m.realmSlug, href: m.href || '', auto: true });
       }
     }
     return list;
@@ -12648,7 +12659,7 @@ onAuthStateChanged(auth, user => {
       return { c, d, lvl, p };
     }).sort((a, b) => (b.lvl || 0) - (a.lvl || 0));
     el.innerHTML = rows.map(({ c, d, lvl, p }) => '<div class="wow-row">'
-      + '<span class="wow-row-name">' + esc(d.name || c.name) + '<small>' + esc(d.className || '') + (d.itemLevel ? ' · ilvl ' + d.itemLevel : '') + '</small></span>'
+      + '<span class="wow-row-name">' + esc(d.name || c.name) + (c.surname ? ' ' + esc(c.surname) : '') + '<small>' + esc(d.className || '') + (d.itemLevel ? ' · ilvl ' + d.itemLevel : '') + '</small></span>'
       + '<span class="wow-row-lvl">' + (lvl ? 'Lv ' + lvl : (d.error ? 'not found' : '…')) + '</span>'
       + '<span class="wow-row-pace' + (p > 0 ? ' up' : '') + '">' + esc(paceText(p)) + '</span>'
       + (c.auto ? '<span></span>' : '<button class="wow-x" data-key="' + esc(keyOf(c)) + '" title="Stop tracking">&times;</button>')
@@ -12665,12 +12676,12 @@ onAuthStateChanged(auth, user => {
     renderTracked();
     await Promise.all(state.tracked.map(async c => {
       try {
-        const d = await api({ action: 'character', name: c.name, realm: c.realm || (state.main && state.main.realm) || '' });
+        const d = await api(c.href ? { action: 'character', href: c.href } : { action: 'character', name: c.name, surname: c.surname || '', realm: c.realm || (state.main && state.main.realm) || '' });
         charCache[keyOf(c)] = d;
         snap(c, d.level, d.itemLevel, d.achievementPoints);
       } catch (e) { charCache[keyOf(c)] = { name: c.name, error: true }; }
     }));
-    if (state.autoGuild && guildRoster) for (const m of guildRoster.members) if (!state.tracked.some(t => same(t, m))) snap({ name: m.name, realm: m.realmSlug }, m.level, null, null);
+    if (state.autoGuild && guildRoster) for (const m of guildRoster.members) if (!state.tracked.some(t => same(t, m))) snap({ name: m.name, surname: m.surname, realm: m.realmSlug }, m.level, null, null);
     save(false);
     renderTracked();
   }
@@ -12687,12 +12698,12 @@ onAuthStateChanged(auth, user => {
       const btn = isMain ? '<span class="wow-row-pace">you</span>'
         : isTracked ? '<span class="wow-row-pace">tracked</span>'
         : state.autoGuild ? '<span class="wow-row-pace">auto</span>'
-        : '<button class="wow-icon-btn" data-name="' + esc(m.name) + '" data-realm="' + esc(m.realmSlug) + '">Track</button>';
-      return '<div class="wow-row"><span class="wow-row-name">' + esc(m.name) + '<small>' + esc(m.className) + '</small></span>'
+        : '<button class="wow-icon-btn" data-name="' + esc(m.name) + '" data-surname="' + esc(m.surname || '') + '" data-realm="' + esc(m.realmSlug) + '" data-href="' + esc(m.href || '') + '">Track</button>';
+      return '<div class="wow-row"><span class="wow-row-name">' + esc(m.name) + (m.surname ? ' ' + esc(m.surname) : '') + '<small>' + esc(m.className) + '</small></span>'
         + '<span class="wow-row-lvl">Lv ' + esc(m.level || '?') + '</span><span class="wow-row-pace">' + (m.rank === 0 ? 'GM' : 'rank ' + esc(m.rank)) + '</span>' + btn + '</div>';
     }).join('');
     el.querySelectorAll('button[data-name]').forEach(b => b.addEventListener('click', () => {
-      state.tracked.push({ name: b.dataset.name, realm: b.dataset.realm });
+      state.tracked.push({ name: b.dataset.name, surname: b.dataset.surname, realm: b.dataset.realm, href: b.dataset.href });
       save(true); renderGuild(); loadTracked();
     }));
   }
@@ -12703,7 +12714,7 @@ onAuthStateChanged(auth, user => {
     if (!mainData) { el.innerHTML = '<div class="wow-note">Your guild appears here once your character loads.</div>'; return; }
     if (!mainData.guild) { el.innerHTML = '<div class="wow-note">' + esc(mainData.name) + ' is not in a guild.</div>'; guildRoster = null; return; }
     try {
-      guildRoster = await api({ action: 'guild', realm: mainData.guild.realmSlug || mainData.realmSlug, guild: mainData.guild.name });
+      guildRoster = await api({ action: 'guild', href: mainData.guild.href || '', realm: mainData.guild.realmSlug || mainData.realmSlug || '', guild: mainData.guild.name });
       renderGuild();
     } catch (e) { guildRoster = null; el.innerHTML = errorNote(e, 'The guild roster'); }
   }
@@ -12713,7 +12724,7 @@ onAuthStateChanged(auth, user => {
     const el = $('wow-realm-list');
     const mine = slugify((mainData && mainData.realmSlug) || (state.main && state.main.realm) || '');
     try {
-      const d = await api({ action: 'realms' });
+      const d = await api(mainData && mainData.flavor ? { action: 'realms', flavor: mainData.flavor } : { action: 'realms' });
       let list = d.realms || [];
       list.sort((a, b) => (b.slug === mine) - (a.slug === mine) || a.name.localeCompare(b.name));
       const shown = list.slice(0, 8);
@@ -12722,7 +12733,11 @@ onAuthStateChanged(auth, user => {
         + '<span class="wow-realm-meta">' + esc(r.status === 'UP' ? 'Up' : r.status === 'DOWN' ? 'Down' : r.status) + (r.population ? ' · ' + esc(r.population) : '') + (r.queue ? ' · queue' : '') + (r.type ? ' · ' + esc(r.type) : '') + '</span></div>').join('')
         + (list.length > shown.length ? '<div class="wow-realm-meta" style="padding:6px">+' + (list.length - shown.length) + ' more realms</div>' : '');
       $('wow-realm-updated').textContent = asOfNow();
-    } catch (e) { el.innerHTML = errorNote(e, 'Realm status'); }
+    } catch (e) {
+      el.innerHTML = e.status === 404 && mainData && mainData.flavor === 'forever'
+        ? '<div class="wow-note">Blizzard\'s API has no realm list for WoW: Forever yet, so there\'s no server status to show. This card fills in on its own if Blizzard adds one.</div>'
+        : errorNote(e, 'Realm status');
+    }
   }
 
   // ── News ──
@@ -12756,7 +12771,9 @@ onAuthStateChanged(auth, user => {
     const t = raw.trim().replace(/\s+/g, ' ');
     if (!t) return null;
     const m = t.match(/^([^\s\-@]+)\s*[-@]\s*(.+)$/);
-    return m ? { name: m[1], realm: slugify(m[2]) } : { name: t, realm: '' };
+    if (m) return { name: m[1], realm: slugify(m[2]) };
+    const sp = t.match(/^(\S+)\s+(\S+)$/);   // WoW: Forever "Name Surname"
+    return sp ? { name: sp[1], surname: sp[2], realm: '' } : { name: t, realm: '' };
   }
   $('wow-settings-btn').addEventListener('click', () => {
     const f = $('wow-setup');
@@ -12793,7 +12810,9 @@ onAuthStateChanged(auth, user => {
   if (tab) tab.addEventListener('click', () => {
     if (Date.now() - lastLoad > 10 * 60e3) { lastLoad = Date.now(); loadAll(); }
   });
-  if (localStorage.getItem('focus-digest-subtab') === 'wow') { lastLoad = Date.now(); loadAll(); }
+  // Load in the background at startup, so the character, guild and daily snapshot
+  // are ready before the tab is opened (and happen even if it isn't).
+  setTimeout(() => { if (!loaded) { lastLoad = Date.now(); loadAll(); } }, 1500);
 })();
 </script>
   <canvas id="complete-canvas"></canvas>
