@@ -1231,11 +1231,27 @@
   #analytics-page, #digest-page, #personal-page, #work-page { display: block; }
 
   /* Folder-tab sub-nav, matching the main page nav. */
+  /* Wrapper holds the scrolling tab strip plus its edge fades and
+     (desktop) arrow buttons, which must sit outside the scroller. */
+  .digest-sub-tabs-wrap {
+    position: relative;
+    margin: 0 0 16px;
+  }
   .digest-sub-tabs {
     display: flex;
     gap: 4px;
-    padding: 0 16px;
-    margin: 0 0 16px;
+    padding: 4px 16px 0;
+    margin: 0;
+    /* Keep sideways drags inside the strip: the browser only pans it
+       horizontally (no page wobble), never chains the overscroll into
+       the page or the back gesture, and the JS page-swipe and
+       pull-to-refresh handlers ignore touches that start here. */
+    touch-action: pan-x;
+    overscroll-behavior-x: contain;
+    overscroll-behavior-y: none;
+    /* Fade whichever edge has more tabs hidden behind it. */
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 var(--fade-l, 0px), #000 calc(100% - var(--fade-r, 0px)), transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0, #000 var(--fade-l, 0px), #000 calc(100% - var(--fade-r, 0px)), transparent 100%);
     /* Scroll sideways when the tabs outgrow a phone screen instead of
        spilling into the neighboring slide. The baseline is a background
        line (not a border) so the active tab can still cover it inside
@@ -1246,6 +1262,39 @@
     background: linear-gradient(var(--border), var(--border)) bottom / 100% 1px no-repeat;
   }
   .digest-sub-tabs::-webkit-scrollbar { display: none; }
+  .digest-sub-tabs.more-left  { --fade-l: 28px; }
+  .digest-sub-tabs.more-right { --fade-r: 28px; }
+  .digest-sub-tabs.dragging { cursor: grabbing; user-select: none; }
+  .digest-sub-tabs.dragging .digest-sub-tab { pointer-events: none; }
+
+  /* Arrow buttons: only for mouse users, only when tabs overflow. */
+  .digest-tab-arrow {
+    display: none;
+    position: absolute;
+    top: 4px;
+    bottom: 1px;
+    width: 26px;
+    z-index: 2;
+    padding: 0;
+    border: none;
+    background: var(--bg);
+    color: var(--text-muted);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .digest-tab-arrow:hover { color: var(--text); }
+  .digest-tab-arrow.left  { left: 0; }
+  .digest-tab-arrow.right { right: 0; }
+  @media (hover: hover) and (pointer: fine) {
+    .digest-sub-tabs-wrap.more-left  .digest-tab-arrow.left,
+    .digest-sub-tabs-wrap.more-right .digest-tab-arrow.right { display: block; }
+  }
+  /* Bigger touch target on phones so a swipe lands on the strip. */
+  @media (pointer: coarse) {
+    .digest-sub-tabs { padding-top: 8px; }
+    .digest-sub-tab { padding: 12px 16px; }
+  }
 
   .digest-sub-tab {
     font-family: 'DM Mono', monospace;
@@ -3172,7 +3221,7 @@
      Placed at the end of the sheet so it wins over the base rules. */
   @media (min-width: 600px) {
     .nav-inner,
-    .digest-sub-tabs,
+    .digest-sub-tabs-wrap,
     .digest-subtab-content {
       max-width: 1200px;
       margin-left: auto;
@@ -3687,6 +3736,8 @@ onAuthStateChanged(auth, user => {
   </div>
 
   <!-- Sub-tabs -->
+  <div class="digest-sub-tabs-wrap" id="digest-sub-tabs-wrap">
+  <button class="digest-tab-arrow left" type="button" aria-label="Scroll tabs left" tabindex="-1">&lsaquo;</button>
   <div class="digest-sub-tabs" id="digest-sub-tabs">
     <button class="digest-sub-tab active" data-subtab="frontpage">Front Page</button>
     <button class="digest-sub-tab" data-subtab="sports">Sports</button>
@@ -3694,6 +3745,8 @@ onAuthStateChanged(auth, user => {
     <button class="digest-sub-tab" data-subtab="sorcery">Sorcery</button>
     <button class="digest-sub-tab" data-subtab="hobbies">Hobbies</button>
     <button class="digest-sub-tab" data-subtab="wow">WoW</button>
+  </div>
+  <button class="digest-tab-arrow right" type="button" aria-label="Scroll tabs right" tabindex="-1">&rsaquo;</button>
   </div>
 
   <!-- FRONT PAGE -->
@@ -5864,6 +5917,7 @@ onAuthStateChanged(auth, user => {
     document.addEventListener('touchstart', function(e) {
       if (refreshing || !isDigestVisible()) return;
       if (window.scrollY > 5) return;
+      if (e.target.closest && e.target.closest('.digest-sub-tabs-wrap')) return;
       startY = e.touches[0].clientY;
       startX = e.touches[0].clientX;
       pulling = true;
@@ -10041,6 +10095,8 @@ onAuthStateChanged(auth, user => {
       // Don't swipe if user is touch-dragging a task or editing text
       if (e.target.closest('.task-item')) return;
       if (e.target.closest('input, textarea, select, [contenteditable]')) return;
+      // Horizontal scrollers (Digest sub-tabs) own their own sideways drags
+      if (e.target.closest('.digest-sub-tabs-wrap')) return;
       onStart(e.touches[0].clientX, e.touches[0].clientY);
     }, { passive: true });
     wrap.addEventListener('touchmove', e => {
@@ -10059,6 +10115,7 @@ onAuthStateChanged(auth, user => {
       if (e.target.isContentEditable) return;
       if (e.target.closest('input, textarea, select, [contenteditable]')) return;
       if (e.target.closest('.task-item')) return;  // let task drag handler own this
+      if (e.target.closest('.digest-sub-tabs-wrap')) return;  // tab strip drag-scrolls itself
       mouseDown = true;
       onStart(e.clientX, e.clientY);
     });
@@ -11265,6 +11322,9 @@ onAuthStateChanged(auth, user => {
   (function initDigestSubTabs() {
     const tabs = document.querySelectorAll('.digest-sub-tab');
     const panels = document.querySelectorAll('.digest-subtab-content');
+    const strip = document.getElementById('digest-sub-tabs');
+    const wrap = document.getElementById('digest-sub-tabs-wrap');
+    let suppressClick = false;
 
     // Restore last active sub-tab
     const saved = 'frontpage';
@@ -11272,6 +11332,7 @@ onAuthStateChanged(auth, user => {
 
     tabs.forEach(function(tab) {
       tab.addEventListener('click', function() {
+        if (suppressClick) return;
         switchSubTab(tab.dataset.subtab);
       });
     });
@@ -11284,7 +11345,76 @@ onAuthStateChanged(auth, user => {
         p.style.display = p.id === 'subtab-' + id ? '' : 'none';
       });
       localStorage.setItem('focus-digest-subtab', id);
+      revealActive(true);
     }
+
+    // Scroll the strip (only the strip, never the page) so the active
+    // tab sits comfortably in view, with a peek of its neighbors.
+    function revealActive(smooth) {
+      const t = strip.querySelector('.digest-sub-tab.active');
+      if (!t || strip.scrollWidth <= strip.clientWidth) return;
+      const pad = 48;
+      const left = t.offsetLeft - strip.offsetLeft;
+      const right = left + t.offsetWidth;
+      let target = strip.scrollLeft;
+      if (left - pad < strip.scrollLeft) target = left - pad;
+      else if (right + pad > strip.scrollLeft + strip.clientWidth) target = right + pad - strip.clientWidth;
+      if (target !== strip.scrollLeft) strip.scrollTo({ left: Math.max(0, target), behavior: smooth ? 'smooth' : 'auto' });
+    }
+
+    // Edge state drives the fades and desktop arrows.
+    function updateEdges() {
+      const max = strip.scrollWidth - strip.clientWidth;
+      const l = strip.scrollLeft > 2;
+      const r = strip.scrollLeft < max - 2;
+      strip.classList.toggle('more-left', l);
+      strip.classList.toggle('more-right', r);
+      wrap.classList.toggle('more-left', l);
+      wrap.classList.toggle('more-right', r);
+    }
+    strip.addEventListener('scroll', updateEdges, { passive: true });
+    window.addEventListener('resize', function() { updateEdges(); revealActive(false); });
+    if (window.ResizeObserver) new ResizeObserver(updateEdges).observe(strip);
+    updateEdges();
+
+    // Desktop: arrows page by ~70% of the visible strip.
+    wrap.querySelectorAll('.digest-tab-arrow').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        const dir = btn.classList.contains('left') ? -1 : 1;
+        strip.scrollBy({ left: dir * strip.clientWidth * 0.7, behavior: 'smooth' });
+      });
+    });
+
+    // Desktop: a vertical mouse wheel over the strip scrolls it sideways.
+    strip.addEventListener('wheel', function(e) {
+      if (strip.scrollWidth <= strip.clientWidth) return;
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      e.preventDefault();
+      strip.scrollLeft += e.deltaY;
+    }, { passive: false });
+
+    // Desktop: click-and-drag the strip like a touch swipe.
+    let dragX = null, dragStart = 0, dragMoved = false;
+    strip.addEventListener('mousedown', function(e) {
+      if (e.button !== 0 || strip.scrollWidth <= strip.clientWidth) return;
+      dragX = e.clientX; dragStart = strip.scrollLeft; dragMoved = false;
+    });
+    window.addEventListener('mousemove', function(e) {
+      if (dragX === null) return;
+      const dx = e.clientX - dragX;
+      if (!dragMoved && Math.abs(dx) > 5) { dragMoved = true; strip.classList.add('dragging'); }
+      if (dragMoved) { strip.scrollLeft = dragStart - dx; e.preventDefault(); }
+    });
+    window.addEventListener('mouseup', function() {
+      if (dragX === null) return;
+      dragX = null;
+      if (dragMoved) {
+        strip.classList.remove('dragging');
+        // Swallow the click that ends a drag so it doesn't switch tabs.
+        suppressClick = true;
+        setTimeout(function() { suppressClick = false; }, 0);
+      }
+    });
   })();
 
   // ── KEYBOARD SHORTCUTS ─────────────────────────────────────
