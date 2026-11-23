@@ -3441,6 +3441,7 @@
   .wow-add-row { margin-top: 8px; }
   .wow-toggle { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-muted); margin-bottom: 10px; cursor: pointer; }
   .wow-guild-list { max-height: 360px; overflow-y: auto; }
+  .wow-guild-details { margin-top: 0; }
   .wow-note { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
   .wow-note code { font-size: 10px; background: var(--surface2); padding: 1px 4px; border-radius: 3px; }
   .wow-realm { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px; font-size: 12px; border-radius: 6px; }
@@ -4055,7 +4056,10 @@ onAuthStateChanged(auth, user => {
         <span class="digest-card-updated" id="wow-guild-updated"></span>
       </div>
       <label class="wow-toggle"><input type="checkbox" id="wow-guild-auto"> Track every member automatically</label>
-      <div id="wow-guild-list"><span class="digest-loading">Loading...</span></div>
+      <details class="wow-details wow-guild-details" id="wow-guild-details">
+        <summary id="wow-guild-summary">Members</summary>
+        <div id="wow-guild-list"><span class="digest-loading">Loading...</span></div>
+      </details>
     </div>
 
     <div class="digest-stack">
@@ -12692,6 +12696,7 @@ onAuthStateChanged(auth, user => {
     if (!guildRoster) return;
     $('wow-guild-title').textContent = guildRoster.guild || 'Guild';
     $('wow-guild-updated').textContent = guildRoster.members.length + ' members';
+    $('wow-guild-summary').textContent = 'Members (' + guildRoster.members.length + ')';
     el.className = 'wow-guild-list';
     el.innerHTML = guildRoster.members.map(m => {
       const isMain = same(m, state.main), isTracked = state.tracked.some(t => same(t, m));
@@ -12711,12 +12716,14 @@ onAuthStateChanged(auth, user => {
   async function loadGuild(mainData) {
     const el = $('wow-guild-list');
     $('wow-guild-auto').checked = !!state.autoGuild;
-    if (!mainData) { el.innerHTML = '<div class="wow-note">Your guild appears here once your character loads.</div>'; return; }
-    if (!mainData.guild) { el.innerHTML = '<div class="wow-note">' + esc(mainData.name) + ' is not in a guild.</div>'; guildRoster = null; return; }
+    // Notes and errors show outside the collapsed roster so they aren't hidden.
+    const note = html => { el.innerHTML = html; $('wow-guild-details').open = true; };
+    if (!mainData) { note('<div class="wow-note">Your guild appears here once your character loads.</div>'); return; }
+    if (!mainData.guild) { note('<div class="wow-note">' + esc(mainData.name) + ' is not in a guild.</div>'); guildRoster = null; return; }
     try {
       guildRoster = await api({ action: 'guild', href: mainData.guild.href || '', realm: mainData.guild.realmSlug || mainData.realmSlug || '', guild: mainData.guild.name });
       renderGuild();
-    } catch (e) { guildRoster = null; el.innerHTML = errorNote(e, 'The guild roster'); }
+    } catch (e) { guildRoster = null; note(errorNote(e, 'The guild roster')); }
   }
 
   // ── Realm status ──
