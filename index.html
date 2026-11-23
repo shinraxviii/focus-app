@@ -3426,6 +3426,8 @@
   .wow-gear-row span:first-child { color: var(--text-muted); flex-shrink: 0; }
   .wow-gear-row span:last-child { text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .wow-gear-row { align-items: center; }
+  .wow-ench { display: block; font-size: 10px; color: #2ed573; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; }
+  html.light .wow-ench { color: #12a000; }
   .wow-gear-icon { width: 20px; height: 20px; border-radius: 4px; vertical-align: middle; margin-right: 8px; border: 1px solid var(--border); }
   .wow-qb-UNCOMMON { border-color: #1eff00; } .wow-qb-RARE { border-color: #0070dd; } .wow-qb-EPIC { border-color: #a335ee; } .wow-qb-LEGENDARY { border-color: #ff8000; }
   .wow-q-POOR { color: #9d9d9d; } .wow-q-COMMON { color: var(--text); } .wow-q-UNCOMMON { color: #1eff00; }
@@ -12626,7 +12628,8 @@ onAuthStateChanged(auth, user => {
       + '<div class="wow-spark">' + sparkline(state.main) + '</div>'
       + (gear.length ? '<details class="wow-details" open><summary>Gear (' + gear.length + ')</summary><div class="wow-gear">'
         + gear.map(g => '<div class="wow-gear-row"><span>' + esc(g.slot) + '</span><span class="wow-q-' + esc(g.quality) + '">'
-          + (escUrl(g.icon) ? '<img class="wow-gear-icon wow-qb-' + esc(g.quality) + '" src="' + escUrl(g.icon) + '" alt="" loading="lazy">' : '') + esc(g.name) + (g.itemLevel ? ' <small style="color:var(--text-muted)">' + g.itemLevel + '</small>' : '') + '</span></div>').join('')
+          + (escUrl(g.icon) ? '<img class="wow-gear-icon wow-qb-' + esc(g.quality) + '" src="' + escUrl(g.icon) + '" alt="" loading="lazy">' : '') + esc(g.name) + (g.itemLevel ? ' <small style="color:var(--text-muted)">' + g.itemLevel + '</small>' : '')
+          + ((g.enchants || []).length ? '<span class="wow-ench">' + g.enchants.map(esc).join(' · ') + '</span>' : '') + '</span></div>').join('')
         + '</div></details>' : '')
       + '</div>';
   }
