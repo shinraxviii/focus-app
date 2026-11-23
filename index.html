@@ -7983,6 +7983,7 @@ onAuthStateChanged(auth, user => {
   // is at least META_TREND_DAYS old (or the oldest one, until then).
   const META_EVENTS_TTL   = 6 * 60 * 60 * 1000;
   const META_ARENA_TTL    = 6 * 60 * 60 * 1000;
+  const META_PARTIAL_TTL  = 30 * 60 * 1000;
   const META_HISTORY_KEY  = 'focus-standard-meta-history';
   const META_HISTORY_DAYS = 7;
   const META_TREND_DAYS   = 3;
@@ -8135,11 +8136,14 @@ onAuthStateChanged(auth, user => {
       });
       renderStandardMeta();
     };
+    // A build that lost events to mtgo.com is only trusted for half an hour.
     const fresh = cacheGet('standard-meta-events', META_EVENTS_TTL);
-    if (fresh) return show(fresh, false);
+    if (fresh && !(fresh.data.failedEvents && Date.now() - fresh.ts > META_PARTIAL_TTL)) return show(fresh, false);
+    if (metaState.loading.events) return;
     const stale = cacheGetStale('standard-meta-events');
     if (stale) show(stale, true);
-    else { metaState.loading.events = true; renderStandardMeta(); }
+    metaState.loading.events = true;
+    if (!stale) renderStandardMeta();
     try {
       // A cold proxy build reads ~20 mtgo.com pages and can take most of the
       // proxy's 60s limit when mtgo.com is slow, so wait that long.
@@ -8182,9 +8186,11 @@ onAuthStateChanged(auth, user => {
     // v3 key: v2 entries mixed all ranks; v3 is Platinum and above.
     const fresh = cacheGet('standard-meta-arena3', META_ARENA_TTL);
     if (fresh) return show(fresh, false);
+    if (metaState.loading.arena) return;
     const stale = cacheGetStale('standard-meta-arena3');
     if (stale) show(stale, true);
-    else { metaState.loading.arena = true; renderStandardMeta(); }
+    metaState.loading.arena = true;
+    if (!stale) renderStandardMeta();
     try {
       const r = await fetchWithTimeout(ARENA_META_PROXY_URL, 30000);
       if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -8223,6 +8229,18 @@ onAuthStateChanged(auth, user => {
     // trend snapshots for both tabs keep accumulating daily.
     loadMetaArena();
     loadMetaEvents();
+    // The app can stay open for days (home-screen app, background tab), so
+    // check again whenever it comes back into view, and hourly while it is.
+    // Each loader serves its cache while fresh, which also re-renders the
+    // "updated" age, and fetches once the cache is past its TTL.
+    const recheck = function() {
+      if (document.visibilityState !== 'visible') return;
+      loadMetaArena();
+      loadMetaEvents();
+    };
+    document.addEventListener('visibilitychange', recheck);
+    window.addEventListener('pageshow', function(e) { if (e.persisted) recheck(); });
+    setInterval(recheck, 60 * 60 * 1000);
   })();
 
   // ── FEVER LA EVENTS ───────────────────────────────────────
