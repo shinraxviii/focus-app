@@ -3391,6 +3391,67 @@
     #current-date { text-align: left !important; }
     .cfb-cols { grid-template-columns: 1fr; }
   }
+
+  /* ── WoW tab ─────────────────────────────────────────────── */
+  .wow-header-right { display: flex; align-items: center; gap: 10px; }
+  .wow-icon-btn, .wow-btn {
+    font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.06em;
+    background: var(--btn-bg); border: 1px solid var(--btn-border); color: var(--text-muted);
+    border-radius: 6px; padding: 4px 9px; cursor: pointer;
+  }
+  .wow-btn { color: var(--text); padding: 7px 14px; }
+  .wow-icon-btn:hover, .wow-btn:hover { color: var(--text); }
+  .wow-setup { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; margin-bottom: 14px; }
+  .wow-main { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; align-items: start; }
+  .wow-avatar { width: 64px; height: 64px; border-radius: 10px; background: var(--surface2); object-fit: cover; grid-row: span 2; }
+  .wow-avatar-ph { display: flex; align-items: center; justify-content: center; font-size: 22px; color: var(--text-muted); }
+  .wow-name { font-size: 16px; color: var(--text); }
+  .wow-name small { font-size: 10px; color: var(--text-muted); margin-left: 6px; letter-spacing: 0.04em; }
+  .wow-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .wow-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 12px; grid-column: 1 / -1; }
+  .wow-stat { background: var(--surface2); border-radius: 8px; padding: 8px 10px; }
+  .wow-stat-v { font-size: 16px; color: var(--text); font-variant-numeric: tabular-nums; }
+  .wow-stat-l { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
+  .wow-spark { grid-column: 1 / -1; margin-top: 10px; }
+  .wow-spark svg { width: 100%; height: 48px; display: block; }
+  .wow-spark-cap { font-size: 9px; color: var(--text-muted); letter-spacing: 0.04em; }
+  .wow-details { grid-column: 1 / -1; margin-top: 10px; font-size: 11px; color: var(--text-muted); }
+  .wow-details summary { cursor: pointer; letter-spacing: 0.06em; text-transform: uppercase; font-size: 9px; padding: 4px 0; }
+  .wow-gear { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 20px; margin-top: 6px; }
+  .wow-gear-row { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; border-bottom: 1px solid var(--border); }
+  .wow-gear-row span:first-child { color: var(--text-muted); flex-shrink: 0; }
+  .wow-gear-row span:last-child { text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wow-q-POOR { color: #9d9d9d; } .wow-q-COMMON { color: var(--text); } .wow-q-UNCOMMON { color: #1eff00; }
+  .wow-q-RARE { color: #0070dd; } .wow-q-EPIC { color: #a335ee; } .wow-q-LEGENDARY { color: #ff8000; }
+  html.light .wow-q-UNCOMMON { color: #12a000; } html.light .wow-q-COMMON { color: var(--text); }
+  .wow-section-label { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin: 18px 0 6px; }
+  .wow-row { display: grid; grid-template-columns: minmax(0, 1fr) 48px 76px 52px; gap: 10px; align-items: center; padding: 6px 6px; border-radius: 6px; font-size: 12px; }
+  .wow-row:hover { background: var(--surface2); }
+  .wow-row-name { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wow-row-name small { color: var(--text-muted); font-size: 10px; margin-left: 6px; }
+  .wow-row-lvl { font-variant-numeric: tabular-nums; color: var(--text); text-align: right; white-space: nowrap; }
+  .wow-row > :last-child { justify-self: end; }
+  .wow-row-pace { font-size: 10px; color: var(--text-muted); min-width: 64px; text-align: right; }
+  .wow-row-pace.up { color: #2ed573; }
+  .wow-x { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px; padding: 0 4px; line-height: 1; }
+  .wow-x:hover { color: var(--danger-text); }
+  .wow-add-row { margin-top: 8px; }
+  .wow-toggle { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-muted); margin-bottom: 10px; cursor: pointer; }
+  .wow-guild-list { max-height: 360px; overflow-y: auto; }
+  .wow-note { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+  .wow-note code { font-size: 10px; background: var(--surface2); padding: 1px 4px; border-radius: 3px; }
+  .wow-realm { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px; font-size: 12px; border-radius: 6px; }
+  .wow-realm.mine { background: var(--surface2); }
+  .wow-realm-meta { font-size: 10px; color: var(--text-muted); }
+  .wow-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 8px; background: var(--text-muted); }
+  .wow-dot.UP { background: #2ed573; } .wow-dot.DOWN { background: var(--danger); }
+  .wow-news-src { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  @media (max-width: 599px) {
+    .wow-setup { grid-template-columns: 1fr; }
+    .wow-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .wow-gear { grid-template-columns: 1fr; }
+    .wow-row { grid-template-columns: minmax(0, 1fr) 40px 56px 50px; gap: 8px; }
+  }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script type="module">
@@ -3469,6 +3530,15 @@ window._fbLoadD20 = async () => {
   if (!currentUser) return null;
   const snap = await getDoc(doc(db, 'users', currentUser.uid, 'data', 'd20'));
   return snap.exists() ? JSON.parse(snap.data().d20) : {};
+};
+window._fbSaveWow = async (data) => {
+  if (!currentUser) return;
+  await setDoc(doc(db, 'users', currentUser.uid, 'data', 'wow'), { wow: JSON.stringify(data) });
+};
+window._fbLoadWow = async () => {
+  if (!currentUser) return null;
+  const snap = await getDoc(doc(db, 'users', currentUser.uid, 'data', 'wow'));
+  return snap.exists() ? JSON.parse(snap.data().wow) : {};
 };
 // Merge-on-save for the tasks/recurring/log docs. Each stores its array as a
 // JSON string in a field named like the doc. `merge(remote)` gets the array
@@ -3604,6 +3674,7 @@ onAuthStateChanged(auth, user => {
     <button class="digest-sub-tab" data-subtab="gaming">Magic</button>
     <button class="digest-sub-tab" data-subtab="sorcery">Sorcery</button>
     <button class="digest-sub-tab" data-subtab="hobbies">Hobbies</button>
+    <button class="digest-sub-tab" data-subtab="wow">WoW</button>
   </div>
 
   <!-- FRONT PAGE -->
@@ -3947,6 +4018,57 @@ onAuthStateChanged(auth, user => {
       </div>
       <div id="movies-list">
         <span class="digest-loading">Loading...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- WORLD OF WARCRAFT: focus-proxy /api/wow (Battle.net API) + Reddit -->
+  <div class="digest-grid digest-subtab-content" id="subtab-wow" style="display:none;">
+    <div class="digest-card full-width" id="wow-chars-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title">Characters</span>
+        <span class="wow-header-right">
+          <span class="digest-card-updated" id="wow-chars-updated">via Battle.net</span>
+          <button class="wow-icon-btn" id="wow-settings-btn" type="button" title="Change main character">Edit</button>
+        </span>
+      </div>
+      <form class="wow-setup" id="wow-setup" style="display:none;">
+        <input class="reddit-sub-input" id="wow-setup-name" placeholder="Character name" autocomplete="off" required>
+        <input class="reddit-sub-input" id="wow-setup-realm" placeholder="Realm (e.g. Whitemane)" autocomplete="off">
+        <input class="reddit-sub-input" id="wow-setup-surname" placeholder="Surname (optional)" autocomplete="off">
+        <button class="wow-btn" type="submit">Save</button>
+      </form>
+      <div id="wow-main"><span class="digest-loading">Loading...</span></div>
+      <div class="wow-section-label">Tracked</div>
+      <div id="wow-tracked"></div>
+      <form class="wow-add-row" id="wow-add-form">
+        <input class="reddit-sub-input" id="wow-add-input" placeholder="+ Add a guild member (Name or Name-Realm)" autocomplete="off">
+      </form>
+    </div>
+
+    <div class="digest-card" id="wow-guild-card">
+      <div class="digest-card-header">
+        <span class="digest-card-title" id="wow-guild-title">Guild</span>
+        <span class="digest-card-updated" id="wow-guild-updated"></span>
+      </div>
+      <label class="wow-toggle"><input type="checkbox" id="wow-guild-auto"> Track every member automatically</label>
+      <div id="wow-guild-list"><span class="digest-loading">Loading...</span></div>
+    </div>
+
+    <div class="digest-stack">
+      <div class="digest-card">
+        <div class="digest-card-header">
+          <span class="digest-card-title">Realm Status</span>
+          <span class="digest-card-updated" id="wow-realm-updated"></span>
+        </div>
+        <div id="wow-realm-list"><span class="digest-loading">Loading...</span></div>
+      </div>
+      <div class="digest-card">
+        <div class="digest-card-header">
+          <span class="digest-card-title">WoW News</span>
+          <span class="digest-card-updated" id="wow-news-updated"></span>
+        </div>
+        <div class="news-list" id="wow-news-list"><span class="digest-loading">Loading...</span></div>
       </div>
     </div>
   </div>
@@ -4584,6 +4706,7 @@ onAuthStateChanged(auth, user => {
     applySchedulePick();  // same for the Schedule card
     loadDigest(); // preload digest data in background
     if (window._d20OnUserReady) window._d20OnUserReady(); // merge the roll log from the cloud
+    if (window._wowOnUserReady) window._wowOnUserReady(); // WoW tab: main character, tracked list, level history
   };
 
   async function handleLogin() {
@@ -12332,6 +12455,345 @@ onAuthStateChanged(auth, user => {
   applyLook();
   renderHistoryLine();
   cards.forEach(c => c.render());
+})();
+</script>
+<script>
+// ── WORLD OF WARCRAFT (Digest › WoW) ──────────────────────────────────
+// Character, guild roster and realm data come from focus-proxy /api/wow (the
+// Battle.net API); news is Blizzard's feed plus r/wow and r/classicwow. Every
+// load records a level/item-level snapshot per character, so pace and history
+// build up on their own. Settings and snapshots live in localStorage and the
+// signed-in user's Firestore doc users/{uid}/data/wow, merged on sign-in.
+(function () {
+  const $ = id => document.getElementById(id);
+  const WOW_URL = 'https://focus-proxy.vercel.app/api/wow';
+  const LS_KEY = 'focus-wow';
+  const REGION = 'us';
+  const WOW_SUBS = ['wow', 'classicwow'];
+  const SNAP_CAP = 120;   // entries per character (one per change, so this is a long history)
+
+  const blank = () => ({ main: null, tracked: [], autoGuild: false, snaps: {}, updatedAt: 0 });
+  let state = blank();
+  try { state = Object.assign(blank(), JSON.parse(localStorage.getItem(LS_KEY) || '{}')); } catch (e) {}
+
+  let loaded = false, guildRoster = null;
+  const charCache = {};   // key -> last /character response
+
+  const today = () => new Date().toLocaleDateString('en-CA');   // YYYY-MM-DD, local
+  const slugify = s => String(s || '').trim().toLowerCase().replace(/['’]/g, '').replace(/\s+/g, '-');
+  const keyOf = c => (String(c.name || '').toLowerCase() + '@' + slugify(c.realm || c.realmSlug || ''));
+  const same = (a, b) => a && b && keyOf(a) === keyOf(b);
+
+  // ── Persistence ──
+  let cloudTimer = null;
+  function save(touchSettings) {
+    if (touchSettings) state.updatedAt = Date.now();
+    try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {}
+    clearTimeout(cloudTimer);
+    cloudTimer = setTimeout(async () => {
+      cloudTimer = null;
+      if (window._fbSaveWow) { try { await window._fbSaveWow(state); } catch (e) {} }
+    }, 1500);
+  }
+  window.addEventListener('pagehide', () => { if (cloudTimer && window._fbSaveWow) window._fbSaveWow(state); });
+
+  function mergeSnaps(a, b) {
+    const out = {};
+    for (const k of new Set(Object.keys(a || {}).concat(Object.keys(b || {})))) {
+      const byDate = {};
+      for (const e of (a[k] || []).concat((b && b[k]) || [])) if (Array.isArray(e) && e[0]) byDate[e[0]] = e;
+      out[k] = Object.values(byDate).sort((x, y) => x[0].localeCompare(y[0])).slice(-SNAP_CAP);
+    }
+    return out;
+  }
+  window._wowOnUserReady = async () => {
+    if (!window._fbLoadWow) return;
+    let cloud = null;
+    try { cloud = await window._fbLoadWow(); } catch (e) { return; }
+    if (!cloud) return;
+    const snaps = mergeSnaps(state.snaps, cloud.snaps || {});
+    if ((cloud.updatedAt || 0) > (state.updatedAt || 0)) {
+      state.main = cloud.main || null; state.tracked = cloud.tracked || []; state.autoGuild = !!cloud.autoGuild; state.updatedAt = cloud.updatedAt;
+    }
+    state.snaps = snaps;
+    save(false);
+    // Load once in the background so the daily snapshot happens even if the tab isn't opened.
+    if (loaded || state.main) loadAll();
+  };
+
+  // Record a snapshot only when something changed, so a long history stays small.
+  function snap(c, level, ilvl, ap) {
+    if (!level) return;
+    const k = keyOf(c), arr = state.snaps[k] || (state.snaps[k] = []);
+    const last = arr[arr.length - 1];
+    const d = today();
+    if (last && last[1] === level && (ilvl == null || last[2] === ilvl)) return;
+    const entry = [d, level, ilvl != null ? ilvl : (last ? last[2] : null), ap != null ? ap : (last ? last[3] : null)];
+    if (last && last[0] === d) arr[arr.length - 1] = entry; else arr.push(entry);
+    if (arr.length > SNAP_CAP) arr.splice(0, arr.length - SNAP_CAP);
+  }
+
+  // Levels per week over (up to) the last 14 days, from the snapshots.
+  function pace(c, level) {
+    const arr = state.snaps[keyOf(c)];
+    if (!arr || !arr.length || !level) return null;
+    const cutoff = new Date(Date.now() - 14 * 864e5).toLocaleDateString('en-CA');
+    let base = arr[0];
+    for (const e of arr) { if (e[0] <= cutoff) base = e; else break; }
+    const days = (Date.now() - new Date(base[0] + 'T12:00:00').getTime()) / 864e5;
+    if (days < 1) return null;
+    return (level - base[1]) / (days / 7);
+  }
+  const paceText = p => p == null ? '' : (p > 0 ? '+' + p.toFixed(1) + ' lvl/wk' : 'no change');
+
+  // ── Fetch helpers ──
+  async function api(params) {
+    const qs = new URLSearchParams(Object.assign({ region: REGION }, params));
+    const r = await fetchWithTimeout(WOW_URL + '?' + qs, TIMEOUT_LONG);
+    let body = null;
+    try { body = await r.json(); } catch (e) {}
+    if (!r.ok) { const err = new Error((body && body.error) || ('HTTP ' + r.status)); err.status = r.status; throw err; }
+    return body;
+  }
+  function errorNote(e, what) {
+    if (e.status === 503) return '<div class="wow-note">Battle.net keys are not set up yet. Add <code>BLIZZARD_CLIENT_ID</code> and <code>BLIZZARD_CLIENT_SECRET</code> to the focus-proxy project in Vercel, then redeploy.</div>';
+    if (e.status === 404) return '<div class="wow-note">' + esc(what) + ' was not found. Check the spelling and realm. Blizzard may not serve WoW: Forever data for this yet.</div>';
+    return '<div class="wow-note">Could not load ' + esc(what) + ' right now (' + esc(e.message) + ').</div>';
+  }
+
+  // ── Main character ──
+  function sparkline(c) {
+    const arr = state.snaps[keyOf(c)] || [];
+    if (arr.length < 2) return '<div class="wow-spark-cap">Level history builds up as you play: one point each day something changes.</div>';
+    const pts = arr.slice(-60);
+    const t0 = new Date(pts[0][0]).getTime(), t1 = Math.max(new Date(today()).getTime(), t0 + 864e5);
+    const lv = pts.map(p => p[1]), lo = Math.min.apply(null, lv), hi = Math.max.apply(null, lv);
+    const W = 600, H = 48, pad = 4;
+    const x = d => pad + (new Date(d).getTime() - t0) / (t1 - t0) * (W - 2 * pad);
+    const y = l => H - pad - (hi === lo ? 0.5 : (l - lo) / (hi - lo)) * (H - 2 * pad);
+    let dpath = 'M' + x(pts[0][0]).toFixed(1) + ' ' + y(pts[0][1]).toFixed(1);
+    for (let i = 1; i < pts.length; i++) dpath += ' H' + x(pts[i][0]).toFixed(1) + ' V' + y(pts[i][1]).toFixed(1);
+    dpath += ' H' + (W - pad);
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-label="Level history">'
+      + '<path d="' + dpath + '" fill="none" stroke="var(--text-muted)" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>'
+      + '<div class="wow-spark-cap">Level ' + lo + ' to ' + hi + ' since ' + esc(pts[0][0]) + '</div>';
+  }
+
+  function renderMain(d) {
+    const specs = (d.specs || []).filter(s => s.name);
+    const specLine = specs.length ? specs.map(s => esc(s.name) + (s.points ? ' ' + s.points : '')).join(' / ') : esc(d.activeSpec || '');
+    const p = pace(state.main, d.level);
+    const gear = (d.gear || []).filter(g => g.name);
+    const avatar = escUrl(d.avatar)
+      ? '<img class="wow-avatar" src="' + escUrl(d.avatar) + '" alt="" loading="lazy">'
+      : '<div class="wow-avatar wow-avatar-ph">' + esc((d.name || '?')[0]) + '</div>';
+    const armory = 'https://worldofwarcraft.blizzard.com/en-us/character/' + REGION + '/' + encodeURIComponent(d.realmSlug || '') + '/' + encodeURIComponent((d.name || '').toLowerCase());
+    $('wow-main').innerHTML = '<div class="wow-main">' + avatar
+      + '<div><div class="wow-name"><a href="' + escUrl(armory) + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">' + esc(d.name) + (d.surname ? ' ' + esc(d.surname) : '') + '</a><small>' + esc(d.realm || '') + '</small></div>'
+      + '<div class="wow-sub">Level ' + esc(d.level) + ' ' + esc(d.race) + ' ' + esc(d.className) + (specLine ? ' · ' + specLine : '') + '</div>'
+      + (d.guild ? '<div class="wow-sub">&lt;' + esc(d.guild.name) + '&gt;</div>' : '') + '</div>'
+      + '<div class="wow-stats">'
+      + stat(d.level, 'Level') + stat(d.itemLevel != null ? d.itemLevel : '–', 'Item level')
+      + stat(p == null ? '–' : (p > 0 ? '+' : '') + p.toFixed(1), 'Levels / week')
+      + stat(d.achievementPoints != null ? d.achievementPoints : '–', 'Achievements') + '</div>'
+      + '<div class="wow-spark">' + sparkline(state.main) + '</div>'
+      + (gear.length ? '<details class="wow-details"><summary>Gear (' + gear.length + ')</summary><div class="wow-gear">'
+        + gear.map(g => '<div class="wow-gear-row"><span>' + esc(g.slot) + '</span><span class="wow-q-' + esc(g.quality) + '">' + esc(g.name) + (g.itemLevel ? ' <small style="color:var(--text-muted)">' + g.itemLevel + '</small>' : '') + '</span></div>').join('')
+        + '</div></details>' : '')
+      + '</div>';
+  }
+  const stat = (v, l) => '<div class="wow-stat"><div class="wow-stat-v">' + esc(v) + '</div><div class="wow-stat-l">' + esc(l) + '</div></div>';
+
+  async function loadMain() {
+    if (!state.main) {
+      $('wow-main').innerHTML = '<div class="wow-note">Enter your character above to get started.</div>';
+      $('wow-setup').style.display = '';
+      return null;
+    }
+    try {
+      const d = await api({ action: 'character', name: state.main.name, realm: state.main.realm || '', surname: state.main.surname || '' });
+      charCache[keyOf(state.main)] = d;
+      if (!state.main.realm && d.realmSlug) { state.main.realm = d.realmSlug; }
+      snap(state.main, d.level, d.itemLevel, d.achievementPoints);
+      save(false);
+      renderMain(d);
+      $('wow-chars-updated').textContent = asOfNow();
+      return d;
+    } catch (e) {
+      $('wow-main').innerHTML = errorNote(e, state.main.name);
+      return null;
+    }
+  }
+
+  // ── Tracked members ──
+  function trackedList() {
+    const list = state.tracked.slice();
+    if (state.autoGuild && guildRoster) {
+      for (const m of guildRoster.members) {
+        if (same(m, state.main) || list.some(t => same(t, m))) continue;
+        list.push({ name: m.name, realm: m.realmSlug, auto: true });
+      }
+    }
+    return list;
+  }
+  function rosterEntry(c) { return guildRoster && guildRoster.members.find(m => same(m, c)); }
+
+  function renderTracked() {
+    const list = trackedList();
+    const el = $('wow-tracked');
+    if (!list.length) { el.innerHTML = '<div class="wow-note">No one yet. Add guild members below, or turn on automatic tracking in the Guild card.</div>'; return; }
+    const rows = list.map(c => {
+      const d = charCache[keyOf(c)] || rosterEntry(c) || {};
+      const lvl = d.level || null, p = pace(c, lvl);
+      return { c, d, lvl, p };
+    }).sort((a, b) => (b.lvl || 0) - (a.lvl || 0));
+    el.innerHTML = rows.map(({ c, d, lvl, p }) => '<div class="wow-row">'
+      + '<span class="wow-row-name">' + esc(d.name || c.name) + '<small>' + esc(d.className || '') + (d.itemLevel ? ' · ilvl ' + d.itemLevel : '') + '</small></span>'
+      + '<span class="wow-row-lvl">' + (lvl ? 'Lv ' + lvl : (d.error ? 'not found' : '…')) + '</span>'
+      + '<span class="wow-row-pace' + (p > 0 ? ' up' : '') + '">' + esc(paceText(p)) + '</span>'
+      + (c.auto ? '<span></span>' : '<button class="wow-x" data-key="' + esc(keyOf(c)) + '" title="Stop tracking">&times;</button>')
+      + '</div>').join('');
+    el.querySelectorAll('.wow-x').forEach(b => b.addEventListener('click', () => {
+      state.tracked = state.tracked.filter(t => keyOf(t) !== b.dataset.key);
+      save(true); renderTracked(); renderGuild();
+    }));
+  }
+
+  async function loadTracked() {
+    // Manually tracked characters get a full lookup (item level too); auto-tracked
+    // guild members use the roster's level, which needs no extra calls.
+    renderTracked();
+    await Promise.all(state.tracked.map(async c => {
+      try {
+        const d = await api({ action: 'character', name: c.name, realm: c.realm || (state.main && state.main.realm) || '' });
+        charCache[keyOf(c)] = d;
+        snap(c, d.level, d.itemLevel, d.achievementPoints);
+      } catch (e) { charCache[keyOf(c)] = { name: c.name, error: true }; }
+    }));
+    if (state.autoGuild && guildRoster) for (const m of guildRoster.members) if (!state.tracked.some(t => same(t, m))) snap({ name: m.name, realm: m.realmSlug }, m.level, null, null);
+    save(false);
+    renderTracked();
+  }
+
+  // ── Guild ──
+  function renderGuild() {
+    const el = $('wow-guild-list');
+    if (!guildRoster) return;
+    $('wow-guild-title').textContent = guildRoster.guild || 'Guild';
+    $('wow-guild-updated').textContent = guildRoster.members.length + ' members';
+    el.className = 'wow-guild-list';
+    el.innerHTML = guildRoster.members.map(m => {
+      const isMain = same(m, state.main), isTracked = state.tracked.some(t => same(t, m));
+      const btn = isMain ? '<span class="wow-row-pace">you</span>'
+        : isTracked ? '<span class="wow-row-pace">tracked</span>'
+        : state.autoGuild ? '<span class="wow-row-pace">auto</span>'
+        : '<button class="wow-icon-btn" data-name="' + esc(m.name) + '" data-realm="' + esc(m.realmSlug) + '">Track</button>';
+      return '<div class="wow-row"><span class="wow-row-name">' + esc(m.name) + '<small>' + esc(m.className) + '</small></span>'
+        + '<span class="wow-row-lvl">Lv ' + esc(m.level || '?') + '</span><span class="wow-row-pace">' + (m.rank === 0 ? 'GM' : 'rank ' + esc(m.rank)) + '</span>' + btn + '</div>';
+    }).join('');
+    el.querySelectorAll('button[data-name]').forEach(b => b.addEventListener('click', () => {
+      state.tracked.push({ name: b.dataset.name, realm: b.dataset.realm });
+      save(true); renderGuild(); loadTracked();
+    }));
+  }
+
+  async function loadGuild(mainData) {
+    const el = $('wow-guild-list');
+    $('wow-guild-auto').checked = !!state.autoGuild;
+    if (!mainData) { el.innerHTML = '<div class="wow-note">Your guild appears here once your character loads.</div>'; return; }
+    if (!mainData.guild) { el.innerHTML = '<div class="wow-note">' + esc(mainData.name) + ' is not in a guild.</div>'; guildRoster = null; return; }
+    try {
+      guildRoster = await api({ action: 'guild', realm: mainData.guild.realmSlug || mainData.realmSlug, guild: mainData.guild.name });
+      renderGuild();
+    } catch (e) { guildRoster = null; el.innerHTML = errorNote(e, 'The guild roster'); }
+  }
+
+  // ── Realm status ──
+  async function loadRealms(mainData) {
+    const el = $('wow-realm-list');
+    const mine = slugify((mainData && mainData.realmSlug) || (state.main && state.main.realm) || '');
+    try {
+      const d = await api({ action: 'realms' });
+      let list = d.realms || [];
+      list.sort((a, b) => (b.slug === mine) - (a.slug === mine) || a.name.localeCompare(b.name));
+      const shown = list.slice(0, 8);
+      el.innerHTML = shown.map(r => '<div class="wow-realm' + (r.slug === mine ? ' mine' : '') + '">'
+        + '<span><span class="wow-dot ' + esc(r.status) + '"></span>' + esc(r.name) + (r.slug === mine ? ' <span class="wow-realm-meta">(yours)</span>' : '') + '</span>'
+        + '<span class="wow-realm-meta">' + esc(r.status === 'UP' ? 'Up' : r.status === 'DOWN' ? 'Down' : r.status) + (r.population ? ' · ' + esc(r.population) : '') + (r.queue ? ' · queue' : '') + (r.type ? ' · ' + esc(r.type) : '') + '</span></div>').join('')
+        + (list.length > shown.length ? '<div class="wow-realm-meta" style="padding:6px">+' + (list.length - shown.length) + ' more realms</div>' : '');
+      $('wow-realm-updated').textContent = asOfNow();
+    } catch (e) { el.innerHTML = errorNote(e, 'Realm status'); }
+  }
+
+  // ── News ──
+  async function loadNews() {
+    const el = $('wow-news-list');
+    const [blizz, ...subs] = await Promise.all([
+      api({ action: 'news' }).catch(() => null),
+      ...WOW_SUBS.map(s => (typeof fetchOneSub === 'function' ? fetchOneSub(s) : Promise.resolve([])).catch(() => [])),
+    ]);
+    const groups = [];
+    if (blizz && blizz.items && blizz.items.length) groups.push({ label: blizz.source === 'Blizzard' ? 'Blizzard' : blizz.source, items: blizz.items.slice(0, 5) });
+    WOW_SUBS.forEach((s, i) => { if (subs[i] && subs[i].length) groups.push({ label: 'r/' + s, items: subs[i].slice(0, 4) }); });
+    if (!groups.length) { el.innerHTML = '<div class="wow-note">No WoW news could be loaded right now.</div>'; return; }
+    el.innerHTML = groups.map(g => '<div class="wow-news-src">' + esc(g.label) + '</div>'
+      + g.items.map(it => '<a class="news-item" href="' + escUrl(it.url) + '" target="_blank" rel="noopener"><div class="news-headline">' + esc(it.title) + '</div>'
+        + (it.time ? '<div class="reddit-meta"><span class="reddit-time">' + esc(new Date(it.time).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })) + '</span></div>' : '') + '</a>').join('')).join('');
+    $('wow-news-updated').textContent = asOfNow();
+  }
+
+  async function loadAll() {
+    loaded = true;
+    loadNews();
+    const d = await loadMain();
+    loadRealms(d);
+    await loadGuild(d);
+    loadTracked();
+  }
+
+  // ── Controls ──
+  function parseCharInput(raw) {
+    const t = raw.trim().replace(/\s+/g, ' ');
+    if (!t) return null;
+    const m = t.match(/^([^\s\-@]+)\s*[-@]\s*(.+)$/);
+    return m ? { name: m[1], realm: slugify(m[2]) } : { name: t, realm: '' };
+  }
+  $('wow-settings-btn').addEventListener('click', () => {
+    const f = $('wow-setup');
+    f.style.display = f.style.display === 'none' ? '' : 'none';
+    if (state.main) { $('wow-setup-name').value = state.main.name || ''; $('wow-setup-realm').value = state.main.realm || ''; $('wow-setup-surname').value = state.main.surname || ''; }
+  });
+  $('wow-setup').addEventListener('submit', e => {
+    e.preventDefault();
+    const name = $('wow-setup-name').value.trim();
+    if (!name) return;
+    state.main = { name, realm: slugify($('wow-setup-realm').value), surname: $('wow-setup-surname').value.trim() };
+    save(true);
+    $('wow-setup').style.display = 'none';
+    $('wow-main').innerHTML = '<span class="digest-loading">Loading...</span>';
+    loadAll();
+  });
+  $('wow-add-form').addEventListener('submit', e => {
+    e.preventDefault();
+    const c = parseCharInput($('wow-add-input').value);
+    if (!c) return;
+    if (!c.realm && state.main) c.realm = state.main.realm || '';
+    if (!same(c, state.main) && !state.tracked.some(t => same(t, c))) state.tracked.push(c);
+    $('wow-add-input').value = '';
+    save(true); renderGuild(); loadTracked();
+  });
+  $('wow-guild-auto').addEventListener('change', e => {
+    state.autoGuild = e.target.checked;
+    save(true); renderGuild(); loadTracked();
+  });
+
+  // Load the first time the WoW tab is opened (and on later visits after 10 min).
+  let lastLoad = 0;
+  const tab = document.querySelector('.digest-sub-tab[data-subtab="wow"]');
+  if (tab) tab.addEventListener('click', () => {
+    if (Date.now() - lastLoad > 10 * 60e3) { lastLoad = Date.now(); loadAll(); }
+  });
+  if (localStorage.getItem('focus-digest-subtab') === 'wow') { lastLoad = Date.now(); loadAll(); }
 })();
 </script>
   <canvas id="complete-canvas"></canvas>
