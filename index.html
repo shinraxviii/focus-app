@@ -11800,51 +11800,89 @@ onAuthStateChanged(auth, user => {
 
   const WEATHER_CACHE_KEY = 'focus-weather-cache';
 
-  async function fetchWeather(lat, lon) {
+  // Reverse-geocode the city name (7-day cache). Never blocks the weather
+  // render: the header draws as soon as Open-Meteo answers, then redraws
+  // with the city when this lands. Nominatim can be slow or refuse browser
+  // traffic, so it gets its own short timeout.
+  async function resolveWeatherCity(lat, lon) {
+    const cityKey = 'focus-weather-city';
     try {
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weathercode&daily=temperature_2m_max,weathercode&temperature_unit=fahrenheit&forecast_days=4&timezone=auto`;
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 4000);
-      const res = await fetch(url, { signal: controller.signal });
-      clearTimeout(timeout);
-      const data = await res.json();
-
-      // Resolve city name: check cache first (7-day TTL) before hitting Nominatim
-      const cityKey = 'focus-weather-city';
-      let city = null;
-      try {
-        const cached = localStorage.getItem(cityKey);
-        if (cached) {
-          const c = JSON.parse(cached);
-          if (Date.now() - c.ts < 7 * 24 * 60 * 60 * 1000) city = c.city;
-        }
-      } catch(_) {}
-      if (!city) {
-        try {
-          const geo = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
-          const gd = await geo.json();
-          city = gd.address.city || gd.address.town || gd.address.village || gd.address.county || '';
-          if (city) localStorage.setItem(cityKey, JSON.stringify({ ts: Date.now(), city }));
-        } catch(e) {}
+      const cached = localStorage.getItem(cityKey);
+      if (cached) {
+        const c = JSON.parse(cached);
+        if (c && c.city && Date.now() - c.ts < 7 * 24 * 60 * 60 * 1000) return c.city;
       }
+    } catch(_) {}
+    try {
+      const geo = await fetchWithTimeout(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=10`, 5000);
+      if (!geo.ok) return null;
+      const gd = await geo.json();
+      const a = (gd && gd.address) || {};
+      const city = a.city || a.town || a.village || a.county || '';
+      if (city) localStorage.setItem(cityKey, JSON.stringify({ ts: Date.now(), city }));
+      return city || null;
+    } catch(_) { return null; }
+  }
 
-      renderWeather(data, city);
-      // Cache the successful fetch for next page load
-      try { localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify({ ts: Date.now(), data, city })); } catch(e) {}
-    } catch(e) {
-      // Network failed — show cached data if we have it (loading state stays if not)
-      const cached = loadWeatherCache();
-      if (cached) renderWeather(cached.data, cached.city);
+  async function fetchForecast(url) {
+    // One retry: a phone waking up or switching networks often drops the first try.
+    for (let i = 0; i < 2; i++) {
+      try {
+        const res = await fetchWithTimeout(url, 8000);
+        if (!res.ok) throw new Error('forecast ' + res.status);
+        const data = await res.json();
+        if (!data || !data.current || !data.daily) throw new Error('bad forecast');
+        return data;
+      } catch (e) {
+        if (i === 1) throw e;
+        await new Promise(r => setTimeout(r, 1500));
+      }
     }
   }
 
-  function loadWeatherCache() {
+  async function fetchWeather(lat, lon) {
+    fetchWeather._last = [lat, lon];
+    const prevCity = (loadWeatherCache(true) || {}).city || null;
+    try {
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weathercode&daily=temperature_2m_max,weathercode&temperature_unit=fahrenheit&forecast_days=4&timezone=auto`;
+      const cityP = resolveWeatherCity(lat, lon);
+      const data = await fetchForecast(url);
+      renderWeather(data, prevCity);
+      try { localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify({ ts: Date.now(), data, city: prevCity })); } catch(e) {}
+      const city = await cityP;
+      if (city && city !== prevCity) {
+        renderWeather(data, city);
+        try { localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify({ ts: Date.now(), data, city })); } catch(e) {}
+      }
+    } catch(e) {
+      // Network failed: show the last good reading, however old, rather
+      // than leaving "Loading weather..." up forever.
+      const cached = loadWeatherCache(true);
+      if (cached) renderWeather(cached.data, cached.city);
+      else showWeatherError();
+    }
+  }
+
+  function showWeatherError() {
+    const w = document.getElementById('weather-widget');
+    if (!w) return;
+    w.innerHTML = '<button type="button" class="weather-loading" id="weather-retry" style="background:none;border:0;padding:0;cursor:pointer;font:inherit;color:inherit;">Weather unavailable \u00b7 tap to retry</button>';
+    const b = document.getElementById('weather-retry');
+    if (b) b.addEventListener('click', () => {
+      w.innerHTML = '<span class="weather-loading">Loading weather\u2026</span>';
+      const last = fetchWeather._last || [34.1669, -118.5422];
+      fetchWeather(last[0], last[1]);
+    });
+  }
+
+  function loadWeatherCache(anyAge) {
     try {
       const raw = localStorage.getItem(WEATHER_CACHE_KEY);
       if (!raw) return null;
       const cached = JSON.parse(raw);
-      // Accept cache up to 3 hours old
-      if (Date.now() - cached.ts > 3 * 60 * 60 * 1000) return null;
+      if (!cached || !cached.data || !cached.data.current || !cached.data.daily) return null;
+      // Instant paint accepts up to 3 hours; the failure fallback takes any age.
+      if (!anyAge && Date.now() - cached.ts > 3 * 60 * 60 * 1000) return null;
       return cached;
     } catch(e) { return null; }
   }
@@ -11857,16 +11895,37 @@ onAuthStateChanged(auth, user => {
   } else {
     wEl.innerHTML = '<span class="weather-loading">Loading weather\u2026</span>';
   }
-  // Fetch fresh data in the background
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      pos => { fetchWeather(pos.coords.latitude, pos.coords.longitude); loadWeatherCard(pos.coords.latitude, pos.coords.longitude); },
-      ()  => { fetchWeather(34.1669, -118.5422); loadWeatherCard(34.1669, -118.5422); }
-    );
-  } else {
-    fetchWeather(34.1669, -118.5422);
-    loadWeatherCard(34.1669, -118.5422);
+
+  // Fetch fresh data in the background. Geolocation can stay silent forever
+  // (permission prompt left open, iOS location services slow to wake), so a
+  // safety timer falls back to the default spot; whichever answers first wins.
+  const WEATHER_DEFAULT = [34.1669, -118.5422];
+  let weatherStarted = false;
+  function startWeather(lat, lon) {
+    if (weatherStarted) return;
+    weatherStarted = true;
+    fetchWeather(lat, lon);
+    loadWeatherCard(lat, lon);
   }
+  if (navigator.geolocation) {
+    const geoFallback = setTimeout(() => startWeather(WEATHER_DEFAULT[0], WEATHER_DEFAULT[1]), 10000);
+    try {
+      navigator.geolocation.getCurrentPosition(
+        pos => { clearTimeout(geoFallback); startWeather(pos.coords.latitude, pos.coords.longitude); },
+        ()  => { clearTimeout(geoFallback); startWeather(WEATHER_DEFAULT[0], WEATHER_DEFAULT[1]); },
+        { timeout: 8000, maximumAge: 30 * 60 * 1000, enableHighAccuracy: false }
+      );
+    } catch (_) { clearTimeout(geoFallback); startWeather(WEATHER_DEFAULT[0], WEATHER_DEFAULT[1]); }
+  } else {
+    startWeather(WEATHER_DEFAULT[0], WEATHER_DEFAULT[1]);
+  }
+
+  // Coming back to the app after a while: refresh the header reading.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !fetchWeather._last) return;
+    const c = loadWeatherCache(true);
+    if (!c || Date.now() - c.ts > 30 * 60 * 1000) fetchWeather(fetchWeather._last[0], fetchWeather._last[1]);
+  });
 
   // Init weather, date, title — these run immediately regardless of auth
 
