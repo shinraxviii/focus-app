@@ -5794,7 +5794,8 @@ onAuthStateChanged(auth, user => {
       tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 2 }],
       messages: [{ role: 'user', content: prompt + ' Respond with ONLY the JSON (object or array), nothing else.' }]
     };
-    const response = await fetch(PROXY_URL, {
+    // Web search answers can take a while, but never let one hang a card forever.
+    const response = await fetchWithTimeout(PROXY_URL, 30000, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
@@ -5895,8 +5896,9 @@ onAuthStateChanged(auth, user => {
     loadSports();
     loadStandings();
     loadSchedule();
-    await loadLiveData();
-    await loadDailyData();
+    // Independent cards: a slow Markets fallback must not hold up Singles,
+    // LA Events or Sanderson (and vice versa).
+    await Promise.all([loadLiveData(), loadDailyData()]);
   }
   window.loadDigest = loadDigest; // expose for console debugging
 
@@ -6373,11 +6375,14 @@ onAuthStateChanged(auth, user => {
 
       // Retry rounds: sequentially re-fetch any sub still missing, with a small
       // gap between requests to avoid re-colliding on the same IP.
+      // Retries stop after ~25s overall, so an outage (every request timing
+      // out) shows the fallback in seconds rather than minutes.
       const MAX_RETRY_ROUNDS = 4;
+      const retryDeadline = Date.now() + 25000;
       for (let round = 0; round < MAX_RETRY_ROUNDS; round++) {
         const missing = subs.filter(function(s) { return !bySub[s]; });
         if (!missing.length) break;
-        for (let i = 0; i < missing.length; i++) {
+        for (let i = 0; i < missing.length && Date.now() < retryDeadline; i++) {
           const arr = await fetchOneSub(missing[i]);
           if (arr.length) bySub[missing[i]] = arr;
           await new Promise(function(res) { setTimeout(res, 450); });
@@ -6511,8 +6516,9 @@ onAuthStateChanged(auth, user => {
       }
     })();
 
-    // Stocks: 3-tier fetch
-    if (!cachedStocks) {
+    // Stocks: 3-tier fetch. Runs alongside Reddit and Deals so a slow fallback
+    // tier doesn't leave those cards on "Loading..." until it gives up.
+    const stocksTask = (async () => { if (!cachedStocks) {
       stocksEl.innerHTML = '<span class="digest-loading">Loading...</span>';
 
       function renderStocks(stocks, source) {
@@ -6672,15 +6678,13 @@ onAuthStateChanged(auth, user => {
           ? stale.data + '<div class="digest-stale">stale · ' + cacheAge(stale.ts) + '</div>'
           : _errorHTML('stocks');
       }
-    }
+    } })();
 
     // Reddit Feed + Tech Deals
-    if (cachedReddit && cachedDeals) return;
+    if (cachedReddit && cachedDeals) { await stocksTask; return; }
 
-    // Reddit Feed
-    if (!cachedReddit) {
-      await fetchReddit();
-    }
+    // Reddit Feed (its retries can take a while, so Deals doesn't wait on it)
+    const redditTask = cachedReddit ? null : fetchReddit();
 
     // Tech Deals (CheapShark + Slickdeals via proxy)
     if (!cachedDeals) {
@@ -6723,6 +6727,8 @@ onAuthStateChanged(auth, user => {
         }
       }
     }
+    await redditTask;
+    await stocksTask;
   }
 
   // ── DAILY DATA: MTG + Fever Events ── 24hr cache ──
@@ -6762,11 +6768,14 @@ onAuthStateChanged(auth, user => {
     // instead of many individual lookups. This is Scryfall's recommended way
     // to fetch multiple cards and avoids the per-request rate limit (HTTP 429)
     // that previously made some cards come back with no price.
-    if (!cachedMTG) {
+    // The three cards load in parallel: a slow or down Scryfall used to keep
+    // LA Events and Sanderson on "Loading..." for minutes.
+    const mtgTask = (async () => { if (!cachedMTG) {
       mtgEl.innerHTML = '<span class="digest-loading">Loading MTG prices...</span>';
       try {
         // 1) Batch lookup keyed by name+set.
         const found = {};
+        let batchFailed = false;
         try {
           const ids = MTG_CARDS.map(function(c) {
             return c.setCode ? { name: c.name, set: c.setCode } : { name: c.name };
@@ -6780,15 +6789,25 @@ onAuthStateChanged(auth, user => {
             const dc = await rc.json();
             (dc.data || []).forEach(function(cd) { found[cd.name.toLowerCase()] = cd; });
           }
-        } catch(batchErr) { /* fall through to per-card lookup below */ }
+        } catch(batchErr) { batchFailed = true; /* fall through to per-card lookup below */ }
 
         // 2) Resolve each card from the batch result; fuzzy-fetch only the
         //    ones the batch missed (few enough to stay under the rate limit).
         const results = [];
+        // Consecutive cards Scryfall couldn't answer at all. If the batch call
+        // itself never got through, Scryfall is unreachable: skip straight to
+        // the stale fallback instead of retrying card by card.
+        let misses = batchFailed ? 2 : 0;
         for (const card of MTG_CARDS) {
           const hit = found[card.name.toLowerCase()];
           if (hit) {
             results.push({ name: hit.name, set: hit.set_name, usd: hit.prices?.usd || null, usd_foil: hit.prices?.usd_foil || null, scryfallUrl: hit.scryfall_uri });
+            continue;
+          }
+          // Two cards in a row with every retry failing means Scryfall is down
+          // or unreachable; don't spend minutes retrying the rest one by one.
+          if (misses >= 2) {
+            results.push({ name: card.name, set: card.set, usd: null, usd_foil: null, scryfallUrl: null });
             continue;
           }
           const base = 'https://api.scryfall.com/cards/named?fuzzy=' + encodeURIComponent(card.name);
@@ -6804,7 +6823,8 @@ onAuthStateChanged(auth, user => {
             }
             await new Promise(resolve => setTimeout(resolve, SCRYFALL_RATE_DELAY));
           }
-          if (!pushed) results.push({ name: card.name, set: card.set, usd: null, usd_foil: null, scryfallUrl: null });
+          if (!pushed) { misses++; results.push({ name: card.name, set: card.set, usd: null, usd_foil: null, scryfallUrl: null }); }
+          else misses = 0;
           await new Promise(resolve => setTimeout(resolve, SCRYFALL_RATE_DELAY));
         }
         // If nothing resolved, treat as a failed load (show stale instead of
@@ -6837,10 +6857,10 @@ onAuthStateChanged(auth, user => {
         // MTG price fetch failed
         _staleOrError(mtgEl, 'mtg', e.message || 'MTG load failed');
       }
-    }
+    } })();
 
     // Fever LA Events — scrape top-10 page weekly, fall back to static data
-    if (!cachedFever) {
+    const feverTask = (async () => { if (!cachedFever) {
       feverEl.innerHTML = '<span class="digest-loading">Loading Fever events...</span>';
       const feverStatus = document.getElementById('fever-updated');
       try {
@@ -6849,16 +6869,22 @@ onAuthStateChanged(auth, user => {
         if (feverStatus) feverStatus.textContent = fvrLabel;
         cacheSet('fever5', feverEl.innerHTML, fvrLabel);
       } catch(e) {
-        // Fallback to static curated list
-        renderFeverEvents(feverEl, FEVER_FALLBACK);
-        const fvrLabel = 'Cached · via Fever';
-        if (feverStatus) feverStatus.textContent = fvrLabel;
-        cacheSet('fever5', feverEl.innerHTML, fvrLabel);
+        // Prefer the last live list, however old; the static list is a last
+        // resort. Neither is cached, so the next visit tries the live feed again
+        // (caching the fallback used to pin it in place for a week).
+        const stale = cacheGetStale('fever5');
+        if (stale && stale.data) {
+          feverEl.innerHTML = stale.data;
+          if (feverStatus) feverStatus.textContent = 'cached · ' + cacheAge(stale.ts);
+        } else {
+          renderFeverEvents(feverEl, FEVER_FALLBACK);
+          if (feverStatus) feverStatus.textContent = 'Cached · via Fever';
+        }
       }
-    }
+    } })();
 
     // Brandon Sanderson progress — scrape from brandonsanderson.com weekly, fall back to static
-    if (!cachedSand) {
+    const sandTask = (async () => { if (!cachedSand) {
       sandEl.innerHTML = '<span class="digest-loading">Loading progress...</span>';
       const sandStatus = document.getElementById('sanderson-updated');
       try {
@@ -6867,12 +6893,19 @@ onAuthStateChanged(auth, user => {
         if (sandStatus) sandStatus.textContent = sndLabel;
         cacheSet('sanderson', sandEl.innerHTML, sndLabel);
       } catch(e) {
-        renderSanderson(sandEl, SANDERSON_FALLBACK);
-        const sndLabel = 'Cached · Writing Progress';
-        if (sandStatus) sandStatus.textContent = sndLabel;
-        cacheSet('sanderson', sandEl.innerHTML, sndLabel);
+        // Same as Fever: last live reading first, static list last, cache neither.
+        const stale = cacheGetStale('sanderson');
+        if (stale && stale.data) {
+          sandEl.innerHTML = stale.data;
+          if (sandStatus) sandStatus.textContent = 'cached · ' + cacheAge(stale.ts);
+        } else {
+          renderSanderson(sandEl, SANDERSON_FALLBACK);
+          if (sandStatus) sandStatus.textContent = 'Cached · Writing Progress';
+        }
       }
-    }
+    } })();
+
+    await Promise.all([mtgTask, feverTask, sandTask]);
   }
 
 
