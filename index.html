@@ -1951,6 +1951,8 @@
   .meta-fill { height: 100%; border-radius: 2px; background: color-mix(in srgb, var(--color-electric) 55%, transparent); }
   .meta-row .card-price, .meta-row .card-price-sub { font-variant-numeric: tabular-nums; }
   .meta-trend.up { color: #22c55e; } .meta-trend.down { color: #ef4444; }
+  .meta-tier { display: inline-block; width: 16px; padding: 2px 0; border-radius: 3px; text-align: center; font-size: 10px; font-weight: 700; color: #111; }
+  .meta-tier.A { background: #7fb24a; } .meta-tier.B { background: #b5c24a; } .meta-tier.C { background: #d6a640; } .meta-tier.D { background: #c9714a; }
   .meta-detail { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 2px 6px 12px 32px; }
   .meta-stat { background: var(--surface2); border-radius: 6px; padding: 8px 10px; min-width: 0; }
   .meta-stat b { display: block; font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 15px; font-variant-numeric: tabular-nums; }
@@ -4017,6 +4019,7 @@ onAuthStateChanged(auth, user => {
       </div>
       <div class="edhrec-tabs meta-tabs" id="meta-tabs" role="tablist">
         <button type="button" class="edhrec-tab" role="tab" data-src="arena" aria-selected="true">Arena BO1</button>
+        <button type="button" class="edhrec-tab" role="tab" data-src="tiers" aria-selected="false">Tier list</button>
         <button type="button" class="edhrec-tab" role="tab" data-src="events" aria-selected="false">Events</button>
       </div>
       <div class="meta-summary"><span id="meta-summary"></span><span id="meta-trend-label">Share</span></div>
@@ -8208,6 +8211,9 @@ onAuthStateChanged(auth, user => {
   // browser (META_HISTORY_KEY); anything older than META_HISTORY_DAYS is
   // pruned on every save. The trend is T3D: today vs the newest snapshot that
   // is at least META_TREND_DAYS old (or the oldest one, until then).
+  // Tier list: the same /api/arena-meta response's `tiers` block, which
+  // mirrors Untapped's Standard tier list page (Platinum only, 1000+ matches,
+  // sorted by win rate, tiers A-D).
   const META_EVENTS_TTL   = 6 * 60 * 60 * 1000;
   const META_ARENA_TTL    = 6 * 60 * 60 * 1000;
   const META_PARTIAL_TTL  = 30 * 60 * 1000;
@@ -8222,7 +8228,16 @@ onAuthStateChanged(auth, user => {
   const META_HISTORY_DAYS = 7;
   const META_TREND_DAYS   = 3;
   const META_COLOR_ORDER  = 'WUBRG';
-  const metaState = { src: 'arena', open: -1, rows: { events: null, arena: null }, info: { events: null, arena: null }, loading: {} };
+  const metaState = { src: 'arena', open: -1, rows: { events: null, arena: null, tiers: null }, info: { events: null, arena: null, tiers: null }, loading: {}, aliases: {} };
+
+  // Saved snapshots may key an archetype by its old Untapped name (e.g.
+  // "Glint-Eye Reanimator" before "4-Color Reanimator"); the proxy sends
+  // { newName: oldName } so lookups can fall back to it.
+  function metaLookup(map, name) {
+    if (map[name] != null) return map[name];
+    const old = metaState.aliases[name];
+    return old != null ? map[old] : undefined;
+  }
 
   function metaDayKey(d) {
     // Local calendar day, so "today" matches the user's clock.
@@ -8263,8 +8278,8 @@ onAuthStateChanged(auth, user => {
     metaState.info[src] = Object.assign({}, metaState.info[src], { baseDay: base ? base.day : null, t7d: !!(base && base.t7d) });
     rows.forEach(function(r) {
       if (!base) r.d = null;
-      else if (base.shares[r.name] == null) r.d = 'new';
-      else r.d = Math.round((r.share - base.shares[r.name]) * 10) / 10;
+      else if (metaLookup(base.shares, r.name) == null) r.d = 'new';
+      else r.d = Math.round((r.share - metaLookup(base.shares, r.name)) * 10) / 10;
     });
     return rows;
   }
@@ -8295,7 +8310,7 @@ onAuthStateChanged(auth, user => {
     if (total < META_RECENT_MIN) return null;
     const rows = [];
     Object.keys(now.g).forEach(function(name) {
-      const b = base.g[name] || [0, 0];
+      const b = metaLookup(base.g, name) || [0, 0];
       const games = now.g[name][0] - b[0];
       if (games <= 0) return;
       rows.push({ name: name, colors: now.g[name][2], games: games, wins: now.g[name][1] - b[1], share: games / total * 100 });
@@ -8341,27 +8356,33 @@ onAuthStateChanged(auth, user => {
     }
     document.getElementById('meta-updated').textContent = info.updated || '';
     document.getElementById('meta-summary').textContent = info.summary || '';
+    // Loading state follows the request that fills the tab (tiers come with arena).
+    const loadKey = src === 'tiers' ? 'arena' : src;
     document.getElementById('meta-trend-label').textContent = info.trendLabel ? info.trendLabel
       : info.t7d ? 'Share · T' + META_TREND_DAYS + 'D'
       : info.baseDay ? 'Share · since ' + info.baseDay.slice(5).replace('-', '/') : 'Share';
     document.getElementById('meta-note').textContent = info.note || '';
     document.getElementById('meta-note').hidden = !info.note;
     if (!rows) {
-      listEl.innerHTML = '<span class="digest-loading">' + (metaState.loading[src] ? 'Loading...' : (info.error || 'No data')) + '</span>';
+      listEl.innerHTML = '<span class="digest-loading">' + (metaState.loading[loadKey] ? 'Loading...' : (info.error || 'No data')) + '</span>';
       return;
     }
     const max = rows[0] ? rows[0].share : 1;
     let html = '';
     rows.forEach(function(k, i) {
       const open = metaState.open === i;
+      // Tier rows bring their own label, bar and figures; share rows use share.
+      const rank = k.tier ? '<span class="meta-tier ' + k.tier + '">' + k.tier + '</span>' : (i + 1);
+      const bar = k.bar != null ? k.bar : k.share / max * 100;
       html += '<div class="meta-item">'
         + '<button type="button" class="meta-row" data-i="' + i + '" aria-expanded="' + open + '">'
-        + '<span class="meta-rank">' + (i + 1) + '</span>'
+        + '<span class="meta-rank">' + rank + '</span>'
         + '<span style="min-width:0"><span class="meta-name-line"><span class="meta-pips">' + metaPips(k.colors) + '</span>'
         + '<span class="card-name">' + esc(k.name) + '</span></span>'
-        + '<div class="card-set">' + metaTier(k.share) + (k.count ? ' · ' + esc(k.count) : '') + '</div>'
-        + '<div class="meta-track"><div class="meta-fill" style="width:' + Math.min(100, k.share / max * 100).toFixed(1) + '%"></div></div></span>'
-        + '<span><div class="card-price">' + k.share.toFixed(1) + '%</div>' + metaTrend(k.d) + '</span>'
+        + '<div class="card-set">' + (k.tier ? '' : metaTier(k.share) + (k.count ? ' · ' : '')) + (k.count ? esc(k.count) : '') + '</div>'
+        + '<div class="meta-track"><div class="meta-fill" style="width:' + Math.max(0, Math.min(100, bar)).toFixed(1) + '%"></div></div></span>'
+        + '<span><div class="card-price">' + (k.value != null ? esc(k.value) : k.share.toFixed(1) + '%') + '</div>'
+        + (k.sub != null ? '<div class="card-price-sub">' + esc(k.sub) + '</div>' : metaTrend(k.d)) + '</span>'
         + '</button>';
       if (open) {
         let stats = '';
@@ -8430,10 +8451,44 @@ onAuthStateChanged(auth, user => {
     renderStandardMeta();
   }
 
+  // Tier list tab, from the arena-meta response's `tiers` block.
+  function metaShowTiers(data, stale) {
+    const t = data.tiers;
+    if (!t || !Array.isArray(t.rows) || !t.rows.length) {
+      metaState.rows.tiers = null;
+      metaState.info.tiers = { error: 'Tier list not available yet.' };
+      return;
+    }
+    const best = t.rows[0].winRate, floor = 45;
+    metaState.rows.tiers = t.rows.map(function(a) {
+      // Round half up like Untapped (57.05 -> 57.1; toFixed would give 57.0).
+      const wr = (Math.round(a.winRate * 10) / 10).toFixed(1) + '%';
+      const games = Number(a.games).toLocaleString();
+      return {
+        tier: a.tier, name: a.name, colors: a.colors, share: 0,
+        value: wr, sub: '', count: 'Tier ' + a.tier + ' · ' + games + ' matches',
+        bar: (a.winRate - floor) / (best - floor) * 100,
+        stats: [[wr, 'Win rate'], [games, 'Matches'], ['Tier ' + a.tier, 'Untapped']],
+        keyCards: a.keyCards || [], link: t.url || data.url, linkLabel: 'Tier list on Untapped.gg'
+      };
+    });
+    metaState.info.tiers = {
+      trendLabel: 'Win rate',
+      summary: 'Arena BO1 · ' + (t.ranks || 'Platinum'),
+      updated: 'Untapped.gg · ' + cacheAge(new Date(data.updated).getTime()) + (stale ? ' · stale' : ''),
+      note: 'Mirrors Untapped.gg’s Standard tier list at its default filters: Best-of-One, Platinum games only, this meta'
+        + (data.period ? ' (' + data.period + ')' : '') + ', archetypes with ' + (t.minMatches || 1000).toLocaleString() + '+ matches, sorted by win rate'
+        + (t.totalMatches ? ' (' + Number(t.totalMatches).toLocaleString() + ' Platinum matches in all)' : '')
+        + '. Tiers use Untapped’s rule; it also hides archetypes without published decklists, so a borderline deck can sit one tier off.'
+    };
+  }
+
   async function loadMetaArena() {
     const show = function(entry, stale) {
       const data = entry.data;
       const link = data.url || null;
+      metaState.aliases = data.aliases || {};
+      metaShowTiers(data, stale);
       const seasonShare = {};
       (data.all || data.rows).forEach(function(a) {
         if (Array.isArray(a)) seasonShare[a[0]] = a[2] / data.totalGames * 100;
@@ -8493,11 +8548,12 @@ onAuthStateChanged(auth, user => {
       metaState.info.arena.updated = 'Untapped.gg · ' + cacheAge(new Date(data.updated).getTime()) + (stale ? ' · stale' : '');
       renderStandardMeta();
     };
-    // v3 key: v2 entries mixed all ranks; v3 is Platinum and above.
-    const fresh = cacheGet('standard-meta-arena3', META_ARENA_TTL);
+    // v3 key: v2 entries mixed all ranks; v3 is Platinum and above; v4
+    // adds the tier list and Untapped's display names.
+    const fresh = cacheGet('standard-meta-arena4', META_ARENA_TTL);
     if (fresh) return show(fresh, false);
     if (metaState.loading.arena) return;
-    const stale = cacheGetStale('standard-meta-arena3');
+    const stale = cacheGetStale('standard-meta-arena4');
     if (stale) show(stale, true);
     metaState.loading.arena = true;
     if (!stale) renderStandardMeta();
@@ -8506,10 +8562,10 @@ onAuthStateChanged(auth, user => {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const data = await r.json();
       if (!data.rows || !data.rows.length) throw new Error('empty');
-      cacheSet('standard-meta-arena3', data);
+      cacheSet('standard-meta-arena4', data);
       show({ data: data }, false);
     } catch(e) {
-      if (!stale) metaState.info.arena = { error: 'Couldn’t load Arena data. Try again later.' };
+      if (!stale) metaState.info.arena = metaState.info.tiers = { error: 'Couldn’t load Arena data. Try again later.' };
     }
     metaState.loading.arena = false;
     renderStandardMeta();
